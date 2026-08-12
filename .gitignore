@@ -1,0 +1,32 @@
+# Local source media and scratch work
+tmp/
+
+# Generated artifacts
+output/
+coverage/
+dist/
+build/
+.cache/
+.turbo/
+
+# Dependencies
+node_modules/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
