@@ -32,7 +32,7 @@ export const actorExperiences = {
     rows: [
       ['Căn hộ The Metropole', '12,8 tỷ', '70% tham khảo', 'Consent hợp lệ', 'Đủ dữ liệu nền'],
       ['Căn hộ Midtown', '15,7 tỷ', '65% tham khảo', 'Consent hợp lệ', 'Chờ cập nhật giá'],
-      ['Nhà phố Nhà Bè', '13,9 tỷ', '—', 'Sắp hết hạn', 'Chưa đủ xác minh'],
+      ['Nhà phố Nhà Bè', '13,9 tỷ', 'Chưa có', 'Sắp hết hạn', 'Chưa đủ xác minh'],
       ['Căn hộ City Garden', '23,6 tỷ', '60% tham khảo', 'Consent hợp lệ', 'Cần purpose review'],
     ],
     note: 'Không hiển thị owner identity, private remarks hoặc hồ sơ tài chính khi purpose/consent không phù hợp.',
@@ -86,7 +86,7 @@ const hanoiActorExperiences = {
   bank: {
     ...actorExperiences.bank,
     metrics: [['Hồ sơ có consent', '24', '6 consent hết hạn trong 14 ngày'], ['Property đã đối chiếu', '20', '83,3% tập hồ sơ'], ['Khoảng vay tham khảo', '58,4 tỷ', 'Không phải cam kết tín dụng'], ['Cần bổ sung', '4', 'Nguồn giá hoặc mục đích truy cập']],
-    rows: [['Vinhomes Metropolis · 2 PN', '13,2 tỷ', '70% tham khảo', 'Consent hợp lệ', 'Đủ dữ liệu nền'], ['Times City Park Hill · 3 PN', '9,8 tỷ', '70% tham khảo', 'Consent hợp lệ', 'Đã cập nhật giá'], ['Liền kề An Hưng', '22,9 tỷ', '—', 'Sắp hết hạn', 'Chưa đủ xác minh'], ['Masteri Waterfront · 2 PN', '6,1 tỷ', '75% tham khảo', 'Consent hợp lệ', 'Developer source']],
+    rows: [['Vinhomes Metropolis · 2 PN', '13,2 tỷ', '70% tham khảo', 'Consent hợp lệ', 'Đủ dữ liệu nền'], ['Times City Park Hill · 3 PN', '9,8 tỷ', '70% tham khảo', 'Consent hợp lệ', 'Đã cập nhật giá'], ['Liền kề An Hưng', '22,9 tỷ', 'Chưa có', 'Sắp hết hạn', 'Chưa đủ xác minh'], ['Masteri Waterfront · 2 PN', '6,1 tỷ', '75% tham khảo', 'Consent hợp lệ', 'Developer source']],
   },
   regulator: {
     ...actorExperiences.regulator,

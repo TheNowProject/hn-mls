@@ -70,7 +70,7 @@ export const hanoiProperties = [
     history: [{ listingId: 'HN-LST-2026-10109', type: 'Cho thuê', status: 'Active', price: '118 triệu/tháng', period: '17/07/2026 đến nay' }, { listingId: 'HN-LST-2023-07909', type: 'Cho thuê', status: 'Closed', price: '102 triệu/tháng', period: '08/2023 - 06/2026' }], audit: audit('HN-PROP-100109', 'Đinh Quốc Việt'),
   },
   {
-    id: 'HN-PROP-100110', parcelId: 'HN-ĐA-110-44', market: 'hanoi', title: 'Đất ở ven trục Nhật Tân – Nội Bài',
+    id: 'HN-PROP-100110', parcelId: 'HN-ĐA-110-44', market: 'hanoi', title: 'Đất ở ven trục Nhật Tân - Nội Bài',
     address: 'Xã Vĩnh Ngọc, huyện Đông Anh, Hà Nội', project: null, unit: null, type: 'Đất ở', area: 186.3, bedrooms: 0, bathrooms: 0, orientation: 'Tây Bắc', verification: 'Đang xác minh', confidence: 'Trung bình', qualityScore: 73,
     source: 'Source record địa chính mô phỏng', sourceUpdatedAt: '07/08/2026', image: 'https://picsum.photos/seed/housenow-hanoi-donganh-land/1200/800', currentListing: null,
     history: [{ listingId: 'HN-LST-2021-06110', type: 'Chào bán', status: 'Expired', price: '10,8 tỷ', period: '05/2021 - 11/2021' }], audit: audit('HN-PROP-100110', 'Source ingest'),
