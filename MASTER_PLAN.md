@@ -1,9 +1,9 @@
 # Housenow MLS — Master Plan
 
-> Phiên bản: 0.1  
-> Trạng thái: Phase 6 core vertical slice operational  
-> Phạm vi: Phase 0 đến Phase 6  
-> Sản phẩm tham chiếu: MLS Matrix tại Mỹ  
+> Phiên bản: 0.1
+> Trạng thái: Phase 6 exploration-ready local prototype
+> Phạm vi: Phase 0 đến Phase 6
+> Sản phẩm tham chiếu: MLS Matrix tại Mỹ
 > Mục tiêu: Xây dựng nền tảng dữ liệu và vận hành thị trường bất động sản đa bên phù hợp với Việt Nam.
 
 ## Progress snapshot - 2026-08-13
@@ -13,10 +13,10 @@
 | Phase 0 - Product alignment | Documentation baseline complete; stakeholder approval pending | [`docs/product/product-alignment.md`](./docs/product/product-alignment.md), assumption/open-question/decision logs |
 | Phase 1 - Repo and domain discovery | Complete for supplied research snapshot; no implementation repo was present | [`docs/research/phase-1-discovery.md`](./docs/research/phase-1-discovery.md), [`docs/research/reference-discovery.md`](./docs/research/reference-discovery.md) |
 | Phase 2 - Product and business specification | Draft baseline complete; product/legal/domain approval pending | Product requirements, permissions, data dictionary, business rules, acceptance criteria, traceability |
-| Phase 3 - UX concept and clickable prototype | Core workflow implemented; extended screens remain | React application under `src/` |
+| Phase 3 - UX concept and clickable prototype | Six actor perspectives and exploration workspaces implemented | React application under `src/` |
 | Phase 4 - Scope lock | Vertical-slice working baseline frozen; human sign-off pending | [`docs/product/phase-4-scope-lock.md`](./docs/product/phase-4-scope-lock.md) |
 | Phase 5 - Technical foundation | Operational for the local vertical slice | Node HTTP API, SQLite, role scope and audit trail under `server/` |
-| Phase 6 - MVP execution | Core vertical slice operational; broader epics and production hardening remain | End-to-end create, validate, review, activate, pend, close and audit workflow |
+| Phase 6 - MVP execution | Core vertical slice and exploration layer operational; broader epics and production hardening remain | End-to-end lifecycle plus Property 360, Contacts, CMA, Quality, Organization and actor-specific workspaces |
 
 The supplied `TheNowProject/mls` ZIP is a research and domain-discovery repository, not an implementation repository. Texas-specific observations remain evidence inputs and are not promoted to Vietnam requirements without an explicit decision.
 

@@ -12,4 +12,4 @@
 | RT-08 | Bank | View finance context | BR-CONSENT-01, BR-PERM-01 | Finance panel, consented lead API | AC-05, AC-10 | Purpose mismatch, expired/revoked consent |
 | RT-09 | Regulator | Inspect aggregate/authorized detail | BR-AGG-01, BR-PERM-01, BR-AUDIT-01 | Quality dashboard, audit search | AC-05, AC-11 | Jurisdiction boundary, override reason, masking |
 | RT-10 | System/Integration | Synchronize changes | BR-INT-01, BR-INT-02, BR-LIFE-03 | Import/feed/reconciliation APIs | AC-08, AC-12 | Retry, duplicate, gap, replay, stale index |
-| RT-11 | Agent | Produce CMA later | BR-CMA-01, BR-CMA-02 | CMA workflow/report | Future acceptance expansion | Human selection, version immutability, purpose label |
+| RT-11 | Agent | Produce an explainable CMA draft | BR-CMA-01, BR-CMA-02 | CMA subject/candidate workflow and local draft report | Prototype exploration; durable report acceptance remains future scope | Human include/exclude, rationale, indicative range, no automatic publish |

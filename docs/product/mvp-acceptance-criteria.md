@@ -115,4 +115,4 @@ When duplicate candidates are reviewed:
 
 ## Prototype acceptance subset
 
-The clickable prototype must demonstrate AC-01, the visible portion of AC-02 through AC-06, and role-specific denied/masked states. It must clearly label simulated frontend permissions and synthetic data.
+The local prototype must demonstrate AC-01, the visible portion of AC-02 through AC-06, role-specific denied/masked states, and complete exploration paths for Contacts, CMA, Quality and actor workspaces. It must clearly label demo identities, session-local actions and synthetic data; backend projections remain the authority for Property Intelligence fields.

@@ -28,6 +28,19 @@ The reference material defines six primary product actors. Data Steward is retai
 - Backend field projection, not client-only hiding.
 - Two data spaces, TP. Hồ Chí Minh and Hà Nội, with market-scoped search, Listing counts, issue queues, hot sheets and actor workspaces.
 
+## Exploration flows delivered
+
+- Search supports governed property-type chips, advanced verification/status/quality filters, sorting and an interactive map view.
+- Property 360 can open a data issue report, buyer showing request, Listing composer, lifecycle transition or CMA workspace without placeholder-only stops.
+- Contacts supports client creation, needs/budget context, shortlist summary, notes and showing confirmation.
+- CMA supports subject selection, comparable include/exclude, analyst rationale and a saved draft with an indicative range.
+- Quality Queue supports filtering, assignment, resolution evidence and visible removal of resolved items during the session.
+- Organization supports member filtering, entitlement review and scoped invitations.
+- Developer, Bank, Regulator and Buyer workspaces open role-specific record context and save a next step.
+- App Hub routes to MLS Core, CMA Studio, Showing Desk and Distribution Monitor.
+
+Core Listing mutations use the HTTP API and SQLite. Secondary exploration actions intentionally use in-memory session state until their domain policy and persistence contracts are approved.
+
 ## Governance boundaries
 
 - The finance view is not a lending commitment or valuation.

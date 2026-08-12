@@ -9,12 +9,12 @@ Date: 2026-08-13
 | 0 — Product alignment | Draft baseline complete; stakeholder approval pending | Product alignment, assumptions, open questions and decision log |
 | 1 — Discovery | Complete for the supplied research repository | Discovery reports and read-only `reference/mls/` snapshot |
 | 2 — Product/domain specification | Draft baseline complete; product, legal and domain approval pending | Requirements, permissions, lifecycle, rules, acceptance criteria and traceability |
-| 3 — UX prototype | Six primary actor perspectives implemented; extended transaction screens remain | React application under `src/` and [`product/phase-6-1-actor-perspectives.md`](./product/phase-6-1-actor-perspectives.md) |
+| 3 — UX prototype | Exploration-ready for six primary actors; core navigation has no placeholder-only modules | React application under `src/` and [`product/phase-6-1-actor-perspectives.md`](./product/phase-6-1-actor-perspectives.md) |
 | 4 — Scope lock | Vertical-slice working baseline frozen; human sign-off pending | [`product/phase-4-scope-lock.md`](./product/phase-4-scope-lock.md) |
 | 5 — Technical foundation | Operational for the local vertical slice | HTTP API, SQLite persistence, role scope, audit events and ADR |
-| 6 — MVP execution | Core vertical slice and Property Intelligence extension operational; broader MVP epics remain | Lifecycle workflow, actor projections, price/closing/source history and CMA candidates |
+| 6 — MVP execution | Core vertical slice, Property Intelligence and exploration workspaces operational; broader MVP epics remain | Lifecycle workflow, actor projections, price/closing/source history, Contacts, CMA, Quality, Organization and App Hub |
 
-This status does not claim pilot readiness. Demo authentication, production integrations, operational hardening and the unresolved approval gates below remain open.
+This status means the local build is suitable for structured product exploration with the team and founder. It does not claim pilot readiness: demo authentication, production integrations, persistence for secondary exploration flows, operational hardening and the unresolved approval gates below remain open.
 
 ## Deliverable index
 

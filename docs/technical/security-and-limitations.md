@@ -11,6 +11,7 @@ Date: 2026-08-13
 - Listing validation is enforced by the domain layer, not only by the browser.
 - Status changes and listing creation append audit events inside the same SQLite transaction.
 - Request bodies are size-limited and API errors have stable codes.
+- Actor-specific Property Intelligence is projected by the backend rather than hidden only in the client.
 
 ## Deliberate local-development shortcuts
 
@@ -21,6 +22,8 @@ Date: 2026-08-13
 - Rate limiting, abuse detection, encryption key management and centralized observability are not implemented.
 - Legal retention, consent, representation verification and dispute workflows still require owner decisions.
 - Cadastral, banking, developer and distribution integrations are not connected.
+- Contacts, showing requests, CMA drafts, invitations, actor next steps and prototype issue resolution are session-local UI state; they are not durable records yet.
+- Interactive map positions are synthetic visual coordinates and must not be interpreted as cadastral or precise geospatial data.
 
 ## Pilot gate
 

@@ -43,6 +43,15 @@ import {
 import { activityFeedsByMarket, properties as initialProperties, qualityIssues, roles } from './data/mockData.js'
 import { actorExperiencesByMarket } from './data/actorViews.js'
 import { mlsApi } from './lib/apiClient.js'
+import {
+  ActorTable as ExplorationActorTable,
+  ActorWorkspace as ExplorationActorWorkspace,
+  AppsWorkspace,
+  CmaWorkspace,
+  ContactsWorkspace,
+  FlowDialog,
+  OrganizationWorkspace,
+} from './components/ExplorationWorkspaces.jsx'
 
 const navItems = {
   overview: { id: 'overview', label: 'Tổng quan', icon: SquaresFour },
@@ -138,6 +147,14 @@ function App() {
   const [toast, setToast] = useState('')
   const [connectionState, setConnectionState] = useState('loading')
   const [connectionError, setConnectionError] = useState('')
+  const [flow, setFlow] = useState(null)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Listing cần bổ sung nguồn', meta: 'HN-LST-2026-00904 · 8 phút trước', page: 'listings', read: false },
+    { id: 2, title: 'Lịch xem đã được xác nhận', meta: 'The Metropole · 17:30 hôm nay', page: 'contacts', read: false },
+    { id: 3, title: 'Có 3 comparable mới', meta: 'CMA Thủ Thiêm · 26 phút trước', page: 'analytics', read: false },
+    { id: 4, title: 'Quality issue gần SLA', meta: 'DQ-2031 · còn 2 giờ', page: 'quality', read: false },
+  ])
 
   const role = roles.find((item) => item.id === roleId)
   const market = marketId === 'hanoi' ? { id: 'hanoi', label: 'Hà Nội', shortLabel: 'HN' } : { id: 'hcm', label: 'TP. Hồ Chí Minh', shortLabel: 'SG' }
@@ -202,6 +219,8 @@ function App() {
     setSelectedDetail(null)
     setComposerOpen(false)
     setTransitionTarget(null)
+    setFlow(null)
+    setNotificationsOpen(false)
     setRoleId(nextRole)
   }
 
@@ -213,6 +232,7 @@ function App() {
     setSelectedDetail(null)
     setMobileDetailOpen(false)
     setConnectionState('loading')
+    setFlow(null)
   }
 
   const navigate = (nextPage) => {
@@ -236,6 +256,36 @@ function App() {
   const notify = (message) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 2600)
+  }
+
+  const openFlow = (nextFlow) => setFlow(() => nextFlow)
+
+  const completeFlow = (completedFlow, form) => {
+    completedFlow.onComplete?.(form)
+    if (completedFlow.type === 'issue' && form.decision === 'Đã xử lý') {
+      setIssues((current) => current.filter((issue) => issue.code !== completedFlow.issue.code))
+    }
+    setFlow(null)
+    notify(completedFlow.success)
+  }
+
+  const openNotification = (notification) => {
+    setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item))
+    setNotificationsOpen(false)
+    navigate(notification.page)
+  }
+
+  const startListingCreation = () => {
+    const candidate = scopedListings.find((property) => !property.currentListing)
+    setPage('discover')
+    if (!candidate) {
+      notify('Không còn Property trống trong không gian dữ liệu này. Mở một Listing hiện hữu để tiếp tục quản lý vòng đời.')
+      return
+    }
+    setSelectedId(candidate.id)
+    setSelectedDetail(null)
+    setMobileDetailOpen(true)
+    setComposerOpen(true)
   }
 
   const createListing = async (listingInput) => {
@@ -296,7 +346,7 @@ function App() {
           <div className="profile-block">
             <div className="avatar">{role.shortLabel}</div>
             <div><strong>{role.name}</strong><span>{role.organization}</span></div>
-            <Tooltip content="Đăng xuất prototype" relationship="label"><button aria-label="Đăng xuất"><SignOut /></button></Tooltip>
+            <Tooltip content="Đặt lại phiên khám phá" relationship="label"><button aria-label="Đặt lại phiên khám phá" onClick={() => { switchRole('agent'); notify('Đã đặt lại phiên về góc nhìn Môi giới.') }}><SignOut /></button></Tooltip>
           </div>
         </aside>
 
@@ -308,45 +358,49 @@ function App() {
               <kbd>⌘ K</kbd>
             </form>
             <div className="global-actions">
-              <Tooltip content="Thông báo" relationship="label"><button className="icon-button" aria-label="Thông báo"><Bell /><span className="notification-count">4</span></button></Tooltip>
+              <div className="notification-anchor"><Tooltip content="Thông báo" relationship="label"><button className="icon-button" aria-label="Thông báo" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((current) => !current)}><Bell />{notifications.some((item) => !item.read) && <span className="notification-count">{notifications.filter((item) => !item.read).length}</span>}</button></Tooltip>{notificationsOpen && <div className="notification-panel"><header><div><strong>Thông báo</strong><span>{notifications.filter((item) => !item.read).length} chưa đọc</span></div><button onClick={() => setNotifications((current) => current.map((item) => ({ ...item, read: true })))}>Đánh dấu đã đọc</button></header>{notifications.map((item) => <button key={item.id} className={item.read ? 'notification-item read' : 'notification-item'} onClick={() => openNotification(item)}><span className="notification-dot" /><span><strong>{item.title}</strong><small>{item.meta}</small></span><ArrowRight /></button>)}</div>}</div>
               <div className="role-switcher">
                 <span className="role-monogram">{role.shortLabel}</span>
                 <label><small>Góc nhìn</small><select value={roleId} onChange={(event) => switchRole(event.target.value)} aria-label="Góc nhìn người dùng">{roles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
                 <CaretDown />
               </div>
-              {['agent', 'broker', 'steward'].includes(roleId) && <Button appearance="primary" icon={<Plus />} onClick={() => { setPage('discover'); setComposerOpen(true) }}>Tạo Listing</Button>}
+              {['agent', 'broker', 'steward'].includes(roleId) && <Button appearance="primary" icon={<Plus />} onClick={startListingCreation}>Tạo Listing</Button>}
             </div>
           </header>
 
           <main className="workspace">
             <header className="page-header">
               <div><span className="mobile-brand">HouseNow MLS</span><h1>{title}</h1><p>{subtitle}</p></div>
-              <div className="prototype-label"><ShieldCheck weight="fill" /><span><strong>Prototype có kiểm soát</strong>Dữ liệu mô phỏng, chưa kết nối nguồn thật</span></div>
+              <div className="prototype-label"><ShieldCheck weight="fill" /><span><strong>Môi trường khám phá</strong>Dữ liệu mô phỏng · thao tác được giữ trong phiên</span></div>
             </header>
 
             {connectionState === 'loading' && <div className="connection-banner connection-loading"><SpinnerGap className="spinner" /><span>Đang mở workspace và kiểm tra quyền truy cập...</span></div>}
             {connectionState === 'offline' && <div className="connection-banner connection-error"><Warning weight="fill" /><span><strong>Đang dùng dữ liệu dự phòng.</strong>{connectionError}. Hãy chạy `npm run dev:full` để bật persistence và backend authorization.</span></div>}
 
             {page === 'overview' && (actorExperiencesByMarket[marketId][roleId]
-              ? <ActorOverview role={role} experience={actorExperiencesByMarket[marketId][roleId]} onNavigate={navigate} notify={notify} />
-              : <Dashboard roleId={roleId} role={role} listings={scopedListings} activityItems={activityFeedsByMarket[marketId]} marketLabel={market.label} onNavigate={navigate} onSearch={performSearch} setQuery={setQuery} notify={notify} />)}
-            {page === 'discover' && <Discovery query={query} setQuery={setQuery} type={type} setType={setType} propertyTypes={propertyTypes} filtered={filtered} selected={selected} selectedId={selectedId} isSearching={isSearching} onSearch={performSearch} onSelect={selectProperty} roleId={roleId} mobileDetailOpen={mobileDetailOpen} onCloseDetail={() => setMobileDetailOpen(false)} onCreate={() => setComposerOpen(true)} onTransition={setTransitionTarget} notify={notify} />}
-            {page === 'listings' && <ListingsWorkspace listings={scopedListings} roleId={roleId} onSelect={(id) => { setSelectedId(id); navigate('discover') }} notify={notify} />}
-            {page === 'quality' && <QualityQueue roleId={roleId} issues={scopedIssues} notify={notify} />}
-            {['projects', 'finance', 'oversight', 'shortlist'].includes(page) && <ActorWorkspace experience={actorExperiencesByMarket[marketId][roleId]} notify={notify} />}
-            {['contacts', 'analytics', 'organization', 'apps'].includes(page) && <ModulePlaceholder page={page} notify={notify} />}
+              ? <ActorOverview role={role} experience={actorExperiencesByMarket[marketId][roleId]} onNavigate={navigate} onOpenFlow={openFlow} />
+              : <Dashboard roleId={roleId} role={role} listings={scopedListings} activityItems={activityFeedsByMarket[marketId]} marketLabel={market.label} onNavigate={navigate} onSearch={performSearch} setQuery={setQuery} onSelect={selectProperty} onOpenFlow={openFlow} />)}
+            {page === 'discover' && <Discovery query={query} setQuery={setQuery} type={type} setType={setType} propertyTypes={propertyTypes} filtered={filtered} selected={selected} selectedId={selectedId} isSearching={isSearching} onSearch={performSearch} onSelect={selectProperty} roleId={roleId} mobileDetailOpen={mobileDetailOpen} onCloseDetail={() => setMobileDetailOpen(false)} onCreate={() => setComposerOpen(true)} onTransition={setTransitionTarget} onOpenFlow={openFlow} onOpenCma={() => navigate('analytics')} />}
+            {page === 'listings' && <ListingsWorkspace listings={scopedListings} roleId={roleId} onSelect={(id) => { setSelectedId(id); navigate('discover') }} onCreate={startListingCreation} onReview={() => navigate('quality')} />}
+            {page === 'quality' && <QualityQueue roleId={roleId} issues={scopedIssues} onOpenFlow={openFlow} />}
+            {['projects', 'finance', 'oversight', 'shortlist'].includes(page) && <ExplorationActorWorkspace experience={actorExperiencesByMarket[marketId][roleId]} roleId={roleId} onOpenFlow={openFlow} />}
+            {page === 'contacts' && <ContactsWorkspace key={marketId} marketId={marketId} onOpenFlow={openFlow} />}
+            {page === 'analytics' && <CmaWorkspace listings={scopedListings} onSelectProperty={(id) => { setSelectedId(id); navigate('discover') }} />}
+            {page === 'organization' && <OrganizationWorkspace onOpenFlow={openFlow} />}
+            {page === 'apps' && <AppsWorkspace onNavigate={navigate} onOpenFlow={openFlow} />}
           </main>
         </div>
 
         {isComposerOpen && selected && <ListingComposer property={selected} onClose={() => setComposerOpen(false)} onSubmit={createListing} />}
         {transitionTarget && <StatusTransitionDialog property={transitionTarget} onClose={() => setTransitionTarget(null)} onSubmit={transitionListing} />}
+        {flow && <FlowDialog flow={flow} onClose={() => setFlow(null)} onComplete={completeFlow} />}
         {toast && <div className="toast" role="status"><CheckCircle weight="fill" />{toast}</div>}
       </div>
     </FluentProvider>
   )
 }
 
-function ActorOverview({ role, experience, onNavigate, notify }) {
+function ActorOverview({ role, experience, onNavigate, onOpenFlow }) {
   const primaryPage = { developer: 'projects', bank: 'finance', regulator: 'oversight', buyer: 'shortlist' }[role.id]
   return <div className="actor-overview">
     <section className="actor-hero">
@@ -354,21 +408,12 @@ function ActorOverview({ role, experience, onNavigate, notify }) {
       <div className="actor-context"><ShieldCheck weight="fill" /><span><strong>{role.label}</strong>{role.layer} · {role.organization}</span></div>
     </section>
     <section className="actor-metrics" aria-label={`Chỉ số cho ${role.label}`}>{experience.metrics.map(([label, value, note]) => <article key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>)}</section>
-    <section className="work-panel actor-queue"><div className="panel-heading"><div><h2>{experience.queueTitle}</h2><p>Dữ liệu và hành động được chiếu theo phạm vi actor hiện tại.</p></div><button onClick={() => onNavigate(primaryPage)}>Mở workspace</button></div><ActorTable rows={experience.rows} notify={notify} /></section>
+    <section className="work-panel actor-queue"><div className="panel-heading"><div><h2>{experience.queueTitle}</h2><p>Dữ liệu và hành động được chiếu theo phạm vi actor hiện tại.</p></div><button onClick={() => onNavigate(primaryPage)}>Mở workspace</button></div><ExplorationActorTable rows={experience.rows} roleId={role.id} onOpenFlow={onOpenFlow} /></section>
     <div className="governance-note"><LockKey weight="fill" /><span><strong>Giới hạn dữ liệu theo purpose</strong>{experience.note}</span></div>
   </div>
 }
 
-function ActorWorkspace({ experience, notify }) {
-  if (!experience) return <PermissionState />
-  return <section className="work-panel actor-workspace"><div className="panel-heading"><div><span className="section-kicker">{experience.kicker}</span><h2>{experience.queueTitle}</h2><p>{experience.description}</p></div><Button appearance="secondary" icon={<Funnel />} onClick={() => notify('Bộ lọc theo actor đang ở trạng thái prototype.')}>Lọc dữ liệu</Button></div><ActorTable rows={experience.rows} notify={notify} /><div className="governance-note"><ShieldCheck weight="fill" /><span><strong>Governance guardrail</strong>{experience.note}</span></div></section>
-}
-
-function ActorTable({ rows, notify }) {
-  return <div className="actor-table"><div className="actor-table-head"><span>Đối tượng</span><span>Giá trị / trạng thái</span><span>Xác minh</span><span>Tín hiệu</span><span>Hành động</span><span /></div>{rows.map((row) => <button key={row.join('-')} onClick={() => notify(`Đã mở ngữ cảnh: ${row[0]}`)}>{row.map((cell) => <span key={cell}>{cell}</span>)}<ArrowRight /></button>)}</div>
-}
-
-function Dashboard({ roleId, role, listings, activityItems, marketLabel, onNavigate, onSearch, setQuery, notify }) {
+function Dashboard({ roleId, role, listings, activityItems, marketLabel, onNavigate, onSearch, setQuery, onSelect, onOpenFlow }) {
   const activeCount = listings.filter((item) => item.currentListing?.status === 'Active').length
   const incomingCount = listings.filter((item) => item.currentListing?.status === 'Incoming').length
   const brokerView = roleId === 'broker' || roleId === 'steward'
@@ -411,9 +456,9 @@ function Dashboard({ roleId, role, listings, activityItems, marketLabel, onNavig
       </section>
 
       <section className="work-panel task-panel">
-        <div className="panel-heading"><div><h2>Việc cần xử lý</h2><p>Sắp xếp theo tác động và SLA.</p></div><button onClick={() => notify('Đã mở danh sách công việc đầy đủ.')}>Xem tất cả</button></div>
+        <div className="panel-heading"><div><h2>Việc cần xử lý</h2><p>Sắp xếp theo tác động và SLA.</p></div><button onClick={() => onNavigate(brokerView ? 'quality' : 'listings')}>Xem tất cả</button></div>
         <div className="task-list">
-          {tasks.map((task) => { const Icon = task.icon; return <button key={task.title} onClick={() => task.meta.includes('HN-') ? onNavigate('listings') : notify(`Đã mở: ${task.title}`)}><span className="task-icon"><Icon /></span><span><strong>{task.title}</strong><small>{task.meta}</small></span><em>{task.priority}</em><ArrowRight /></button> })}
+          {tasks.map((task) => { const Icon = task.icon; return <button key={task.title} onClick={() => onOpenFlow({ type: 'record', title: task.title, eyebrow: 'Công việc ưu tiên', data: [task.meta, task.priority, role.label, marketLabel, 'Cập nhật next step'], success: 'Đã cập nhật công việc và ghi nhận next step.' })}><span className="task-icon"><Icon /></span><span><strong>{task.title}</strong><small>{task.meta}</small></span><em>{task.priority}</em><ArrowRight /></button> })}
         </div>
       </section>
 
@@ -424,43 +469,59 @@ function Dashboard({ roleId, role, listings, activityItems, marketLabel, onNavig
 
       <section className="work-panel hot-panel">
         <div className="panel-heading"><div><h2>Hot sheets</h2><p>Biến động mới nhất từ listing lifecycle.</p></div><button onClick={() => onNavigate('discover')}>Xem dữ liệu</button></div>
-        <div className="hot-grid">{activityItems.map((event) => <button key={event.id} onClick={() => notify(`Đã lọc: ${event.label}, ${event.area}`)}><span>{event.label}</span><strong>{event.count}</strong><small>{event.area}</small><em>{event.change}</em></button>)}</div>
+        <div className="hot-grid">{activityItems.map((event) => <button key={event.id} onClick={() => { setQuery(event.area.includes('Toàn') ? '' : event.area); onSearch() }}><span>{event.label}</span><strong>{event.count}</strong><small>{event.area}</small><em>{event.change}</em></button>)}</div>
       </section>
 
       <section className="work-panel recent-panel">
         <div className="panel-heading"><div><h2>Listing gần đây</h2><p>Property và Listing được trình bày tách biệt.</p></div><button onClick={() => onNavigate('discover')}>Mở discovery</button></div>
         <div className="compact-table">
           <div className="compact-table-head"><span>Property</span><span>Listing</span><span>Trạng thái</span><span>Giá chào</span><span>Cập nhật</span></div>
-          {listings.slice(0, 6).map((property) => <button className="compact-table-row" key={property.id} onClick={() => onNavigate('discover')}><span><img src={property.image} alt="" /><span><strong>{property.title}</strong><small>{property.id}</small></span></span><code>{property.currentListing?.id ?? 'Chưa có'}</code><span>{property.currentListing ? <StatusBadge status={property.currentListing.status} /> : <span className="status-badge status-neutral">Không có</span>}</span><strong>{property.currentListing?.priceLabel ?? 'Chưa thiết lập'}</strong><small>{property.sourceUpdatedAt}</small></button>)}
+          {listings.slice(0, 6).map((property) => <button className="compact-table-row" key={property.id} onClick={() => { onSelect(property.id); onNavigate('discover') }}><span><img src={property.image} alt="" /><span><strong>{property.title}</strong><small>{property.id}</small></span></span><code>{property.currentListing?.id ?? 'Chưa có'}</code><span>{property.currentListing ? <StatusBadge status={property.currentListing.status} /> : <span className="status-badge status-neutral">Không có</span>}</span><strong>{property.currentListing?.priceLabel ?? 'Chưa thiết lập'}</strong><small>{property.sourceUpdatedAt}</small></button>)}
         </div>
       </section>
     </div>
   )
 }
 
-function Discovery({ query, setQuery, type, setType, propertyTypes, filtered, selected, selectedId, isSearching, onSearch, onSelect, roleId, mobileDetailOpen, onCloseDetail, onCreate, onTransition, notify }) {
+function Discovery({ query, setQuery, type, setType, propertyTypes, filtered, selected, selectedId, isSearching, onSearch, onSelect, roleId, mobileDetailOpen, onCloseDetail, onCreate, onTransition, onOpenFlow, onOpenCma }) {
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [verification, setVerification] = useState('Tất cả')
+  const [listingStatus, setListingStatus] = useState('Tất cả')
+  const [minQuality, setMinQuality] = useState(0)
+  const [sort, setSort] = useState('match')
+  const [view, setView] = useState('list')
+  const displayed = useMemo(() => {
+    const rows = filtered.filter((property) => (verification === 'Tất cả' || property.verification === verification) && (listingStatus === 'Tất cả' || (listingStatus === 'Chưa có Listing' ? !property.currentListing : property.currentListing?.status === listingStatus)) && property.qualityScore >= Number(minQuality))
+    return [...rows].sort((a, b) => sort === 'quality' ? b.qualityScore - a.qualityScore : sort === 'price-low' ? (a.currentListing?.price ?? Number.MAX_SAFE_INTEGER) - (b.currentListing?.price ?? Number.MAX_SAFE_INTEGER) : sort === 'updated' ? b.sourceUpdatedAt.localeCompare(a.sourceUpdatedAt) : (a.id === selectedId ? -1 : b.id === selectedId ? 1 : 0))
+  }, [filtered, verification, listingStatus, minQuality, sort, selectedId])
+  const clearAdvanced = () => { setVerification('Tất cả'); setListingStatus('Tất cả'); setMinQuality(0) }
   return (
     <div className="discovery-layout">
       <section className="search-toolbar">
         <form onSubmit={onSearch}><MagnifyingGlass /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Tìm Property" placeholder="Địa chỉ, Property ID, Parcel ID, Listing ID hoặc dự án" />{query && <button type="button" className="clear-button" onClick={() => setQuery('')} aria-label="Xóa tìm kiếm"><X /></button>}<Button appearance="primary" type="submit">Tìm kiếm</Button></form>
-        <div className="filter-row"><SlidersHorizontal />{propertyTypes.map((item) => <button key={item} className={type === item ? 'filter-chip filter-chip-active' : 'filter-chip'} onClick={() => setType(item)}>{item}</button>)}<button className="filter-chip" onClick={() => notify('Bộ lọc nâng cao đang ở trạng thái prototype.')}><Funnel /> Bộ lọc nâng cao</button><span className="view-switch"><button className="view-active" aria-label="Xem dạng danh sách"><ListBullets /></button><button aria-label="Xem dạng bản đồ" onClick={() => notify('Map split view sẽ dùng cùng tập filter hiện tại.')}><MapPin /></button></span></div>
+        <div className="filter-row"><SlidersHorizontal />{propertyTypes.map((item) => <button key={item} className={type === item ? 'filter-chip filter-chip-active' : 'filter-chip'} onClick={() => setType(item)}>{item}</button>)}<button className={advancedOpen || verification !== 'Tất cả' || listingStatus !== 'Tất cả' || minQuality > 0 ? 'filter-chip filter-chip-active' : 'filter-chip'} onClick={() => setAdvancedOpen((current) => !current)}><Funnel /> Bộ lọc nâng cao</button><span className="view-switch"><button className={view === 'list' ? 'view-active' : ''} aria-label="Xem dạng danh sách" onClick={() => setView('list')}><ListBullets /></button><button className={view === 'map' ? 'view-active' : ''} aria-label="Xem dạng bản đồ" onClick={() => setView('map')}><MapPin /></button></span></div>
+        {advancedOpen && <div className="advanced-filter-panel"><label><span>Xác minh</span><select value={verification} onChange={(event) => setVerification(event.target.value)}><option>Tất cả</option><option>Đã xác minh</option><option>Đã đối chiếu</option><option>Đang xác minh</option><option>Cần bổ sung nguồn</option></select></label><label><span>Trạng thái Listing</span><select value={listingStatus} onChange={(event) => setListingStatus(event.target.value)}><option>Tất cả</option><option>Active</option><option>Incoming</option><option>Needs correction</option><option>Closed</option><option>Chưa có Listing</option></select></label><label><span>Quality score tối thiểu</span><select value={minQuality} onChange={(event) => setMinQuality(event.target.value)}><option value="0">Không giới hạn</option><option value="70">70+</option><option value="85">85+</option><option value="95">95+</option></select></label><button onClick={clearAdvanced}>Xóa bộ lọc</button></div>}
       </section>
       <section className="content-grid">
         <div className="results-panel">
-          <div className="section-heading"><div><strong>{isSearching ? 'Đang đối chiếu dữ liệu' : `${filtered.length} Property phù hợp`}</strong><span>Ưu tiên mức độ khớp, nguồn và trạng thái xác minh</span></div><button>Phù hợp nhất <CaretDown /></button></div>
-          {isSearching ? <LoadingState /> : filtered.length === 0 ? <EmptyState onClear={() => { setQuery(''); setType('Tất cả') }} /> : <div className="results-list">{filtered.map((property) => <PropertyRow key={property.id} property={property} selected={selectedId === property.id} onClick={() => onSelect(property.id)} />)}</div>}
+          <div className="section-heading"><div><strong>{isSearching ? 'Đang đối chiếu dữ liệu' : `${displayed.length} Property phù hợp`}</strong><span>{view === 'map' ? 'Chọn pin để mở Property 360' : 'Ưu tiên mức độ khớp, nguồn và trạng thái xác minh'}</span></div><label className="sort-select"><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="match">Phù hợp nhất</option><option value="updated">Mới cập nhật</option><option value="quality">Quality cao nhất</option><option value="price-low">Giá thấp nhất</option></select><CaretDown /></label></div>
+          {isSearching ? <LoadingState /> : displayed.length === 0 ? <EmptyState onClear={() => { setQuery(''); setType('Tất cả'); clearAdvanced() }} /> : view === 'list' ? <div className="results-list">{displayed.map((property) => <PropertyRow key={property.id} property={property} selected={selectedId === property.id} onClick={() => onSelect(property.id)} />)}</div> : <PropertyMap properties={displayed} selectedId={selectedId} onSelect={onSelect} />}
         </div>
-        {selected && <DetailPanel property={selected} roleId={roleId} mobileOpen={mobileDetailOpen} onClose={onCloseDetail} onCreate={onCreate} onTransition={onTransition} notify={notify} />}
+        {selected && <DetailPanel property={selected} roleId={roleId} mobileOpen={mobileDetailOpen} onClose={onCloseDetail} onCreate={onCreate} onTransition={onTransition} onOpenFlow={onOpenFlow} onOpenCma={onOpenCma} />}
       </section>
     </div>
   )
+}
+
+function PropertyMap({ properties, selectedId, onSelect }) {
+  return <div className="property-map"><div className="map-roads"><span /><span /><span /><span /></div>{properties.map((property, index) => <button key={property.id} className={selectedId === property.id ? 'map-pin selected' : 'map-pin'} style={{ left: `${12 + ((index * 23) % 76)}%`, top: `${14 + ((index * 31) % 67)}%` }} onClick={() => onSelect(property.id)} aria-label={`Mở ${property.title}`}><MapPin weight="fill" /><span>{property.currentListing?.priceLabel ?? property.type}</span></button>)}<div className="map-legend"><span><i />{properties.length} Property</span><small>Dữ liệu vị trí mô phỏng theo khu vực</small></div></div>
 }
 
 function PropertyRow({ property, selected, onClick }) {
   return <button className={selected ? 'property-row property-row-selected' : 'property-row'} onClick={onClick}><img src={property.image} alt="" /><span className="property-row-main"><span className="property-row-top"><VerificationBadge value={property.verification} />{property.currentListing ? <StatusBadge status={property.currentListing.status} /> : <span className="status-badge status-neutral">Chưa có Listing</span>}</span><strong>{property.title}</strong><span className="address"><MapPin weight="fill" />{property.address}</span><span className="property-facts"><span>{property.area} m²</span><span>{property.bedrooms} PN</span><span>{property.bathrooms} WC</span><span>{property.type}</span></span></span><span className="property-row-meta"><strong>{property.currentListing?.priceLabel ?? 'Chưa có giá chào'}</strong><small>{property.id}</small><ArrowRight /></span></button>
 }
 
-function DetailPanel({ property, roleId, mobileOpen, onClose, onCreate, onTransition, notify }) {
+function DetailPanel({ property, roleId, mobileOpen, onClose, onCreate, onTransition, onOpenFlow, onOpenCma }) {
   const [tab, setTab] = useState('Tổng quan')
   const transitions = property.allowedTransitions ?? []
   const audience = {
@@ -473,7 +534,7 @@ function DetailPanel({ property, roleId, mobileOpen, onClose, onCreate, onTransi
     steward: ['Steward projection', 'Nguồn, audit và quality evidence đầy đủ'],
   }[roleId]
   const canCreate = ['agent', 'broker', 'steward'].includes(roleId)
-  return <aside className={`detail-panel ${mobileOpen ? 'detail-panel-mobile-open' : ''}`}><div className="detail-mobile-header"><button onClick={onClose}><ArrowLeft /> Quay lại kết quả</button></div><div className="detail-hero"><img src={property.image} alt={`Hình minh họa ${property.title}`} /><div className="detail-overlay"><VerificationBadge value={property.verification} />{property.currentListing && <StatusBadge status={property.currentListing.status} />}</div></div><div className="detail-content"><div className="audience-context"><Eye /><span><strong>{audience[0]}</strong>{audience[1]}</span></div><h2>{property.title}</h2><p className="detail-address"><MapPin weight="fill" />{property.address}</p><div className="identity-strip"><div><span>Property ID</span><strong>{property.id}</strong></div><div><span>Parcel tham chiếu</span><strong>{property.parcelId}</strong></div></div><div className="tabs" role="tablist">{['Tổng quan', 'Giá & lịch sử', 'Thị trường', 'Nguồn'].map((item) => <button role="tab" aria-selected={tab === item} className={tab === item ? 'tab-active' : ''} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>{tab === 'Tổng quan' && <OverviewTab property={property} />}{tab === 'Giá & lịch sử' && <HistoryTab property={property} />}{tab === 'Thị trường' && <MarketTab property={property} notify={notify} />}{tab === 'Nguồn' && <SourceTab property={property} />}</div><div className="detail-actionbar"><Button appearance="subtle" icon={<Warning />} onClick={() => notify('Đã mở form báo sai dữ liệu.')}>Báo sai</Button>{roleId === 'buyer' && <Button appearance="secondary" icon={<CalendarCheck />} onClick={() => notify('Đã mở lịch xem cho Listing này.')}>Đặt lịch xem</Button>}{property.currentListing && transitions.length > 0 && <Button appearance="primary" icon={<ArrowRight />} onClick={() => onTransition(property)}>Đổi trạng thái</Button>}{!property.currentListing && canCreate && <Button appearance="primary" icon={<Plus />} onClick={onCreate}>Tạo Listing</Button>}</div></aside>
+  return <aside className={`detail-panel ${mobileOpen ? 'detail-panel-mobile-open' : ''}`}><div className="detail-mobile-header"><button onClick={onClose}><ArrowLeft /> Quay lại kết quả</button></div><div className="detail-hero"><img src={property.image} alt={`Hình minh họa ${property.title}`} /><div className="detail-overlay"><VerificationBadge value={property.verification} />{property.currentListing && <StatusBadge status={property.currentListing.status} />}</div></div><div className="detail-content"><div className="audience-context"><Eye /><span><strong>{audience[0]}</strong>{audience[1]}</span></div><h2>{property.title}</h2><p className="detail-address"><MapPin weight="fill" />{property.address}</p><div className="identity-strip"><div><span>Property ID</span><strong>{property.id}</strong></div><div><span>Parcel tham chiếu</span><strong>{property.parcelId}</strong></div></div><div className="tabs" role="tablist">{['Tổng quan', 'Giá & lịch sử', 'Thị trường', 'Nguồn'].map((item) => <button role="tab" aria-selected={tab === item} className={tab === item ? 'tab-active' : ''} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>{tab === 'Tổng quan' && <OverviewTab property={property} />}{tab === 'Giá & lịch sử' && <HistoryTab property={property} />}{tab === 'Thị trường' && <MarketTab property={property} onOpenCma={onOpenCma} />}{tab === 'Nguồn' && <SourceTab property={property} />}</div><div className="detail-actionbar"><Button appearance="subtle" icon={<Warning />} onClick={() => onOpenFlow({ type: 'report', title: `Báo sai · ${property.id}`, eyebrow: 'Data quality feedback', success: 'Đã tạo quality issue và giữ snapshot dữ liệu hiện tại.' })}>Báo sai</Button>{roleId === 'buyer' && <Button appearance="secondary" icon={<CalendarCheck />} onClick={() => onOpenFlow({ type: 'showing', title: `Đặt lịch · ${property.title}`, eyebrow: 'Showing Desk', success: 'Đã xác nhận lịch và gửi thông báo cho môi giới phụ trách.' })}>Đặt lịch xem</Button>}{property.currentListing && transitions.length > 0 && <Button appearance="primary" icon={<ArrowRight />} onClick={() => onTransition(property)}>Đổi trạng thái</Button>}{!property.currentListing && canCreate && <Button appearance="primary" icon={<Plus />} onClick={onCreate}>Tạo Listing</Button>}</div></aside>
 }
 
 function OverviewTab({ property }) {
@@ -487,44 +548,35 @@ function HistoryTab({ property }) {
   return <div className="tab-content">{priceEvents.length > 0 && <><h3>Biến động giá chào</h3><div className="price-timeline">{priceEvents.map((event) => <div key={event.key}><span className="price-node"><TrendDown /></span><div><strong>{event.fromPrice ? `${money(event.fromPrice)} → ` : ''}{money(event.toPrice)}</strong><span>{event.effectiveAt} · {event.reason}</span><small>{event.source} · {event.confidence}</small></div></div>)}</div></>}<h3>Lịch sử Listing & closing</h3><div className="history-list">{property.history.map((item) => <div className="history-item history-item-rich" key={item.listingId}><ClockCounterClockwise /><div><strong>{item.listingId}</strong><span>{item.type}, {item.period} · {item.daysOnMarket ?? 0} DOM</span>{item.closingRecord && <small>Đóng {item.closingRecord.closePriceLabel} · {item.closingRecord.closeDate} · {item.closingRecord.verification}</small>}</div><div><StatusBadge status={item.status} /><span>{item.price}</span></div></div>)}</div>{property.audit?.length > 0 && <><h3>Audit timeline</h3><div className="audit-list">{property.audit.map((event) => <div className="audit-event" key={event.id}><span className="audit-node" /><div><strong>{event.action}</strong><span>{event.actor}, {event.role}</span><small>{event.time}, {event.reason}</small></div></div>)}</div></>}</div>
 }
 
-function MarketTab({ property, notify }) {
+function MarketTab({ property, onOpenCma }) {
   const snapshot = property.intelligence?.marketSnapshot
   if (!snapshot) return <div className="tab-content"><div className="evidence-note"><Database /><p>Chưa có market snapshot cho Property này.</p></div></div>
-  return <div className="tab-content market-content"><div className="market-scope"><ChartLineUp /><div><span>Comparable candidate set</span><strong>{snapshot.scope}</strong><small>Cập nhật {snapshot.asOf}</small></div></div><div className="market-range"><span><small>Thấp</small><strong>{snapshot.lowPricePerArea}</strong></span><span><small>Trung vị</small><strong>{snapshot.medianPricePerArea}</strong></span><span><small>Cao</small><strong>{snapshot.highPricePerArea}</strong></span></div><dl className="source-list"><div><dt>Số candidate</dt><dd>{snapshot.comparableCount} Property</dd></div><div><dt>DOM trung vị</dt><dd>{snapshot.medianDaysOnMarket} ngày</dd></div></dl><div className="evidence-note"><Warning /><p><strong>Cần human review</strong><br />{snapshot.methodology}</p></div><Button appearance="primary" icon={<ChartLineUp />} onClick={() => notify('Đã tạo draft CMA với candidate set; chưa publish.')}>Mở CMA candidate</Button></div>
+  return <div className="tab-content market-content"><div className="market-scope"><ChartLineUp /><div><span>Comparable candidate set</span><strong>{snapshot.scope}</strong><small>Cập nhật {snapshot.asOf}</small></div></div><div className="market-range"><span><small>Thấp</small><strong>{snapshot.lowPricePerArea}</strong></span><span><small>Trung vị</small><strong>{snapshot.medianPricePerArea}</strong></span><span><small>Cao</small><strong>{snapshot.highPricePerArea}</strong></span></div><dl className="source-list"><div><dt>Số candidate</dt><dd>{snapshot.comparableCount} Property</dd></div><div><dt>DOM trung vị</dt><dd>{snapshot.medianDaysOnMarket} ngày</dd></div></dl><div className="evidence-note"><Warning /><p><strong>Cần human review</strong><br />{snapshot.methodology}</p></div><Button appearance="primary" icon={<ChartLineUp />} onClick={onOpenCma}>Mở CMA candidate</Button></div>
 }
 
 function SourceTab({ property }) {
   const events = property.intelligence?.sourceEvents ?? []
-  return <div className="tab-content source-content"><div className="source-score"><ShieldCheck weight="fill" /><div><span>Độ tin cậy định danh</span><strong>{property.confidence}</strong></div></div><dl className="source-list"><div><dt>Nguồn hiện tại</dt><dd>{property.source}</dd></div><div><dt>Cập nhật gần nhất</dt><dd>{property.sourceUpdatedAt}</dd></div><div><dt>Quy tắc chỉnh sửa</dt><dd>Override cần lý do và audit event</dd></div></dl>{events.length > 0 && <div className="source-events">{events.map((event) => <div key={event.key}><Database /><span><strong>{event.type}</strong>{event.summary}<small>{event.effectiveAt} · {event.source} · {event.confidence}</small></span></div>)}</div>}<div className="evidence-note"><Database /><p><strong>Prototype assumption</strong><br />Dữ liệu mô phỏng, chưa kết nối địa chính hoặc chủ đầu tư.</p></div></div>
+  return <div className="tab-content source-content"><div className="source-score"><ShieldCheck weight="fill" /><div><span>Độ tin cậy định danh</span><strong>{property.confidence}</strong></div></div><dl className="source-list"><div><dt>Nguồn hiện tại</dt><dd>{property.source}</dd></div><div><dt>Cập nhật gần nhất</dt><dd>{property.sourceUpdatedAt}</dd></div><div><dt>Quy tắc chỉnh sửa</dt><dd>Override cần lý do và audit event</dd></div></dl>{events.length > 0 && <div className="source-events">{events.map((event) => <div key={event.key}><Database /><span><strong>{event.type}</strong>{event.summary}<small>{event.effectiveAt} · {event.source} · {event.confidence}</small></span></div>)}</div>}<div className="evidence-note"><Database /><p><strong>Phạm vi dữ liệu demo</strong><br />Nguồn mô phỏng giúp review UX; chưa phải dữ liệu địa chính hoặc chủ đầu tư chính thức.</p></div></div>
 }
 
 function money(value) {
   return value >= 1_000_000_000 ? `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / 1_000_000_000)} tỷ` : `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value / 1_000_000)} triệu`
 }
 
-function ListingsWorkspace({ listings, roleId, onSelect, notify }) {
+function ListingsWorkspace({ listings, roleId, onSelect, onCreate, onReview }) {
   const [status, setStatus] = useState('Tất cả')
   const rows = listings.filter((item) => status === 'Tất cả' || item.currentListing?.status === status)
   const canCreate = ['agent', 'broker', 'steward'].includes(roleId)
-  return <section className="listing-workspace work-panel"><div className="workspace-toolbar"><div className="listing-tabs">{['Tất cả', 'Active', 'Incoming', 'Needs correction', 'Closed'].map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{item}</button>)}</div>{canCreate && <Button appearance="primary" icon={<Plus />} onClick={() => notify('Chọn Property trước khi tạo Listing để tránh trùng dữ liệu.')}>Tạo Listing</Button>}</div><div className="listing-table"><div className="listing-table-head"><span>Property và Listing</span><span>Trạng thái</span><span>Chất lượng</span><span>Phân phối</span><span>Hết hạn</span><span></span></div>{rows.length ? rows.map((property) => <button className="listing-table-row" key={property.id} onClick={() => onSelect(property.id)}><span className="listing-identity"><img src={property.image} alt="" /><span><strong>{property.title}</strong><small>{property.currentListing?.id ?? 'Chưa có Listing'} | {property.id}</small></span></span><span>{property.currentListing ? <StatusBadge status={property.currentListing.status} /> : <span className="status-badge status-neutral">Chưa tạo</span>}</span><span className="quality-score"><strong>{property.qualityScore}%</strong><small>{property.verification}</small></span><span className="distribution-state">{property.currentListing?.distributionChannels ? <><CheckCircle weight="fill" /> {property.currentListing.distributionChannels} kênh</> : <><Clock /> Chưa phát hành</>}</span><span><strong>{property.currentListing?.expiresAt ?? 'Không áp dụng'}</strong><small>{property.currentListing ? `${property.currentListing.daysOnMarket} ngày trên thị trường` : 'Sẵn sàng tạo mới'}</small></span><ArrowRight /></button>) : <div className="table-empty"><FileMagnifyingGlass /><strong>Không có Listing trong trạng thái này</strong><span>Chọn trạng thái khác hoặc tạo Listing mới.</span></div>}</div>{['broker', 'steward'].includes(roleId) && <div className="review-banner"><ShieldCheck weight="fill" /><div><strong>Bạn đang ở góc nhìn kiểm duyệt</strong><span>Thao tác duyệt, request changes và override luôn yêu cầu lý do audit.</span></div><Button appearance="secondary" onClick={() => notify('Đã mở hàng đợi kiểm duyệt.')}>Mở hàng đợi</Button></div>}</section>
+  return <section className="listing-workspace work-panel"><div className="workspace-toolbar"><div className="listing-tabs">{['Tất cả', 'Active', 'Incoming', 'Needs correction', 'Closed'].map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{item}</button>)}</div>{canCreate && <Button appearance="primary" icon={<Plus />} onClick={onCreate}>Tạo Listing</Button>}</div><div className="listing-table"><div className="listing-table-head"><span>Property và Listing</span><span>Trạng thái</span><span>Chất lượng</span><span>Phân phối</span><span>Hết hạn</span><span></span></div>{rows.length ? rows.map((property) => <button className="listing-table-row" key={property.id} onClick={() => onSelect(property.id)}><span className="listing-identity"><img src={property.image} alt="" /><span><strong>{property.title}</strong><small>{property.currentListing?.id ?? 'Chưa có Listing'} | {property.id}</small></span></span><span>{property.currentListing ? <StatusBadge status={property.currentListing.status} /> : <span className="status-badge status-neutral">Chưa tạo</span>}</span><span className="quality-score"><strong>{property.qualityScore}%</strong><small>{property.verification}</small></span><span className="distribution-state">{property.currentListing?.distributionChannels ? <><CheckCircle weight="fill" /> {property.currentListing.distributionChannels} kênh</> : <><Clock /> Chưa phát hành</>}</span><span><strong>{property.currentListing?.expiresAt ?? 'Không áp dụng'}</strong><small>{property.currentListing ? `${property.currentListing.daysOnMarket} ngày trên thị trường` : 'Sẵn sàng tạo mới'}</small></span><ArrowRight /></button>) : <div className="table-empty"><FileMagnifyingGlass /><strong>Không có Listing trong trạng thái này</strong><span>Chọn trạng thái khác hoặc tạo Listing mới.</span></div>}</div>{['broker', 'steward'].includes(roleId) && <div className="review-banner"><ShieldCheck weight="fill" /><div><strong>Bạn đang ở góc nhìn kiểm duyệt</strong><span>Thao tác duyệt, request changes và override luôn yêu cầu lý do audit.</span></div><Button appearance="secondary" onClick={onReview}>Mở hàng đợi</Button></div>}</section>
 }
 
-function QualityQueue({ roleId, issues, notify }) {
+function QualityQueue({ roleId, issues, onOpenFlow }) {
+  const [level, setLevel] = useState('Tất cả')
   if (!['broker', 'regulator', 'steward'].includes(roleId)) return <PermissionState />
+  const visible = level === 'Tất cả' ? issues : issues.filter((issue) => issue.type === level)
   const blockingCount = issues.filter((issue) => issue.type === 'Blocking').length
   const overdueCount = issues.filter((issue) => issue.due.includes('Quá hạn')).length
-  return <section className="quality-layout"><div className="quality-summary"><article><Database /><span><strong>{issues.length}</strong>Issue đang mở</span></article><article><Warning /><span><strong>{blockingCount}</strong>Blocking issue</span></article><article><Clock /><span><strong>{overdueCount}</strong>Issue quá SLA</span></article></div><div className="work-panel"><div className="panel-heading"><div><h2>Hàng đợi cần xử lý</h2><p>Không tự động merge hoặc xóa lịch sử.</p></div><Button appearance="secondary" icon={<Funnel />}>Lọc hàng đợi</Button></div><div className="issue-table"><div className="issue-head"><span>Issue</span><span>Record</span><span>Loại</span><span>Người phụ trách</span><span>SLA</span><span></span></div>{issues.map((issue) => <button className="issue-row" key={issue.code} onClick={() => notify(`Đã mở issue ${issue.code}. Snapshot và nguồn dữ liệu được giữ nguyên.`)}><span><small>{issue.code}</small><strong>{issue.title}</strong></span><code>{issue.record}</code><span className={`issue-type issue-${issue.level}`}>{issue.type}</span><span>{issue.owner}</span><span className={issue.due.includes('Quá hạn') ? 'overdue' : ''}>{issue.due}</span><ArrowRight /></button>)}</div></div></section>
-}
-
-function ModulePlaceholder({ page, notify }) {
-  const content = {
-    contacts: { icon: UsersThree, title: 'Khách hàng và shortlist', body: 'Liên kết nhu cầu, saved search, listing đã lưu và lịch xem theo từng khách hàng.', actions: ['Tạo khách hàng', 'Mở shortlist mẫu'] },
-    analytics: { icon: ChartLineUp, title: 'CMA có human review', body: 'Hệ thống đề xuất comparable. Agent quyết định include, exclude và ghi rationale trước khi publish.', actions: ['Tạo CMA', 'Xem báo cáo mẫu'] },
-    organization: { icon: Buildings, title: 'Tổ chức và entitlement', body: 'Vai trò luôn gắn với tổ chức, resource scope và mục đích truy cập hiện tại.', actions: ['Xem thành viên', 'Quản lý vai trò'] },
-    apps: { icon: SquaresFour, title: 'App Hub', body: 'CMA, showing, transaction forms và distribution dùng chung nguồn dữ liệu MLS Core.', actions: ['Mở MLS Core', 'Xem integrations'] },
-  }[page]
-  const Icon = content.icon
-  return <section className="module-placeholder"><div className="module-visual"><Icon weight="duotone" /></div><div><span className="section-kicker">P0 clickable prototype</span><h2>{content.title}</h2><p>{content.body}</p><div>{content.actions.map((action, index) => <Button key={action} appearance={index === 0 ? 'primary' : 'secondary'} onClick={() => notify(`${action} đang ở trạng thái prototype.`)}>{action}</Button>)}</div></div></section>
+  return <section className="quality-layout"><div className="quality-summary"><article><Database /><span><strong>{issues.length}</strong>Issue đang mở</span></article><article><Warning /><span><strong>{blockingCount}</strong>Blocking issue</span></article><article><Clock /><span><strong>{overdueCount}</strong>Issue quá SLA</span></article></div><div className="work-panel"><div className="panel-heading"><div><h2>Hàng đợi cần xử lý</h2><p>Không tự động merge hoặc xóa lịch sử.</p></div><label className="compact-filter"><Funnel /><select value={level} onChange={(event) => setLevel(event.target.value)}><option>Tất cả</option>{[...new Set(issues.map((issue) => issue.type))].map((item) => <option key={item}>{item}</option>)}</select></label></div><div className="issue-table"><div className="issue-head"><span>Issue</span><span>Record</span><span>Loại</span><span>Người phụ trách</span><span>SLA</span><span></span></div>{visible.map((issue) => <button className="issue-row" key={issue.code} onClick={() => onOpenFlow({ type: 'issue', title: `Xử lý ${issue.code}`, eyebrow: 'Quality Queue', issue, success: 'Đã lưu kết luận; issue được cập nhật trong hàng đợi.' })}><span><small>{issue.code}</small><strong>{issue.title}</strong></span><code>{issue.record}</code><span className={`issue-type issue-${issue.level}`}>{issue.type}</span><span>{issue.owner}</span><span className={issue.due.includes('Quá hạn') ? 'overdue' : ''}>{issue.due}</span><ArrowRight /></button>)}</div></div></section>
 }
 
 function StatusTransitionDialog({ property, onClose, onSubmit }) {

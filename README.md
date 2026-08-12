@@ -1,6 +1,6 @@
 # HouseNow MLS
 
-Prototype MLS chạy được dành cho thị trường Việt Nam, xây dựng bằng React với sáu góc nhìn người dùng. Sản phẩm hiện hỗ trợ dữ liệu mô phỏng tại TP. Hồ Chí Minh và Hà Nội, từ tìm kiếm Property đến quản lý vòng đời Listing, lịch sử giá, closing và audit.
+Prototype MLS chạy được dành cho thị trường Việt Nam, xây dựng bằng React với sáu góc nhìn người dùng. Team và founder có thể dùng bản local để khám phá trọn các luồng từ tìm Property, quản lý Listing, khách hàng, lịch xem, CMA đến quality review và audit trên dữ liệu mô phỏng tại TP. Hồ Chí Minh và Hà Nội.
 
 ## Repo này giải quyết điều gì?
 
@@ -27,23 +27,23 @@ Research bắt đầu từ một MLS đang vận hành tại Texas, sử dụng 
 
 | Actor | Use case chính trong MLS |
 |---|---|
-| **Môi giới** | Tìm Property, xem Property 360, tạo và quản lý Listing, theo dõi giá/lịch sử, chuẩn bị CMA và làm việc với khách hàng. |
-| **Sàn môi giới** | Review hồ sơ, yêu cầu chỉnh sửa, duyệt Active, quản lý Listing trong phạm vi sàn, quality queue và audit. |
-| **Chủ đầu tư** | Quản lý Project/Unit inventory, availability, giá, trạng thái pháp lý và assignment cho các sàn phân phối. |
-| **Ngân hàng** | Xem finance-fit theo đúng purpose/consent, kiểm tra bối cảnh Property và hỗ trợ hồ sơ tài chính. |
-| **Cơ quan quản lý** | Theo dõi dữ liệu thị trường tổng hợp, chất lượng dữ liệu và audit trong phạm vi thẩm quyền. |
-| **Người mua** | Tìm Listing đã xác minh, xem thay đổi giá, tạo shortlist, đặt lịch xem và báo sai dữ liệu. |
+| **Môi giới** | Tìm Property, xem Property 360, tạo/quản lý Listing, quản lý khách hàng, đặt lịch xem và tạo CMA. |
+| **Sàn môi giới** | Review hồ sơ, đổi trạng thái, quản lý inventory của sàn, xử lý quality queue, thành viên và entitlement. |
+| **Chủ đầu tư** | Khám phá Project/Unit inventory, availability, giá, trạng thái pháp lý và assignment phân phối. |
+| **Ngân hàng** | Khám phá finance-fit theo purpose/consent và ghi nhận bước xử lý của từng hồ sơ. |
+| **Cơ quan quản lý** | Theo dõi tín hiệu thị trường, mở hồ sơ giám sát và xử lý quality issue trong phạm vi thẩm quyền. |
+| **Người mua** | Tìm Listing đã xác minh, xem lịch sử giá, quản lý shortlist, đặt lịch xem và báo sai dữ liệu. |
 
 `Data Steward` là vai trò vận hành bổ sung: xử lý trùng Property, xung đột nguồn, định danh, provenance, taxonomy và quality issue. Đây không phải System Admin.
 
 ## Hiện tại đang ở giai đoạn nào?
 
-Repo đang ở **Phase 6 — functional local prototype**:
+Repo đang ở **Phase 6 — exploration-ready local prototype**:
 
 - Phase 0–2: hoàn tất draft product alignment, discovery và domain specification.
 - Phase 3–4: triển khai prototype sáu actor và khóa working scope cho vertical slice.
 - Phase 5: có React frontend, HTTP API, SQLite persistence, backend authorization và audit trail.
-- Phase 6: luồng lõi và Property Intelligence đã chạy end-to-end.
+- Phase 6: luồng lõi, Property Intelligence và các workspace khám phá đã chạy end-to-end trên local.
 
 Luồng hiện có:
 
@@ -53,6 +53,18 @@ Tìm Property → xem giá/lịch sử/nguồn → tạo Listing → validation
 ```
 
 Property Intelligence bao gồm price events, original/current price, DOM/CDOM, relist, lịch sử Listing, closing records, source events và CMA candidate có human review.
+
+Các flow khám phá đã có điểm kết thúc rõ ràng:
+
+- Search với filter nâng cao, sort, list/map và Property 360 theo từng actor.
+- Contacts với nhu cầu, shortlist, ghi chú, tạo khách hàng và xác nhận lịch xem.
+- CMA với subject Property, include/exclude comparable, rationale và báo cáo khoảng giá.
+- Quality Queue với filter, assignment, evidence, kết luận và cập nhật hàng đợi.
+- Organization với thành viên, entitlement review và lời mời theo role/scope.
+- Project, Finance, Oversight và Shortlist với record detail và next step.
+- App Hub nối MLS Core, CMA Studio, Showing Desk và Distribution Monitor.
+
+Listing lifecycle, backend authorization và audit được lưu qua SQLite. Các thao tác khám phá ngoài core như lịch xem, client note, lời mời và CMA draft hiện được giữ trong phiên trình duyệt để phục vụ review UX.
 
 Prototype có 26 Property mô phỏng tại hai data space: 12 ở TP. Hồ Chí Minh và 14 ở Hà Nội. Đây chưa phải pilot/production: authentication, consent, dữ liệu địa chính, tích hợp đối tác và chính sách pháp lý vẫn cần được xác nhận.
 
@@ -75,6 +87,8 @@ npm run lint
 npm test
 npm run build
 ```
+
+Gợi ý khám phá: đổi `Góc nhìn` ở header để chuyển giữa sáu actor; đổi `Không gian dữ liệu` ở sidebar để so sánh TP. Hồ Chí Minh và Hà Nội.
 
 ## Kiến trúc ngắn gọn
 
