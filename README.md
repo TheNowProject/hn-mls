@@ -25,7 +25,7 @@ Research bắt đầu từ một MLS đang vận hành tại Texas, sử dụng 
 4. Xây domain model, permission matrix, business rules và acceptance criteria cho HouseNow.
 5. Chuyển đặc tả thành một vertical slice có thể chạy và kiểm thử.
 
-Đọc thêm: [kết quả discovery](./docs/research/phase-1-discovery.md), [product requirements](./docs/product/product-requirements-baseline.md) và [domain language](./CONTEXT.md).
+Đọc thêm: [kết quả discovery](./docs/research/phase-1-discovery.md), [context từ bốn conversation](./HN-VMLS-ActorContext/README.md), [đánh giá khả năng thích ứng từ 357 và HouseNow](./HN-VMLS-ActorContext/system-adaptation/README.md), [product requirements](./docs/product/product-requirements-baseline.md) và [domain language](./CONTEXT.md).
 
 ## Làm việc với agent
 
