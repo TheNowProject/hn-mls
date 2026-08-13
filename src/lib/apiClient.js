@@ -33,6 +33,9 @@ export const mlsApi = {
     return null
   },
   bootstrap: () => request('/bootstrap'),
+  accessSnapshot: () => request('/access'),
+  requestAccess: (input) => request('/access-requests', { method: 'POST', body: JSON.stringify(input) }),
+  decideAccessRequest: (requestId, input) => request(`/access-requests/${encodeURIComponent(requestId)}/decision`, { method: 'POST', body: JSON.stringify(input) }),
   propertyIntelligence: (propertyId) => request(`/properties/${encodeURIComponent(propertyId)}/intelligence`),
   createListing: (input) => request('/listings', { method: 'POST', body: JSON.stringify(input) }),
   transitionListing: (listingId, input) => request(`/listings/${encodeURIComponent(listingId)}/transitions`, { method: 'POST', body: JSON.stringify(input) }),

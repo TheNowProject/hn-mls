@@ -12,7 +12,8 @@ Date: 2026-08-13
 | 3 — UX prototype | Exploration-ready for six primary actors; core navigation has no placeholder-only modules | React application under `src/` and [`product/phase-6-1-actor-perspectives.md`](./product/phase-6-1-actor-perspectives.md) |
 | 4 — Scope lock | Vertical-slice working baseline frozen; human sign-off pending | [`product/phase-4-scope-lock.md`](./product/phase-4-scope-lock.md) |
 | 5 — Technical foundation | Operational for the local vertical slice | HTTP API, SQLite persistence, role scope, audit events and ADR |
-| 6 — MVP execution | Core vertical slice, Property Intelligence and exploration workspaces operational; broader MVP epics remain | Lifecycle workflow, actor projections, price/closing/source history, Contacts, CMA, Quality, Organization and App Hub |
+| 6 — MVP execution | Core vertical slice, Property Intelligence, access governance and exploration workspaces operational; broader MVP epics remain | Lifecycle workflow, actor projections, Access Request, sensitive-read audit, price/closing/source history, Contacts, CMA, Quality, Organization and App Hub |
+| 6.3 — Admin control plane | Ready for build; no implementation claim yet | System Admin/Organization Admin separation, Break-glass ADR, AC-13 and build plan |
 
 This status means the local build is suitable for structured product exploration with the team and founder. It does not claim pilot readiness: demo authentication, production integrations, persistence for secondary exploration flows, operational hardening and the unresolved approval gates below remain open.
 
@@ -49,6 +50,9 @@ This status means the local build is suitable for structured product exploration
 - [Security and current limitations](./technical/security-and-limitations.md)
 - [Test strategy](./technical/test-strategy.md)
 - [Phase 6.1 actor perspectives](./product/phase-6-1-actor-perspectives.md)
+- [Phase 6.2 access governance](./product/phase-6-2-access-governance.md)
+- [Phase 6.3 System Admin build plan](./product/phase-6-3-system-admin-build-plan.md)
+- [Admin control-plane ADR](./adr/0001-separate-admin-control-plane-from-data-access.md)
 
 ## Approval gates still open
 

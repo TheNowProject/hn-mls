@@ -72,6 +72,42 @@ _Avoid_: User group, Party role
 A time-bounded relationship granting a User a role and scope inside an Organization.
 _Avoid_: User, role toàn hệ thống
 
+**Role**:
+A named bundle of baseline capabilities held through a Membership; it never grants universal access by itself.
+_Avoid_: permission, chức danh toàn hệ thống
+
+**Entitlement**:
+The effective authority to perform an Action on a Resource within a Scope and Purpose during a defined period.
+_Avoid_: Role, menu visibility
+
+**Purpose**:
+The declared, policy-recognized reason for accessing or using data in a specific workflow.
+_Avoid_: free-text justification, role name
+
+**Consent**:
+A revocable and time-bounded authorization from a data subject or authorized Party for specified data, Purpose, and recipient.
+_Avoid_: account relationship, permanent permission
+
+**Access Request**:
+A request for a new or temporary Entitlement that records requester, Resource, Field Classification, Purpose, duration, and decision.
+_Avoid_: support ticket, automatic access
+
+**Organization Admin**:
+An operational role that manages Memberships and Entitlements within one Organization without gaining additional business-data visibility by default.
+_Avoid_: System Admin, Brokerage, full-access user
+
+**System Admin**:
+A Housenow operational role that governs platform identity, Organizations, policy, integrations, and service state without blanket access to business data.
+_Avoid_: Data Steward, superuser with unrestricted data access
+
+**Data Steward**:
+An operational role that resolves identity, source, duplicate, taxonomy, and quality cases within an assigned Scope.
+_Avoid_: System Admin, Organization Admin
+
+**Break-glass Access**:
+A temporary exceptional Entitlement to Restricted Fields that requires an explicit Purpose, reason, bounded duration, approval, and immutable Audit Events.
+_Avoid_: permanent admin access, silent override
+
 **Representation**:
 The time-bounded authority for an Agent or Organization to act for a Party in a defined transaction or distribution scope.
 _Avoid_: Ownership, Membership
@@ -119,6 +155,10 @@ _Avoid_: Public Field, Restricted Field
 **Restricted Field**:
 A field available only for a specific purpose, actor, organization, authority, or consent scope and protected across UI, API, search, export, analytics, and logs.
 _Avoid_: field hidden only in the interface
+
+**Projection**:
+The authorized field-level representation of a Resource returned to a consumer after Role, Scope, Purpose, Consent, and policy are evaluated.
+_Avoid_: frontend-only hiding, full record with masked CSS
 
 ## Analysis
 

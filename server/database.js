@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { intelligenceSeed, properties as seedProperties, qualityIssues as seedIssues } from '../src/data/mockData.js'
+import { accessRequestSeed, consentSeed, exchangePolicies, fieldGroups, roleAccessProfiles } from '../src/data/accessPolicy.js'
 import { assertTransition, initialStatusFor, projectPropertyForActor, validateListingInput } from './domain/listingLifecycle.js'
 
 const terminalStatuses = new Set(['Closed', 'Withdrawn', 'Expired'])
@@ -161,6 +162,40 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
       level TEXT NOT NULL,
       status TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS consent_records (
+      id TEXT PRIMARY KEY,
+      subject TEXT NOT NULL,
+      grantee TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      fields TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      status TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS access_requests (
+      id TEXT PRIMARY KEY,
+      requester TEXT NOT NULL,
+      requester_role TEXT NOT NULL,
+      organization TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      field_group TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      duration TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      decided_by TEXT,
+      decision_reason TEXT,
+      decided_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS restricted_access_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor TEXT NOT NULL,
+      role TEXT NOT NULL,
+      organization TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      field_groups TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      occurred_at TEXT NOT NULL
+    );
   `)
 
   function ensureColumn(table, column, definition) {
@@ -181,8 +216,13 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       const auditInsert = db.prepare(`INSERT INTO audit_events
         (property_id, listing_id, action, actor, role, reason, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      const issueInsert = db.prepare(`INSERT OR IGNORE INTO quality_issues
+    const issueInsert = db.prepare(`INSERT OR IGNORE INTO quality_issues
         (code, title, record_id, type, owner, due, level, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      const consentInsert = db.prepare(`INSERT OR IGNORE INTO consent_records
+        (id, subject, grantee, purpose, fields, expires_at, status) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      const requestInsert = db.prepare(`INSERT OR IGNORE INTO access_requests
+        (id, requester, requester_role, organization, resource_id, field_group, purpose, duration, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 
       db.exec('BEGIN')
       try {
@@ -201,6 +241,8 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
           for (const event of property.audit) auditInsert.run(property.id, current?.id ?? null, event.action, event.actor, event.role, event.reason, event.time)
         }
         for (const issue of seedIssues) issueInsert.run(issue.code, issue.title, issue.record, issue.type, issue.owner, issue.due, issue.level, issue.status)
+        for (const consent of consentSeed) consentInsert.run(consent.id, consent.subject, consent.grantee, consent.purpose, consent.fields, consent.expiresAt, consent.status)
+        for (const request of accessRequestSeed) requestInsert.run(request.id, request.requester, request.requesterRole, request.organization, request.resourceId, request.fieldGroup, request.purpose, request.duration, request.status, request.createdAt)
         db.exec('COMMIT')
       } catch (error) {
         db.exec('ROLLBACK')
@@ -329,7 +371,96 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
       error.code = 'PROPERTY_NOT_FOUND'
       throw error
     }
-    return projectPropertyForActor(hydrateProperty(row, { includeIntelligence: true }), actor)
+    const projected = projectPropertyForActor(hydrateProperty(row, { includeIntelligence: true }), actor)
+    const restrictedGroups = []
+    if (projected.currentListing?.privateRemarks) restrictedGroups.push('Private remarks')
+    if (projected.audit?.length) restrictedGroups.push('Audit trail')
+    if (projected.history?.some((item) => item.closingRecord?.source)) restrictedGroups.push('Closing source')
+    if (restrictedGroups.length) {
+      db.prepare(`INSERT INTO restricted_access_events
+        (actor, role, organization, resource_id, field_groups, purpose, occurred_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`).run(actor.name, actor.roleLabel, actor.organization, propertyId, restrictedGroups.join(', '), roleAccessProfiles[actor.role]?.purpose ?? 'MLS workspace', nowDisplay())
+    }
+    return projected
+  }
+
+  function mapAccessRequest(row) {
+    return {
+      id: row.id,
+      requester: row.requester,
+      requesterRole: row.requester_role,
+      organization: row.organization,
+      resourceId: row.resource_id,
+      fieldGroup: row.field_group,
+      purpose: row.purpose,
+      duration: row.duration,
+      status: row.status,
+      createdAt: row.created_at,
+      decidedBy: row.decided_by,
+      decisionReason: row.decision_reason,
+      decidedAt: row.decided_at,
+    }
+  }
+
+  function accessSnapshot(actor) {
+    const requestRows = ['broker', 'regulator', 'steward'].includes(actor.role)
+      ? db.prepare('SELECT * FROM access_requests ORDER BY id DESC').all()
+      : db.prepare('SELECT * FROM access_requests WHERE requester = ? OR organization = ? ORDER BY id DESC').all(actor.name, actor.organization)
+    const consentRows = db.prepare('SELECT id, subject, grantee, purpose, fields, expires_at AS expiresAt, status FROM consent_records ORDER BY id DESC').all()
+    const auditRows = ['broker', 'regulator', 'steward'].includes(actor.role)
+      ? db.prepare('SELECT actor, role, organization, resource_id AS resourceId, field_groups AS fieldGroups, purpose, occurred_at AS occurredAt FROM restricted_access_events ORDER BY id DESC LIMIT 12').all()
+      : db.prepare('SELECT actor, role, organization, resource_id AS resourceId, field_groups AS fieldGroups, purpose, occurred_at AS occurredAt FROM restricted_access_events WHERE actor = ? ORDER BY id DESC LIMIT 8').all(actor.name)
+    return {
+      profile: roleAccessProfiles[actor.role],
+      fieldGroups,
+      roleProfiles: roleAccessProfiles,
+      exchangePolicies,
+      consents: consentRows,
+      requests: requestRows.map(mapAccessRequest),
+      accessAudit: auditRows,
+    }
+  }
+
+  function nextAccessRequestId() {
+    const row = db.prepare("SELECT id FROM access_requests WHERE id LIKE 'AR-2026-%' ORDER BY id DESC LIMIT 1").get()
+    const next = row ? Number(row.id.split('-').at(-1)) + 1 : 1
+    return `AR-2026-${String(next).padStart(3, '0')}`
+  }
+
+  function createAccessRequest(actor, input) {
+    const required = ['resourceId', 'fieldGroup', 'purpose', 'duration']
+    const missing = required.filter((key) => !String(input[key] ?? '').trim())
+    if (missing.length) {
+      const error = new Error('Access Request cần đủ resource, field group, purpose và thời hạn.')
+      error.status = 422
+      error.code = 'ACCESS_REQUEST_INVALID'
+      error.details = Object.fromEntries(missing.map((key) => [key, 'Bắt buộc']))
+      throw error
+    }
+    const id = nextAccessRequestId()
+    db.prepare(`INSERT INTO access_requests
+      (id, requester, requester_role, organization, resource_id, field_group, purpose, duration, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Chờ duyệt', ?)`).run(id, actor.name, actor.roleLabel, actor.organization, input.resourceId.trim(), input.fieldGroup.trim(), input.purpose.trim(), input.duration.trim(), nowDisplay())
+    return mapAccessRequest(db.prepare('SELECT * FROM access_requests WHERE id = ?').get(id))
+  }
+
+  function decideAccessRequest(actor, requestId, input) {
+    const request = db.prepare('SELECT * FROM access_requests WHERE id = ?').get(requestId)
+    if (!request) {
+      const error = new Error('Không tìm thấy Access Request.')
+      error.status = 404
+      error.code = 'ACCESS_REQUEST_NOT_FOUND'
+      throw error
+    }
+    if (!['Đã duyệt', 'Từ chối'].includes(input.status) || String(input.reason ?? '').trim().length < 8) {
+      const error = new Error('Quyết định cần trạng thái hợp lệ và lý do ít nhất 8 ký tự.')
+      error.status = 422
+      error.code = 'ACCESS_DECISION_INVALID'
+      throw error
+    }
+    db.prepare(`UPDATE access_requests SET status = ?, decided_by = ?, decision_reason = ?, decided_at = ? WHERE id = ?`)
+      .run(input.status, actor.name, input.reason.trim(), nowDisplay(), requestId)
+    return mapAccessRequest(db.prepare('SELECT * FROM access_requests WHERE id = ?').get(requestId))
   }
 
   function assertListingScope(actor, listingRow) {
@@ -432,5 +563,5 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
   }
 
   seed()
-  return { bootstrap, publicProperties, propertyDetail, createListing, transitionListing, close: () => db.close() }
+  return { bootstrap, publicProperties, propertyDetail, accessSnapshot, createAccessRequest, decideAccessRequest, createListing, transitionListing, close: () => db.close() }
 }

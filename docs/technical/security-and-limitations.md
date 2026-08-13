@@ -12,6 +12,8 @@ Date: 2026-08-13
 - Status changes and listing creation append audit events inside the same SQLite transaction.
 - Request bodies are size-limited and API errors have stable codes.
 - Actor-specific Property Intelligence is projected by the backend rather than hidden only in the client.
+- Access Requests and approval decisions are persisted with purpose, field group and duration.
+- Reads that return Restricted fields append a separate sensitive-access audit event.
 
 ## Deliberate local-development shortcuts
 
@@ -21,6 +23,7 @@ Date: 2026-08-13
 - CORS is configured for the local Vite origin only.
 - Rate limiting, abuse detection, encryption key management and centralized observability are not implemented.
 - Legal retention, consent, representation verification and dispute workflows still require owner decisions.
+- Membership, Entitlement activation and Consent records are modeled for exploration but are not yet connected to a production identity/policy engine.
 - Cadastral, banking, developer and distribution integrations are not connected.
 - Contacts, showing requests, CMA drafts, invitations, actor next steps and prototype issue resolution are session-local UI state; they are not durable records yet.
 - Interactive map positions are synthetic visual coordinates and must not be interpreted as cadastral or precise geospatial data.

@@ -69,6 +69,20 @@ export function createHttpServer({ store }) {
         return json(response, 200, store.bootstrap(actor))
       }
 
+      if (request.method === 'GET' && url.pathname === '/api/access') {
+        return json(response, 200, store.accessSnapshot(actor))
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/access-requests') {
+        return json(response, 201, { request: store.createAccessRequest(actor, await readBody(request)) })
+      }
+
+      const accessDecisionMatch = url.pathname.match(/^\/api\/access-requests\/([^/]+)\/decision$/)
+      if (request.method === 'POST' && accessDecisionMatch) {
+        requireRole(actor, ['broker', 'steward'])
+        return json(response, 200, { request: store.decideAccessRequest(actor, decodeURIComponent(accessDecisionMatch[1]), await readBody(request)) })
+      }
+
       const propertyDetailMatch = url.pathname.match(/^\/api\/properties\/([^/]+)\/intelligence$/)
       if (request.method === 'GET' && propertyDetailMatch) {
         return json(response, 200, { property: store.propertyDetail(actor, decodeURIComponent(propertyDetailMatch[1])) })

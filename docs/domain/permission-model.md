@@ -11,6 +11,24 @@ Every request evaluates:
 
 No global role name grants universal access. Frontend visibility is informative only and cannot replace backend authorization.
 
+System Admin and Organization Admin are control-plane roles. Neither receives additional Property, Listing, CRM, finance, consent, document or audit-content visibility merely by holding the admin role.
+
+## Administrative control plane
+
+| Capability | Organization Admin | System Admin | Data Steward |
+|---|---|---|---|
+| Manage Membership | Own Organization | Platform support/recovery scope | No |
+| Assign standard Entitlement | Own Organization and approved templates | Configure templates/policy; no silent business grant | No |
+| Suspend User/Organization | Own members | Platform-wide with reason and audit | No |
+| Configure policy/version | No | Yes, with change review and audit | Recommend only |
+| Resolve identity/source/duplicate | No by default | No by default | Assigned quality case |
+| Read Restricted business data | Existing business Entitlement only | No by default | Assigned quality case only |
+| Approve Access Request | Data owner/Organization scope | Policy routing or support scope only | Assigned quality request |
+| Activate Break-glass Access | No | Initiate; second approval required for critical groups | Approve only when assigned by policy |
+| View audit | Own Organization metadata/content by Entitlement | Platform/security metadata; content still projected | Assigned operational scope |
+
+Break-glass Access must identify the requester, approver, incident/reference, Resource, Field Classification, Purpose, start, expiry and every read performed during the elevated session.
+
 ## Resource-action-scope matrix
 
 | Resource / action | Agent | Brokerage | Developer | Bank | Regulator | Buyer | Steward |
@@ -64,4 +82,5 @@ No global role name grants universal access. Frontend visibility is informative 
 - Scope audit for restricted reads and all material writes.
 - Prevent restricted data from logs, analytics payloads, exports, caches, notifications, and search snippets.
 - Admin/regulator override requires purpose, reason, authority scope, and Audit Event.
+- System Admin has no blanket business-data projection; exceptional Restricted reads require Break-glass Access and cannot be granted to the requester by the requester alone.
 - Consent is purpose-bound, revocable, time-bounded, and never inferred from a generic account relationship.

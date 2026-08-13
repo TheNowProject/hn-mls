@@ -42,9 +42,11 @@ import {
 } from '@phosphor-icons/react'
 import { activityFeedsByMarket, properties as initialProperties, qualityIssues, roles } from './data/mockData.js'
 import { actorExperiencesByMarket } from './data/actorViews.js'
+import { localAccessSnapshot } from './data/accessPolicy.js'
 import { mlsApi } from './lib/apiClient.js'
 import {
   ActorTable as ExplorationActorTable,
+  AccessWorkspace,
   ActorWorkspace as ExplorationActorWorkspace,
   AppsWorkspace,
   CmaWorkspace,
@@ -61,6 +63,7 @@ const navItems = {
   analytics: { id: 'analytics', label: 'Phân tích CMA', icon: ChartLineUp },
   quality: { id: 'quality', label: 'Chất lượng dữ liệu', icon: Database },
   organization: { id: 'organization', label: 'Tổ chức', icon: Buildings },
+  access: { id: 'access', label: 'Quyền & chia sẻ', icon: LockKey },
   apps: { id: 'apps', label: 'Ứng dụng', icon: SquaresFour },
   projects: { id: 'projects', label: 'Project & Unit', icon: Buildings },
   finance: { id: 'finance', label: 'Finance fit', icon: ChartLineUp },
@@ -69,13 +72,13 @@ const navItems = {
 }
 
 const navigationByRole = {
-  agent: ['overview', 'discover', 'listings', 'contacts', 'analytics', 'apps'],
-  broker: ['overview', 'discover', 'listings', 'quality', 'organization', 'analytics'],
-  developer: ['overview', 'projects', 'discover', 'listings', 'analytics'],
-  bank: ['overview', 'finance', 'discover'],
-  regulator: ['overview', 'oversight', 'quality', 'discover'],
-  buyer: ['overview', 'discover', 'shortlist'],
-  steward: ['overview', 'quality', 'discover', 'organization'],
+  agent: ['overview', 'discover', 'listings', 'contacts', 'analytics', 'access', 'apps'],
+  broker: ['overview', 'discover', 'listings', 'quality', 'organization', 'access', 'analytics'],
+  developer: ['overview', 'projects', 'discover', 'listings', 'analytics', 'access'],
+  bank: ['overview', 'finance', 'discover', 'access'],
+  regulator: ['overview', 'oversight', 'quality', 'discover', 'access'],
+  buyer: ['overview', 'discover', 'shortlist', 'access'],
+  steward: ['overview', 'quality', 'discover', 'organization', 'access'],
 }
 
 const pageMeta = {
@@ -86,6 +89,7 @@ const pageMeta = {
   contacts: ['Khách hàng', 'Nhu cầu, shortlist và lịch xem theo từng khách hàng.'],
   analytics: ['Phân tích CMA', 'Chọn comparable và tạo báo cáo có thể giải thích.'],
   organization: ['Tổ chức', 'Thành viên, vai trò và phạm vi quản trị dữ liệu.'],
+  access: ['Quyền & chia sẻ', 'Kiểm tra actor nào được xem, đóng góp hoặc yêu cầu từng nhóm dữ liệu.'],
   apps: ['Ứng dụng', 'Các công cụ chuyên biệt dùng chung dữ liệu MLS.'],
   projects: ['Project & Unit', 'Quản lý inventory, availability và assignment theo từng Unit.'],
   finance: ['Finance fit', 'Đánh giá ngữ cảnh tài chính trong đúng purpose và consent.'],
@@ -140,6 +144,7 @@ function App() {
   const [selectedDetail, setSelectedDetail] = useState(null)
   const [listings, setListings] = useState(initialProperties)
   const [issues, setIssues] = useState(qualityIssues)
+  const [accessSnapshot, setAccessSnapshot] = useState(() => localAccessSnapshot('agent'))
   const [isSearching, setIsSearching] = useState(false)
   const [isComposerOpen, setComposerOpen] = useState(false)
   const [transitionTarget, setTransitionTarget] = useState(null)
@@ -180,11 +185,15 @@ function App() {
     async function loadWorkspace() {
       try {
         await mlsApi.login(roleId)
-        const payload = await mlsApi.bootstrap()
+        const [payload, nextAccessSnapshot] = await Promise.all([
+          mlsApi.bootstrap(),
+          mlsApi.accessSnapshot().catch(() => localAccessSnapshot(roleId)),
+        ])
         if (cancelled) return
         const nextSelectedId = payload.properties.find((property) => (property.market ?? 'hcm') === marketId)?.id
         setListings(payload.properties)
         setIssues(payload.qualityIssues)
+        setAccessSnapshot(nextAccessSnapshot)
         setSelectedId(nextSelectedId)
         setSelectedDetail(null)
         setConnectionState('ready')
@@ -192,6 +201,7 @@ function App() {
         if (cancelled) return
         setConnectionState('offline')
         setConnectionError(error.message)
+        setAccessSnapshot(localAccessSnapshot(roleId))
       }
     }
     loadWorkspace()
@@ -303,6 +313,29 @@ function App() {
     notify(`Listing đã chuyển sang ${payload.property.currentListing.status}.`)
   }
 
+  const requestAccess = async (input) => {
+    try {
+      const payload = await mlsApi.requestAccess(input)
+      setAccessSnapshot((current) => ({ ...current, requests: [payload.request, ...current.requests] }))
+      notify(`Đã gửi ${payload.request.id} tới người có thẩm quyền.`)
+    } catch {
+      const localRequest = { id: `AR-LOCAL-${Date.now().toString().slice(-4)}`, requester: role.name, requesterRole: role.label, organization: role.organization, ...input, status: 'Chờ duyệt', createdAt: 'Vừa xong' }
+      setAccessSnapshot((current) => ({ ...current, requests: [localRequest, ...current.requests] }))
+      notify('Đã lưu Access Request trong phiên khám phá.')
+    }
+  }
+
+  const decideAccessRequest = async (requestId, input) => {
+    try {
+      const payload = await mlsApi.decideAccessRequest(requestId, input)
+      setAccessSnapshot((current) => ({ ...current, requests: current.requests.map((request) => request.id === requestId ? payload.request : request) }))
+      notify(`${requestId} đã được cập nhật thành ${input.status}.`)
+    } catch {
+      setAccessSnapshot((current) => ({ ...current, requests: current.requests.map((request) => request.id === requestId ? { ...request, status: input.status, decidedBy: role.name, decisionReason: input.reason, decidedAt: 'Vừa xong' } : request) }))
+      notify(`Đã lưu quyết định ${input.status} trong phiên khám phá.`)
+    }
+  }
+
   const [title, subtitle] = pageMeta[page]
 
   return (
@@ -388,6 +421,7 @@ function App() {
             {page === 'contacts' && <ContactsWorkspace key={marketId} marketId={marketId} onOpenFlow={openFlow} />}
             {page === 'analytics' && <CmaWorkspace listings={scopedListings} onSelectProperty={(id) => { setSelectedId(id); navigate('discover') }} />}
             {page === 'organization' && <OrganizationWorkspace onOpenFlow={openFlow} />}
+            {page === 'access' && <AccessWorkspace roleId={roleId} snapshot={accessSnapshot} onRequestAccess={requestAccess} onDecision={decideAccessRequest} />}
             {page === 'apps' && <AppsWorkspace onNavigate={navigate} onOpenFlow={openFlow} />}
           </main>
         </div>

@@ -18,6 +18,7 @@ import {
   Warning,
   X,
 } from '@phosphor-icons/react'
+import { accessRoleOrder, projectionLabels } from '../data/accessPolicy.js'
 
 const contactsByMarket = {
   hcm: [
@@ -116,11 +117,120 @@ export function OrganizationWorkspace({ onOpenFlow }) {
   </div>
 }
 
+export function AccessWorkspace({ roleId, snapshot, onRequestAccess, onDecision }) {
+  const [origin, setOrigin] = useState('agent')
+  const [recipient, setRecipient] = useState('bank')
+  const [requestOpen, setRequestOpen] = useState(false)
+  const [selectedRequestId, setSelectedRequestId] = useState(null)
+  const [decisionReason, setDecisionReason] = useState('Đúng purpose và phạm vi dữ liệu tối thiểu cần thiết.')
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState({ resourceId: 'HN-PROP-000184', fieldGroup: 'Closing/finance data', purpose: 'Phục vụ hồ sơ giao dịch đã có consent', duration: '30 ngày' })
+  if (!snapshot) return <section className="work-panel access-loading"><strong>Đang tải chính sách truy cập...</strong></section>
+
+  const exchange = snapshot.exchangePolicies[origin]
+  const recipients = Object.keys(exchange.recipients)
+  const activeRecipient = recipients.includes(recipient) ? recipient : recipients[0]
+  const recipientPolicy = exchange.recipients[activeRecipient]
+  const activeProfile = snapshot.roleProfiles[roleId]
+  const canDecide = ['broker', 'steward'].includes(roleId)
+  const submitRequest = async (event) => {
+    event.preventDefault()
+    setBusy(true)
+    try {
+      await onRequestAccess(form)
+      setRequestOpen(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const decide = async (status) => {
+    setBusy(true)
+    try {
+      await onDecision(selectedRequestId, { status, reason: decisionReason })
+      setSelectedRequestId(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <div className="access-workspace">
+    <section className="access-summary-grid">
+      <article className="work-panel access-profile-card"><span className="access-card-icon"><ShieldCheck weight="fill" /></span><div><span className="section-kicker">Entitlement hiện tại</span><h2>{activeProfile.label}</h2><p>{activeProfile.scope}</p><small>{activeProfile.purpose}</small></div></article>
+      <article className="work-panel access-principle"><LockKey /><div><strong>Deny by default</strong><span>Role chỉ là năng lực nền. Quyền hiệu lực còn phụ thuộc tổ chức, resource, purpose, consent và thời hạn.</span></div></article>
+      <article className="work-panel access-principle"><Database /><div><strong>Field projection</strong><span>API chỉ trả field được phép; dữ liệu nhạy cảm không được gửi xuống rồi mới ẩn bằng UI.</span></div></article>
+    </section>
+
+    <section className="work-panel exchange-panel">
+      <div className="panel-heading"><div><span className="section-kicker">Actor-to-actor data exchange</span><h2>Ai thấy gì khi một actor đóng góp dữ liệu?</h2><p>Chọn nguồn dữ liệu và actor nhận để kiểm tra projection hai chiều.</p></div><label className="compact-filter"><select value={origin} onChange={(event) => { setOrigin(event.target.value); setRecipient(Object.keys(snapshot.exchangePolicies[event.target.value].recipients)[0]) }}><option value="agent">Nguồn: Môi giới</option><option value="bank">Nguồn: Ngân hàng</option><option value="developer">Nguồn: Chủ đầu tư</option></select></label></div>
+      <div className="exchange-body">
+        <aside className="exchange-source"><span className="access-card-icon"><Database /></span><h3>{exchange.label}</h3><small>Đóng góp vào MLS</small><ul>{exchange.contributes.map((item) => <li key={item}><Check />{item}</li>)}</ul></aside>
+        <div className="exchange-recipient">
+          <div className="recipient-tabs" role="tablist">{recipients.map((id) => <button key={id} role="tab" aria-selected={activeRecipient === id} className={activeRecipient === id ? 'active' : ''} onClick={() => setRecipient(id)}>{snapshot.roleProfiles[id].label}</button>)}</div>
+          <div className="projection-columns">
+            <ProjectionColumn tone="visible" title="Được nhìn thấy" icon={<CheckCircle weight="fill" />} items={recipientPolicy.visible} />
+            <ProjectionColumn tone="conditional" title="Có điều kiện / che bớt" icon={<ShieldCheck weight="fill" />} items={recipientPolicy.masked} />
+            <ProjectionColumn tone="blocked" title="Không được chia sẻ" icon={<LockKey weight="fill" />} items={recipientPolicy.never} />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section className="work-panel projection-matrix-panel">
+      <div className="panel-heading"><div><span className="section-kicker">Field-level projection</span><h2>Ma trận dữ liệu theo vai trò</h2><p>Mỗi ô là projection mặc định; entitlement cụ thể có thể thu hẹp thêm.</p></div></div>
+      <div className="projection-matrix"><div className="projection-row projection-head"><span>Nhóm dữ liệu</span>{accessRoleOrder.map((id) => <span key={id}>{snapshot.roleProfiles[id].label}</span>)}</div>{snapshot.fieldGroups.map((field, index) => <div className="projection-row" key={field.id}><span><strong>{field.label}</strong><small className={`classification classification-${field.classification.toLowerCase()}`}>{field.classification}</small></span>{accessRoleOrder.map((id) => { const [label, tone] = projectionLabels[snapshot.roleProfiles[id].projection[index]]; return <span key={id}><b className={`projection-badge ${tone}`}>{label}</b></span> })}</div>)}</div>
+    </section>
+
+    <div className="access-bottom-grid">
+      <section className="work-panel consent-panel"><div className="panel-heading"><div><span className="section-kicker">Purpose-bound consent</span><h2>Consent đang hiệu lực</h2><p>Consent có field, recipient, purpose và ngày hết hạn cụ thể.</p></div></div><div className="consent-list">{snapshot.consents.map((consent) => <article key={consent.id}><span className={consent.status === 'Sắp hết hạn' ? 'consent-state expiring' : 'consent-state'}>{consent.status}</span><strong>{consent.subject}</strong><small>{consent.grantee} · {consent.purpose}</small><p>{consent.fields}</p><em>Hết hạn {consent.expiresAt}</em></article>)}</div></section>
+      <section className="work-panel request-panel"><div className="panel-heading"><div><span className="section-kicker">Access Request</span><h2>Quyền bổ sung có thời hạn</h2><p>Không mở field Restricted bằng trao đổi ngoài hệ thống.</p></div><Button appearance="primary" icon={<Plus />} onClick={() => setRequestOpen((current) => !current)}>Yêu cầu quyền</Button></div>
+        {requestOpen && <form className="access-request-form" onSubmit={submitRequest}><label><span>Resource</span><input value={form.resourceId} onChange={(event) => setForm({ ...form, resourceId: event.target.value })} /></label><label><span>Field group</span><select value={form.fieldGroup} onChange={(event) => setForm({ ...form, fieldGroup: event.target.value })}>{snapshot.fieldGroups.filter((field) => field.classification !== 'Public').map((field) => <option key={field.id}>{field.label}</option>)}</select></label><label><span>Purpose</span><input value={form.purpose} onChange={(event) => setForm({ ...form, purpose: event.target.value })} /></label><label><span>Thời hạn</span><select value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })}><option>24 giờ</option><option>7 ngày</option><option>14 ngày</option><option>30 ngày</option></select></label><div><Button type="button" appearance="secondary" onClick={() => setRequestOpen(false)}>Hủy</Button><Button type="submit" appearance="primary" disabled={busy}>Gửi yêu cầu</Button></div></form>}
+        <div className="access-request-list">
+          {snapshot.requests.length === 0 && <div className="access-empty"><LockKey /><strong>Chưa có yêu cầu trong phạm vi của bạn</strong><span>Tạo yêu cầu khi cần dùng field ngoài entitlement hiện tại.</span></div>}
+          {snapshot.requests.map((request) => {
+            const selected = selectedRequestId === request.id
+            const awaitingDecision = canDecide && request.status === 'Chờ duyệt'
+            return <article key={request.id} className={selected ? 'selected' : ''}>
+              <button
+                type="button"
+                aria-expanded={selected}
+                aria-controls={`request-details-${request.id}`}
+                onClick={() => setSelectedRequestId((current) => current === request.id ? null : request.id)}
+              >
+                <span><strong>{request.id} · {request.resourceId}</strong><small>{request.requester} · {request.requesterRole}</small></span>
+                <span><b className={`request-status status-${request.status === 'Chờ duyệt' ? 'pending' : request.status === 'Đã duyệt' ? 'approved' : 'rejected'}`}>{request.status}</b><small>{request.fieldGroup}</small></span>
+                <ArrowRight />
+              </button>
+              {selected && <div className="access-request-details" id={`request-details-${request.id}`}>
+                <dl className="request-detail-grid">
+                  <div><dt>Mục đích</dt><dd>{request.purpose}</dd></div>
+                  <div><dt>Thời hạn</dt><dd>{request.duration}</dd></div>
+                  <div><dt>Tổ chức</dt><dd>{request.organization}</dd></div>
+                  <div><dt>Tạo lúc</dt><dd>{request.createdAt}</dd></div>
+                </dl>
+                {request.decidedBy && <p className="request-detail-note"><ShieldCheck /><span><strong>{request.status} bởi {request.decidedBy}</strong>{request.decisionReason || 'Quyết định đã được ghi vào audit log.'}{request.decidedAt && <small>{request.decidedAt}</small>}</span></p>}
+                {awaitingDecision
+                  ? <div className="access-decision"><label><span>Lý do quyết định</span><textarea value={decisionReason} onChange={(event) => setDecisionReason(event.target.value)} /></label><div><Button appearance="secondary" disabled={busy} onClick={() => decide('Từ chối')}>Từ chối</Button><Button appearance="primary" disabled={busy || decisionReason.trim().length < 8} onClick={() => decide('Đã duyệt')}>Duyệt có thời hạn</Button></div></div>
+                  : !request.decidedBy && <p className="request-detail-note"><LockKey /><span><strong>{request.status === 'Chờ duyệt' ? 'Đang chờ người có thẩm quyền' : 'Quyết định đã được ghi nhận'}</strong>{request.status === 'Chờ duyệt' ? 'Broker hoặc Data Steward sẽ đánh giá purpose và phạm vi dữ liệu.' : 'Mở vai trò có thẩm quyền để xem thông tin audit đầy đủ.'}</span></p>}
+              </div>}
+            </article>
+          })}
+        </div>
+      </section>
+    </div>
+
+    {snapshot.accessAudit.length > 0 && <section className="work-panel access-audit-panel"><div className="panel-heading"><div><span className="section-kicker">Sensitive-read audit</span><h2>Truy cập dữ liệu nhạy cảm gần đây</h2><p>Việc đọc Restricted Field cũng được ghi nhận, không chỉ thao tác chỉnh sửa.</p></div></div><div className="access-audit-list">{snapshot.accessAudit.map((event, index) => <article key={`${event.resourceId}-${event.occurredAt}-${index}`}><ShieldCheck /><span><strong>{event.actor} mở {event.resourceId}</strong><small>{event.role} · {event.organization}</small></span><span>{event.fieldGroups}<small>{event.occurredAt}</small></span></article>)}</div></section>}
+  </div>
+}
+
+function ProjectionColumn({ tone, title, icon, items }) {
+  return <section className={`projection-column ${tone}`}><header>{icon}<strong>{title}</strong></header><ul>{items.map((item) => <li key={item}>{item}</li>)}</ul></section>
+}
+
 export function AppsWorkspace({ onNavigate, onOpenFlow }) {
   const [active, setActive] = useState(apps[0])
   const ActiveIcon = active.icon
   const open = () => active.target ? onNavigate(active.target) : onOpenFlow({ type: active.flow, title: 'Tạo lịch xem mới', eyebrow: active.title, success: 'Đã xác nhận lịch xem và gửi thông báo cho người tham gia.' })
-  return <div className="apps-workspace"><div className="app-grid">{apps.map((app) => { const Icon = app.icon; return <button key={app.id} className={active.id === app.id ? 'app-card active' : 'app-card'} onClick={() => setActive(app)}><span className={`app-icon ${app.tone}`}><Icon weight="duotone" /></span><span className="section-kicker">{app.label}</span><strong>{app.title}</strong><p>{app.body}</p><em>Mở chi tiết <ArrowRight /></em></button> })}</div><section className="work-panel app-preview"><div className={`app-preview-visual ${active.tone}`}><ActiveIcon weight="duotone" /></div><div><span className="section-kicker">Ứng dụng đang chọn</span><h2>{active.title}</h2><p>{active.body}</p><ul><li><Check /> Dùng chung canonical Property ID</li><li><Check /> Tôn trọng projection theo vai trò</li><li><Check /> Ghi lại hành động quan trọng trong audit</li></ul><Button appearance="primary" onClick={open}>{active.action} <ArrowRight /></Button></div></section></div>
+  return <div className="apps-workspace"><div className="app-grid">{apps.map((app) => { const Icon = app.icon; return <button key={app.id} type="button" aria-pressed={active.id === app.id} className={active.id === app.id ? 'app-card active' : 'app-card'} onClick={() => setActive(app)}><span className={`app-icon ${app.tone}`}><Icon weight="duotone" /></span><span className="section-kicker">{app.label}</span><strong>{app.title}</strong><p>{app.body}</p><em>Mở chi tiết <ArrowRight /></em></button> })}</div><section className="work-panel app-preview"><div className={`app-preview-visual ${active.tone}`}><ActiveIcon weight="duotone" /></div><div><span className="section-kicker">Ứng dụng đang chọn</span><h2>{active.title}</h2><p>{active.body}</p><ul><li><Check /> Dùng chung canonical Property ID</li><li><Check /> Tôn trọng projection theo vai trò</li><li><Check /> Ghi lại hành động quan trọng trong audit</li></ul><Button appearance="primary" onClick={open}>{active.action} <ArrowRight /></Button></div></section></div>
 }
 
 export function FlowDialog({ flow, onClose, onComplete }) {

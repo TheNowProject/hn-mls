@@ -140,3 +140,47 @@ test('six actor projections expose only the intended Property Intelligence field
   assert.equal(hanoiDetail.body.property.intelligence.priceEvents.length, 2)
   assert.equal(hanoiDetail.body.property.intelligence.marketSnapshot.scope.includes('Hà Nội'), true)
 })
+
+test('access policy exposes actor projections and persists governed access requests', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+
+  const agentSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'agent' } })
+  const bankSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'bank' } })
+  const brokerSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'broker' } })
+  const buyerSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'buyer' } })
+
+  const bankAccess = await request(baseUrl, '/access', { token: bankSession.body.token })
+  assert.equal(bankAccess.status, 200)
+  assert.equal(bankAccess.body.profile.label, 'Ngân hàng')
+  assert.equal(bankAccess.body.roleProfiles.buyer.projection.includes('never'), true)
+  assert.equal(bankAccess.body.exchangePolicies.agent.recipients.bank.never.includes('Private remarks'), true)
+
+  const invalid = await request(baseUrl, '/access-requests', { token: bankSession.body.token, method: 'POST', body: { resourceId: 'HN-PROP-000184' } })
+  assert.equal(invalid.status, 422)
+  assert.equal(invalid.body.error.code, 'ACCESS_REQUEST_INVALID')
+
+  const created = await request(baseUrl, '/access-requests', {
+    token: bankSession.body.token,
+    method: 'POST',
+    body: { resourceId: 'HN-PROP-000184', fieldGroup: 'Closing/finance data', purpose: 'Pre-qualification đã có consent', duration: '30 ngày' },
+  })
+  assert.equal(created.status, 201)
+  assert.equal(created.body.request.status, 'Chờ duyệt')
+
+  const buyerDecision = await request(baseUrl, `/access-requests/${created.body.request.id}/decision`, { token: buyerSession.body.token, method: 'POST', body: { status: 'Đã duyệt', reason: 'Không có authority' } })
+  assert.equal(buyerDecision.status, 403)
+
+  const approved = await request(baseUrl, `/access-requests/${created.body.request.id}/decision`, { token: brokerSession.body.token, method: 'POST', body: { status: 'Đã duyệt', reason: 'Purpose và consent phù hợp trong 30 ngày' } })
+  assert.equal(approved.status, 200)
+  assert.equal(approved.body.request.status, 'Đã duyệt')
+  assert.equal(approved.body.request.decidedBy, 'Lê Hoàng Phúc')
+
+  await request(baseUrl, '/properties/HN-PROP-000184/intelligence', { token: agentSession.body.token })
+  const agentAccess = await request(baseUrl, '/access', { token: agentSession.body.token })
+  assert.equal(agentAccess.body.accessAudit.some((event) => event.resourceId === 'HN-PROP-000184'), true)
+})

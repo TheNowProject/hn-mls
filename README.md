@@ -61,14 +61,15 @@ Các flow khám phá đã có điểm kết thúc rõ ràng:
 - CMA với subject Property, include/exclude comparable, rationale và báo cáo khoảng giá.
 - Quality Queue với filter, assignment, evidence, kết luận và cập nhật hàng đợi.
 - Organization với thành viên, entitlement review và lời mời theo role/scope.
+- Quyền & chia sẻ với actor-to-actor projection, field matrix, consent, Access Request có thời hạn và sensitive-read audit.
 - Project, Finance, Oversight và Shortlist với record detail và next step.
 - App Hub nối MLS Core, CMA Studio, Showing Desk và Distribution Monitor.
 
-Listing lifecycle, backend authorization và audit được lưu qua SQLite. Các thao tác khám phá ngoài core như lịch xem, client note, lời mời và CMA draft hiện được giữ trong phiên trình duyệt để phục vụ review UX.
+Listing lifecycle, Access Request, quyết định quyền, backend authorization và audit được lưu qua SQLite. Các thao tác khám phá ngoài core như lịch xem, client note, lời mời và CMA draft hiện được giữ trong phiên trình duyệt để phục vụ review UX.
 
 Prototype có 26 Property mô phỏng tại hai data space: 12 ở TP. Hồ Chí Minh và 14 ở Hà Nội. Đây chưa phải pilot/production: authentication, consent, dữ liệu địa chính, tích hợp đối tác và chính sách pháp lý vẫn cần được xác nhận.
 
-Trạng thái chi tiết: [PHASE_STATUS.md](./docs/PHASE_STATUS.md).
+Trạng thái chi tiết: [PHASE_STATUS.md](./docs/PHASE_STATUS.md). Phase 6.3 đã có [build plan System Admin](./docs/product/phase-6-3-system-admin-build-plan.md): tách control plane khỏi quyền đọc dữ liệu và dùng Break-glass Access cho trường hợp khẩn cấp.
 
 ## Chạy prototype
 

@@ -113,6 +113,16 @@ When duplicate candidates are reviewed:
 - Reconciliation identifies missing, stale, duplicate, and conflicting downstream state.
 - Replay is authorized, bounded, and audited.
 
+## AC-13 Administration and Break-glass Access
+
+- Every user can inspect their own active Membership, Entitlement, Purpose, Scope, expiry and relevant Consent without seeing another Party's private access record.
+- Organization Admin can manage Membership and approved Entitlement templates only inside the Organization boundary.
+- System Admin can manage platform identity, Organization state and policy versions but receives no Restricted business-data fields by default.
+- Break-glass Access requires a Resource, Field Classification, Purpose, incident/reference, duration and an approver distinct from the requester for critical field groups.
+- Elevated access expires automatically, cannot be silently renewed and records every Restricted read in an immutable audit trail.
+- Consent records and Access Request decisions are projected only to the data subject, requester, data owner, scoped approver or lawful authority.
+- Cross-organization approval without explicit ownership or delegated authority is rejected by the backend.
+
 ## Prototype acceptance subset
 
-The local prototype must demonstrate AC-01, the visible portion of AC-02 through AC-06, role-specific denied/masked states, and complete exploration paths for Contacts, CMA, Quality and actor workspaces. It must clearly label demo identities, session-local actions and synthetic data; backend projections remain the authority for Property Intelligence fields.
+The local prototype must demonstrate AC-01, the visible portion of AC-02 through AC-06, the access-governance flow in AC-13, role-specific denied/masked states, and complete exploration paths for Contacts, CMA, Quality and actor workspaces. It must clearly label demo identities, session-local actions and synthetic data; backend projections remain the authority for Property Intelligence fields.

@@ -13,6 +13,10 @@
 - Is a seller account required, or is consent represented through documents and an authorized party?
 - Which regulator roles define standards, own source data, and supervise activity?
 - Which fields are public, member-only, organization-restricted, regulator-restricted, or consent-based?
+- Which Organization or data owner approves each Access Request type?
+- Which Restricted Field groups require dual approval for Break-glass Access?
+- What retention and notification policy applies to sensitive-read audit events?
+- Which platform-support actions can System Admin perform from metadata without opening business content?
 
 ## Property and Listing
 

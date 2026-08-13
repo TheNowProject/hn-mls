@@ -1,8 +1,8 @@
 # Housenow MLS — Master Plan
 
-> Phiên bản: 0.1
-> Trạng thái: Phase 6 exploration-ready local prototype
-> Phạm vi: Phase 0 đến Phase 6
+> Phiên bản: 0.2
+> Trạng thái: Phase 6.2 operational prototype; Phase 6.3 System Admin control plane ready for build
+> Phạm vi: Phase 0 đến Phase 6.3
 > Sản phẩm tham chiếu: MLS Matrix tại Mỹ
 > Mục tiêu: Xây dựng nền tảng dữ liệu và vận hành thị trường bất động sản đa bên phù hợp với Việt Nam.
 
@@ -17,6 +17,8 @@
 | Phase 4 - Scope lock | Vertical-slice working baseline frozen; human sign-off pending | [`docs/product/phase-4-scope-lock.md`](./docs/product/phase-4-scope-lock.md) |
 | Phase 5 - Technical foundation | Operational for the local vertical slice | Node HTTP API, SQLite, role scope and audit trail under `server/` |
 | Phase 6 - MVP execution | Core vertical slice and exploration layer operational; broader epics and production hardening remain | End-to-end lifecycle plus Property 360, Contacts, CMA, Quality, Organization and actor-specific workspaces |
+| Phase 6.2 - Access governance | Implemented proposal; policy/legal validation pending | Actor projections, consent view, Access Request persistence, decisions and sensitive-read audit |
+| Phase 6.3 - Admin control plane | Ready for build | [Build plan](./docs/product/phase-6-3-system-admin-build-plan.md), [ADR](./docs/adr/0001-separate-admin-control-plane-from-data-access.md), AC-13 |
 
 The supplied `TheNowProject/mls` ZIP is a research and domain-discovery repository, not an implementation repository. Texas-specific observations remain evidence inputs and are not promoted to Vietnam requirements without an explicit decision.
 
@@ -65,15 +67,30 @@ Nền tảng phải giúp người sử dụng trả lời được:
 5. Cơ quan quản lý.
 6. Người mua.
 
-### 2.2 Actors vận hành cần bổ sung
+### 2.2 Actors vận hành
 
-#### Housenow Admin / Data Steward
+Các role dưới đây không được tính vào sáu actor thị trường và không có blanket access vào dữ liệu nghiệp vụ.
 
-- Xác minh tổ chức và người dùng.
-- Xử lý listing hoặc property trùng.
-- Xử lý tranh chấp và báo cáo dữ liệu sai.
+#### Organization Admin
+
+- Quản lý Membership và Entitlement trong đúng Organization.
+- Mời, khóa hoặc loại thành viên theo policy.
+- Duyệt Access Request khi Organization sở hữu resource hoặc có delegated authority.
+- Không tự động thấy CRM, owner contact, private remarks hoặc finance data.
+
+#### System Admin
+
+- Quản lý Organization, identity recovery, policy version, integration và service state.
+- Quản lý role/Entitlement template nhưng không tự cấp permanent business-data access ngầm.
+- Khởi tạo Break-glass Access khi có sự cố; critical field cần người khác phê duyệt.
+- Chỉ xem security/platform metadata theo mặc định.
+
+#### Data Steward
+
+- Xử lý Property/Listing trùng, nguồn xung đột và báo cáo dữ liệu sai.
 - Quản lý taxonomy, data dictionary và validation rules.
 - Theo dõi chất lượng dữ liệu, SLA và lỗi đồng bộ.
+- Chỉ mở Restricted Field trong quality case được giao.
 
 #### Chủ sở hữu / Người bán
 
@@ -328,6 +345,19 @@ Không gom toàn bộ cơ quan quản lý vào một role. Cần tách cơ quan 
 
 Bảng trên là permission baseline. Trước MVP phải chi tiết đến role, resource, action, scope và field-level visibility.
 
+### 5.1 Administrative control-plane baseline
+
+| Hành động | Organization Admin | System Admin | Data Steward |
+|---|---:|---:|---:|
+| Quản lý Membership | Trong Organization | Support/recovery theo policy | Không |
+| Cấu hình policy/template | Không | Có version và audit | Đề xuất |
+| Xem Restricted business data | Chỉ Entitlement nghiệp vụ hiện có | Không mặc định | Quality case được giao |
+| Duyệt Access Request | Resource/Organization sở hữu | Route/support scope | Quality request được giao |
+| Break-glass Access | Không | Khởi tạo; không tự duyệt critical field | Approver khi policy giao |
+| Xem platform/security metadata | Organization scope | Platform scope | Quality scope |
+
+Nguyên tắc bắt buộc: control-plane authority không đồng nghĩa data-plane visibility. Break-glass Access phải có Purpose, reason, incident/reference, người duyệt, thời hạn và sensitive-read audit.
+
 ## 6. Scope prioritization
 
 ### P0 — Prototype phải thể hiện
@@ -345,6 +375,8 @@ Bảng trên là permission baseline. Trước MVP phải chi tiết đến role
 - Dashboard cơ bản cho ngân hàng/cơ quan quản lý.
 - Buyer experience.
 - Admin quality queue.
+- Quyền của tôi và actor-to-actor data projection.
+- Consent, Access Request và denied/masked/expired states.
 
 ### P1 — MVP phải vận hành thật
 
@@ -359,7 +391,8 @@ Bảng trên là permission baseline. Trước MVP phải chi tiết đến role
 - Data validation và provenance.
 - Report listing/data issue.
 - Audit log.
-- Admin console.
+- Tách `Quyền của tôi`, Organization Admin, System Admin và Data Steward console.
+- Time-bounded Entitlement và Break-glass Access.
 - Dashboard cơ bản.
 - Import/API pipeline tối thiểu.
 
@@ -590,7 +623,9 @@ Tạo một prototype đủ thật để sáu actor nhìn thấy sản phẩm, t
 - [ ] Ngân hàng — finance eligibility.
 - [ ] Cơ quan quản lý — data-quality dashboard.
 - [ ] Người mua — verified listing experience.
-- [ ] Housenow Admin — verification/data issue queue.
+- [ ] Data Steward — verification/data issue queue.
+- [ ] Organization Admin — membership và entitlement trong tổ chức.
+- [ ] System Admin — organization, policy và security metadata; không có blanket data access.
 
 ### Nguyên tắc prototype
 
@@ -729,7 +764,7 @@ Chốt kiến trúc và xây nền tảng kỹ thuật an toàn cho MVP.
 - Mọi record quan trọng phải truy nguyên được nguồn.
 - Import phải idempotent và có cơ chế xử lý trùng.
 - Không sử dụng dữ liệu cá nhân thật trong prototype/dev.
-- Override của admin/regulator phải có lý do và audit.
+- Override của regulator phải có authority, reason và audit; System Admin muốn đọc Restricted Field phải dùng Break-glass Access.
 
 ### Deliverables
 
@@ -763,6 +798,8 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 - [ ] Organization profiles.
 - [ ] Membership/invitation.
 - [ ] Roles và permissions.
+- [ ] Organization Admin assignment và organization boundary.
+- [ ] System Admin control plane không có business-data projection mặc định.
 - [ ] Actor-specific navigation.
 
 #### Epic 2 — Core property data
@@ -813,7 +850,7 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 #### Epic 7 — Oversight và operations
 
 - [ ] Brokerage approval queue.
-- [ ] Housenow Admin quality queue.
+- [ ] Data Steward quality queue.
 - [ ] Duplicate review.
 - [ ] Verification workflow.
 - [ ] Regulatory aggregate dashboard.
@@ -826,12 +863,28 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 - [ ] Consent-based bank lead.
 - [ ] Basic lead status.
 
+#### Epic 9 — Access governance và admin control plane
+
+- [x] Actor-to-actor projection và field visibility matrix trong prototype.
+- [x] Access Request persistence, decision và sensitive-read audit baseline.
+- [ ] Thu hẹp Consent projection theo subject/grantee/data owner/authority.
+- [ ] Chặn Broker/Data Steward duyệt request ngoài organization hoặc delegated authority.
+- [ ] Durable Entitlement Grant với start, expiry, revoke và source request.
+- [ ] Organization Admin workspace.
+- [ ] System Admin workspace cho identity, organization, policy, integration và security metadata.
+- [ ] Break-glass request, separate approval, countdown, expiry và revoke.
+- [ ] Audit mọi Restricted read trong elevated session.
+- [ ] Security-negative tests cho search, export, notification, analytics, cache và error payload.
+
+Build packet: [`docs/product/phase-6-3-system-admin-build-plan.md`](./docs/product/phase-6-3-system-admin-build-plan.md).
+
 ### Definition of Done cho mọi feature
 
 - [ ] Có use case và acceptance criteria.
 - [ ] Có design và responsive behavior.
 - [ ] Có frontend permission state.
 - [ ] Có backend authorization.
+- [ ] Control-plane action không ngầm mở data-plane field.
 - [ ] Có validation.
 - [ ] Có audit event nếu thay đổi dữ liệu quan trọng.
 - [ ] Có loading, empty, error và permission-denied states.
@@ -848,6 +901,9 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 - [ ] Listing lifecycle vượt qua end-to-end tests.
 - [ ] Bulk import không tạo bản ghi trùng khi chạy lại.
 - [ ] Data visibility đúng theo actor và scope.
+- [ ] System Admin không nhận Restricted business field theo mặc định.
+- [ ] Critical Break-glass request không thể tự duyệt và tự hết hạn đúng thời điểm.
+- [ ] Consent và Access Request không lộ qua organization boundary.
 - [ ] Các critical flows có monitoring.
 - [ ] Backup và restore được kiểm thử.
 - [ ] Seed/demo environment sẵn sàng cho review.
@@ -856,7 +912,7 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 ### Deliverables
 
 - MVP application.
-- Admin/data-steward console.
+- Organization Admin, System Admin và Data Steward console tách biệt.
 - Seed/demo environment.
 - Automated test suite.
 - Technical documentation.
@@ -920,6 +976,9 @@ Mỗi feature cần truy ngược được theo chuỗi:
 - [ ] Người bán có tài khoản trực tiếp trong MVP không?
 - [ ] Cơ quan quản lý chỉ giám sát hay tham gia phê duyệt?
 - [ ] Dữ liệu nào public, industry-only và restricted?
+- [ ] Field group nào yêu cầu dual approval khi Break-glass?
+- [ ] Organization/data owner nào có quyền duyệt từng loại Access Request?
+- [ ] Retention và notification policy cho sensitive-read audit là gì?
 - [ ] Booking/transaction có thuộc MVP không?
 - [ ] Ngân hàng tham gia ở mức catalog, lead hay pre-approval?
 - [ ] Repo của tech lead được phép reference, fork hay reuse?
@@ -933,22 +992,27 @@ housenow-mls/
 ├── docs/
 │   ├── product/
 │   ├── domain/
+│   ├── adr/
 │   ├── decisions/
 │   ├── research/
-│   └── architecture/
-├── prototype/            # Clickable web prototype
-└── app/                  # MVP codebase sau khi scope lock
+│   └── technical/
+├── src/                  # React prototype và actor workspaces
+├── server/               # HTTP API, domain policy và SQLite
+└── test/                 # Domain, API integration và backup tests
 ```
 
-Chỉ `MASTER_PLAN.md` được khởi tạo ở thời điểm hiện tại. Các thư mục và artifact còn lại sẽ được tạo khi repo được cung cấp và Phase 1 bắt đầu.
+Repo hiện đã có prototype chạy được, backend local, SQLite, automated tests và tài liệu Phase 0-6.3. `reference/` tiếp tục là bằng chứng read-only; implementation nằm trong `src/` và `server/`.
 
 ## 11. Immediate next step
 
-Khi repo được cung cấp:
+Phase 6.3 bắt đầu theo thứ tự:
 
-1. Đặt repo vào vai trò reference, không sửa trực tiếp.
-2. Xác nhận quyền fork/reuse với tech lead.
-3. Thực hiện Phase 1 discovery.
-4. Đối chiếu domain và use cases trong repo với tài liệu này.
-5. Cập nhật master plan bằng các phát hiện đã được xác nhận.
-6. Chỉ bắt đầu prototype sau khi có actor–use case map và open-question list đủ rõ.
+1. Viết failing tests cho Consent leakage và cross-organization approval đang biết.
+2. Sửa projection và approver scope trước khi thêm System Admin UI.
+3. Thêm Organization Admin/System Admin demo identity nhưng không cấp business-data projection.
+4. Thêm durable Entitlement Grant và Policy Version.
+5. Build ba surface: Quyền của tôi, Quản trị tổ chức và System Admin.
+6. Build Break-glass request, separate approval, countdown, revoke và expiry.
+7. Chạy actor regression, responsive review và security-negative tests.
+
+Chi tiết sẵn sàng triển khai tại [`docs/product/phase-6-3-system-admin-build-plan.md`](./docs/product/phase-6-3-system-admin-build-plan.md).

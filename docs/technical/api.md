@@ -32,6 +32,22 @@ Returns a purpose-scoped Property 360 projection. Depending on the actor, the re
 
 The projection is enforced by the backend: Buyer receives public fields only; Bank and Developer do not receive private remarks or audit; Regulator keeps audit within the simulated authority scope but receives no private remarks; Agent receives private remarks only for an assigned Listing.
 
+When the resulting projection contains Restricted fields, the local slice appends a sensitive-read audit event with actor, organization, resource, field group, purpose and time.
+
+## Access governance
+
+`GET /access`
+
+Returns the current actor profile, field-level projection matrix, actor-to-actor exchange policy, relevant consent records, visible Access Requests and sensitive-read audit events.
+
+`POST /access-requests`
+
+Creates a time-bounded request containing `resourceId`, `fieldGroup`, `purpose` and `duration`.
+
+`POST /access-requests/:requestId/decision`
+
+Allows Broker or Data Steward to approve or reject a pending request with a required reason. The prototype persists the decision; production still requires a policy engine to turn an approved request into an effective Entitlement.
+
 ## Public discovery
 
 `GET /public/properties`
