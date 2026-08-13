@@ -73,6 +73,10 @@ export function createHttpServer({ store }) {
         return json(response, 200, store.accessSnapshot(actor))
       }
 
+      if (request.method === 'GET' && url.pathname === '/api/notifications') {
+        return json(response, 200, store.notifications(actor, url.searchParams.get('market') ?? 'hcm'))
+      }
+
       if (request.method === 'POST' && url.pathname === '/api/access-requests') {
         return json(response, 201, { request: store.createAccessRequest(actor, await readBody(request)) })
       }

@@ -141,6 +141,44 @@ test('six actor projections expose only the intended Property Intelligence field
   assert.equal(hanoiDetail.body.property.intelligence.marketSnapshot.scope.includes('Hà Nội'), true)
 })
 
+test('notification feed is projected by authenticated actor and market', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+  const allowedPages = {
+    agent: ['listings', 'contacts', 'analytics', 'access'],
+    broker: ['listings', 'quality', 'organization', 'access'],
+    developer: ['projects', 'listings', 'access'],
+    bank: ['finance', 'access'],
+    regulator: ['oversight', 'quality', 'access'],
+    buyer: ['shortlist', 'discover', 'access'],
+    steward: ['quality', 'access'],
+  }
+  const titlesByRole = {}
+
+  for (const roleId of Object.keys(allowedPages)) {
+    const session = await request(baseUrl, '/session', { method: 'POST', body: { roleId } })
+    const feed = await request(baseUrl, '/notifications?market=hanoi', { token: session.body.token })
+    assert.equal(feed.status, 200)
+    assert.equal(feed.body.notifications.length, 4)
+    assert.equal(feed.body.notifications.every((item) => item.id.startsWith(`hanoi-${roleId}-`)), true)
+    assert.equal(feed.body.notifications.every((item) => allowedPages[roleId].includes(item.page)), true)
+    assert.equal(feed.body.notifications.every((item) => item.category && item.tone), true)
+    titlesByRole[roleId] = feed.body.notifications.map((item) => item.title)
+  }
+
+  assert.notDeepEqual(titlesByRole.agent, titlesByRole.bank)
+  assert.notDeepEqual(titlesByRole.buyer, titlesByRole.steward)
+
+  const agentSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'agent' } })
+  const invalidMarket = await request(baseUrl, '/notifications?market=all', { token: agentSession.body.token })
+  assert.equal(invalidMarket.status, 400)
+  assert.equal(invalidMarket.body.error.code, 'MARKET_INVALID')
+})
+
 test('access policy exposes actor projections and persists governed access requests', async (context) => {
   const store = createMlsStore({ dbPath: ':memory:' })
   const server = createHttpServer({ store })

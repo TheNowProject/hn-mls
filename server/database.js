@@ -3,6 +3,7 @@ import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { intelligenceSeed, properties as seedProperties, qualityIssues as seedIssues } from '../src/data/mockData.js'
 import { accessRequestSeed, consentSeed, exchangePolicies, fieldGroups, roleAccessProfiles } from '../src/data/accessPolicy.js'
+import { notificationsForActor } from '../src/data/notifications.js'
 import { assertTransition, initialStatusFor, projectPropertyForActor, validateListingInput } from './domain/listingLifecycle.js'
 
 const terminalStatuses = new Set(['Closed', 'Withdrawn', 'Expired'])
@@ -421,6 +422,16 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
     }
   }
 
+  function notifications(actor, marketId = 'hcm') {
+    if (!['hcm', 'hanoi'].includes(marketId)) {
+      const error = new Error('Không gian dữ liệu thông báo không hợp lệ.')
+      error.status = 400
+      error.code = 'MARKET_INVALID'
+      throw error
+    }
+    return { notifications: notificationsForActor(actor.role, marketId) }
+  }
+
   function nextAccessRequestId() {
     const row = db.prepare("SELECT id FROM access_requests WHERE id LIKE 'AR-2026-%' ORDER BY id DESC LIMIT 1").get()
     const next = row ? Number(row.id.split('-').at(-1)) + 1 : 1
@@ -563,5 +574,5 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
   }
 
   seed()
-  return { bootstrap, publicProperties, propertyDetail, accessSnapshot, createAccessRequest, decideAccessRequest, createListing, transitionListing, close: () => db.close() }
+  return { bootstrap, publicProperties, propertyDetail, accessSnapshot, notifications, createAccessRequest, decideAccessRequest, createListing, transitionListing, close: () => db.close() }
 }

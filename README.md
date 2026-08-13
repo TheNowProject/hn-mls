@@ -62,6 +62,7 @@ Các flow khám phá đã có điểm kết thúc rõ ràng:
 - Quality Queue với filter, assignment, evidence, kết luận và cập nhật hàng đợi.
 - Organization với thành viên, entitlement review và lời mời theo role/scope.
 - Quyền & chia sẻ với actor-to-actor projection, field matrix, consent, Access Request có thời hạn và sensitive-read audit.
+- Notification Center theo từng actor và data space; mỗi thông báo chỉ dẫn tới workspace actor được phép truy cập.
 - Project, Finance, Oversight và Shortlist với record detail và next step.
 - App Hub nối MLS Core, CMA Studio, Showing Desk và Distribution Monitor.
 

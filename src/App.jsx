@@ -43,6 +43,7 @@ import {
 import { activityFeedsByMarket, properties as initialProperties, qualityIssues, roles } from './data/mockData.js'
 import { actorExperiencesByMarket } from './data/actorViews.js'
 import { localAccessSnapshot } from './data/accessPolicy.js'
+import { notificationsForActor } from './data/notifications.js'
 import { mlsApi } from './lib/apiClient.js'
 import {
   ActorTable as ExplorationActorTable,
@@ -117,7 +118,7 @@ const theme = {
   colorBrandStroke1: '#176b55',
   borderRadiusMedium: '12px',
   borderRadiusLarge: '16px',
-  fontFamilyBase: '"Avenir Next", Avenir, "Segoe UI", sans-serif',
+  fontFamilyBase: '"Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif',
 }
 
 function StatusBadge({ status }) {
@@ -154,12 +155,7 @@ function App() {
   const [connectionError, setConnectionError] = useState('')
   const [flow, setFlow] = useState(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Listing cần bổ sung nguồn', meta: 'HN-LST-2026-00904 · 8 phút trước', page: 'listings', read: false },
-    { id: 2, title: 'Lịch xem đã được xác nhận', meta: 'The Metropole · 17:30 hôm nay', page: 'contacts', read: false },
-    { id: 3, title: 'Có 3 comparable mới', meta: 'CMA Thủ Thiêm · 26 phút trước', page: 'analytics', read: false },
-    { id: 4, title: 'Quality issue gần SLA', meta: 'DQ-2031 · còn 2 giờ', page: 'quality', read: false },
-  ])
+  const [notificationFeeds, setNotificationFeeds] = useState(() => ({ 'agent:hcm': notificationsForActor('agent', 'hcm') }))
 
   const role = roles.find((item) => item.id === roleId)
   const market = marketId === 'hanoi' ? { id: 'hanoi', label: 'Hà Nội', shortLabel: 'HN' } : { id: 'hcm', label: 'TP. Hồ Chí Minh', shortLabel: 'SG' }
@@ -179,21 +175,36 @@ function App() {
     })
   }, [scopedListings, query, type])
   const propertyTypes = useMemo(() => ['Tất cả', ...new Set(scopedListings.map((property) => property.type))], [scopedListings])
+  const notificationScope = `${roleId}:${marketId}`
+  const notifications = notificationFeeds[notificationScope] ?? notificationsForActor(roleId, marketId)
+  const unreadNotificationCount = notifications.filter((item) => !item.read).length
+  const updateNotifications = (updater) => {
+    setNotificationFeeds((current) => {
+      const scoped = current[notificationScope] ?? notificationsForActor(roleId, marketId)
+      return { ...current, [notificationScope]: updater(scoped) }
+    })
+  }
 
   useEffect(() => {
     let cancelled = false
     async function loadWorkspace() {
       try {
         await mlsApi.login(roleId)
-        const [payload, nextAccessSnapshot] = await Promise.all([
+        const [payload, nextAccessSnapshot, nextNotificationFeed] = await Promise.all([
           mlsApi.bootstrap(),
           mlsApi.accessSnapshot().catch(() => localAccessSnapshot(roleId)),
+          mlsApi.notifications(marketId).catch(() => ({ notifications: notificationsForActor(roleId, marketId) })),
         ])
         if (cancelled) return
         const nextSelectedId = payload.properties.find((property) => (property.market ?? 'hcm') === marketId)?.id
         setListings(payload.properties)
         setIssues(payload.qualityIssues)
         setAccessSnapshot(nextAccessSnapshot)
+        setNotificationFeeds((current) => {
+          const scope = `${roleId}:${marketId}`
+          const readIds = new Set((current[scope] ?? []).filter((item) => item.read).map((item) => item.id))
+          return { ...current, [scope]: nextNotificationFeed.notifications.map((item) => ({ ...item, read: readIds.has(item.id) })) }
+        })
         setSelectedId(nextSelectedId)
         setSelectedDetail(null)
         setConnectionState('ready')
@@ -243,6 +254,7 @@ function App() {
     setMobileDetailOpen(false)
     setConnectionState('loading')
     setFlow(null)
+    setNotificationsOpen(false)
   }
 
   const navigate = (nextPage) => {
@@ -280,8 +292,12 @@ function App() {
   }
 
   const openNotification = (notification) => {
-    setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item))
+    updateNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item))
     setNotificationsOpen(false)
+    if (!navigationByRole[roleId].includes(notification.page)) {
+      notify('Thông báo này không thuộc phạm vi workspace hiện tại.')
+      return
+    }
     navigate(notification.page)
   }
 
@@ -392,7 +408,17 @@ function App() {
               <kbd>⌘ K</kbd>
             </form>
             <div className="global-actions">
-              <div className="notification-anchor"><Tooltip content="Thông báo" relationship="label"><button className="icon-button" aria-label="Thông báo" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((current) => !current)}><Bell />{notifications.some((item) => !item.read) && <span className="notification-count">{notifications.filter((item) => !item.read).length}</span>}</button></Tooltip>{notificationsOpen && <div className="notification-panel"><header><div><strong>Thông báo</strong><span>{notifications.filter((item) => !item.read).length} chưa đọc</span></div><button onClick={() => setNotifications((current) => current.map((item) => ({ ...item, read: true })))}>Đánh dấu đã đọc</button></header>{notifications.map((item) => <button key={item.id} className={item.read ? 'notification-item read' : 'notification-item'} onClick={() => openNotification(item)}><span className="notification-dot" /><span><strong>{item.title}</strong><small>{item.meta}</small></span><ArrowRight /></button>)}</div>}</div>
+              <div className="notification-anchor">
+                <Tooltip content={`Thông báo cho ${role.label}`} relationship="label">
+                  <button className="icon-button" aria-label={`Thông báo cho ${role.label}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((current) => !current)}>
+                    <Bell />{unreadNotificationCount > 0 && <span className="notification-count">{unreadNotificationCount}</span>}
+                  </button>
+                </Tooltip>
+                {notificationsOpen && <div className="notification-panel">
+                  <header><div><strong>Thông báo · {role.label}</strong><span>{unreadNotificationCount} chưa đọc · {market.label}</span></div><button onClick={() => updateNotifications((current) => current.map((item) => ({ ...item, read: true })))}>Đánh dấu đã đọc</button></header>
+                  {notifications.map((item) => <button key={item.id} className={item.read ? 'notification-item read' : 'notification-item'} onClick={() => openNotification(item)}><span className={`notification-dot notification-dot-${item.tone}`} /><span><em>{item.category}</em><strong>{item.title}</strong><small>{item.meta}</small></span><ArrowRight /></button>)}
+                </div>}
+              </div>
               <div className="role-switcher">
                 <span className="role-monogram">{role.shortLabel}</span>
                 <label><small>Góc nhìn</small><select value={roleId} onChange={(event) => switchRole(event.target.value)} aria-label="Góc nhìn người dùng">{roles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>

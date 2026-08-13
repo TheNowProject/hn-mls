@@ -34,6 +34,7 @@ export const mlsApi = {
   },
   bootstrap: () => request('/bootstrap'),
   accessSnapshot: () => request('/access'),
+  notifications: (marketId) => request(`/notifications?market=${encodeURIComponent(marketId)}`),
   requestAccess: (input) => request('/access-requests', { method: 'POST', body: JSON.stringify(input) }),
   decideAccessRequest: (requestId, input) => request(`/access-requests/${encodeURIComponent(requestId)}/decision`, { method: 'POST', body: JSON.stringify(input) }),
   propertyIntelligence: (propertyId) => request(`/properties/${encodeURIComponent(propertyId)}/intelligence`),

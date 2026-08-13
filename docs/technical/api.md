@@ -24,6 +24,12 @@ Each Property includes a `market` discriminator (`hcm` or `hanoi`). The local UI
 
 Supported demo actors: `agent`, `broker`, `developer`, `bank`, `regulator`, `buyer`, and the operational `steward` role.
 
+## Notifications
+
+`GET /notifications?market=hcm`
+
+Returns only notifications projected for the authenticated actor and selected market (`hcm` or `hanoi`). The client does not submit a target role. Every notification route is constrained to a workspace available to that actor; read/unread state is kept separately for each actor–market scope in the exploration session.
+
 ## Property Intelligence
 
 `GET /properties/:propertyId/intelligence`

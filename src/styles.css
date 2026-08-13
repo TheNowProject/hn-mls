@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  font-family: "Avenir Next", Avenir, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #1b2622;
   background: #f4f6f5;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --ink: #1b2622;
   --muted: #66736e;
-  --faint: #89958f;
+  --faint: #65726c;
   --line: #dfe5e2;
   --line-strong: #cad4cf;
   --surface: #ffffff;
@@ -33,6 +33,7 @@
 html { min-width: 320px; background: #f4f6f5; }
 body { margin: 0; min-width: 320px; min-height: 100dvh; background: #f4f6f5; }
 button, input, select, textarea { font: inherit; }
+input::placeholder, textarea::placeholder { color: #66736e; opacity: 1; }
 button { color: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
@@ -57,7 +58,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dataset-switcher > svg { color: var(--sidebar-muted); }
 .primary-nav { display: grid; gap: 19px; overflow-y: auto; }
 .nav-group { display: grid; gap: 3px; }
-.nav-group-label { padding: 0 10px 6px; color: #70877c; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.nav-group-label { padding: 0 10px 6px; color: #768c82; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .nav-item { width: 100%; display: grid; grid-template-columns: 19px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 10px 11px; border: 0; border-radius: 9px; color: var(--sidebar-muted); background: transparent; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; transition: color 160ms ease, background 160ms ease, transform 100ms ease; }
 .nav-item:hover { color: #fff; background: rgba(255,255,255,.055); }
 .nav-item:active { transform: translateY(1px); }
@@ -78,7 +79,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .global-search { width: min(520px, 46vw); display: grid; grid-template-columns: 19px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: #f7f9f8; }
 .global-search input { width: 100%; height: 38px; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; }
 .global-search input::placeholder { color: #8a9690; }
-.global-search kbd { padding: 3px 7px; border: 1px solid #d7deda; border-radius: 6px; color: #718079; background: #fff; font-size: 9px; box-shadow: 0 1px 1px rgba(0,0,0,.03); }
+.global-search kbd { padding: 3px 7px; border: 1px solid #d7deda; border-radius: 6px; color: #65726c; background: #fff; font-size: 9px; box-shadow: 0 1px 1px rgba(0,0,0,.03); }
 .global-actions { display: flex; align-items: center; gap: 9px; }
 .icon-button { position: relative; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
 .icon-button svg { width: 18px; height: 18px; }
@@ -435,9 +436,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .notification-item { width: 100%; display: grid; grid-template-columns: 7px minmax(0,1fr) 15px; align-items: center; gap: 9px; padding: 12px 14px; border: 0; border-bottom: 1px solid #edf0ee; background: #fff; text-align: left; cursor: pointer; }
 .notification-item:hover { background: #f7faf8; }
 .notification-item > span:nth-child(2) { display: grid; gap: 3px; }
+.notification-item em { width: fit-content; color: var(--accent); font-size: 7px; font-style: normal; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
 .notification-item strong { font-size: 9px; }
 .notification-item small { color: var(--muted); font-size: 7px; }
-.notification-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.notification-dot { width: 7px; height: 7px; border-radius: 50%; background: #6f8f82; }
+.notification-dot-positive { background: #1d8b68; }
+.notification-dot-warning { background: #d08a1d; }
+.notification-dot-danger { background: #bd4b52; }
+.notification-dot-info { background: #477da8; }
 .notification-item.read { opacity: .64; }
 .notification-item.read .notification-dot { background: #c5cec9; }
 
@@ -943,7 +949,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 :root {
   --ink: #17231f;
   --muted: #596861;
-  --faint: #74827c;
+  --faint: #65726c;
   --line: #d9e1dd;
   --line-strong: #bdcac4;
   --surface-soft: #f5f8f6;
@@ -961,7 +967,7 @@ body {
   background:
     radial-gradient(circle at 78% 8%, rgba(211, 232, 222, .42), transparent 28rem),
     #f3f6f4;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
 }
 strong, b, code, .metric-strip, .actor-metrics, .quality-summary, .price-row { font-variant-numeric: tabular-nums; }
@@ -1050,7 +1056,7 @@ strong, b, code, .metric-strip, .actor-metrics, .quality-summary, .price-row { f
 .command-panel .section-kicker, .actor-hero .section-kicker { color: var(--accent); }
 .command-search { grid-template-columns: 22px minmax(0,1fr); gap: 11px; padding: 14px; border: 1px solid #cbdcd4; border-radius: 15px; color: var(--muted); background: rgba(255,255,255,.76); }
 .command-search input { height: 34px; color: var(--ink); font-size: 14px; }
-.command-search input::placeholder { color: #6c7c75; }
+.command-search input::placeholder { color: #66736e; }
 .command-search button { min-height: 44px; padding: 11px 14px; border-radius: 10px; color: #fff; background: var(--accent); font-size: 14px; }
 .command-search button:hover { background: var(--accent-dark); }
 .metric-strip, .actor-metrics { border-radius: 18px; }
@@ -1260,6 +1266,7 @@ strong, b, code, .metric-strip, .actor-metrics, .quality-summary, .price-row { f
 .notification-panel header strong { font-size: 15px; }
 .notification-panel header span, .notification-panel header button { font-size: 12px; }
 .notification-item { grid-template-columns: 8px minmax(0,1fr) 18px; gap: 11px; padding: 15px 16px; }
+.notification-item em { font-size: 9px; }
 .notification-item strong { font-size: 13px; }
 .notification-item small { font-size: 11px; }
 .inline-search { min-width: 310px; padding: 0 12px; border-radius: 11px; }
@@ -1484,4 +1491,98 @@ strong, b, code, .metric-strip, .actor-metrics, .quality-summary, .price-row { f
   .selected-source img { width: 108px; height: 90px; }
   .notification-panel { top: 64px; }
   .toast { right: 12px; bottom: 88px; left: 12px; }
+}
+
+/* Application-wide legibility floor: metadata 12px, data 13px, primary content 14px. */
+.brand-mark small, .dataset-switcher small, .profile-block span, .role-switcher small { font-size: 12px; line-height: 1.4; }
+.dataset-switcher select, .profile-block strong, .role-switcher select { font-size: 14px; }
+.nav-group-label { font-size: 12px; }
+.nav-item { font-size: 14px; }
+.nav-item b { font-size: 12px; }
+
+.section-kicker { font-size: 12px; }
+.panel-heading p, .command-panel p, .actor-hero p, .app-preview p { font-size: 14px; line-height: 1.6; }
+.metric-strip span, .actor-metrics span, .metric-strip small, .actor-metrics small { font-size: 13px; }
+.task-list small, .task-list em, .chart-label span, .hot-grid span, .hot-grid em { font-size: 12px; }
+.task-list strong, .hot-grid small { font-size: 14px; }
+.chart-axis { font-size: 12px; }
+
+.actor-table-head, .compact-table-head, .listing-table-head, .issue-head, .member-head { font-size: 12px; line-height: 1.4; }
+.actor-table > button span, .compact-table-row strong, .listing-table-row strong, .issue-row strong, .member-table > button > span { font-size: 14px; line-height: 1.45; }
+.compact-table-row small, .listing-table-row small, .issue-row small, .member-table i { font-size: 12px; line-height: 1.45; }
+.compact-table-row code, .issue-row code { font-size: 13px; }
+.distribution-state, .issue-row > span:nth-child(4), .issue-row > span:nth-child(5) { font-size: 13px; }
+.issue-type, .status-badge, .verification-badge { font-size: 12px; }
+.review-banner strong { font-size: 14px; }
+.review-banner span, .table-empty span { font-size: 13px; line-height: 1.5; }
+
+.section-heading span, .section-heading button, .filter-chip, .advanced-filter-panel label span,
+.advanced-filter-panel select, .sort-select select, .compact-filter select, .advanced-filter-panel > button { font-size: 13px; }
+.property-row-main > strong, .property-row-meta strong { font-size: 16px; }
+.address, .property-facts { font-size: 13px; line-height: 1.5; }
+.property-row-meta small { font-size: 12px; }
+.loading-state span, .empty-state span { font-size: 14px; line-height: 1.55; }
+
+.audience-context span, .identity-strip span, .summary-title span, .listing-meta,
+.intelligence-strip span, .facts-grid dt, .history-item span, .history-item-rich > div:nth-child(2) small,
+.price-timeline span, .price-timeline small, .audit-event span, .audit-event small,
+.source-list dt, .source-events span, .source-events small, .market-scope span, .market-scope small,
+.market-range small, .media-summary > span { font-size: 12px; line-height: 1.5; }
+.audience-context strong, .identity-strip strong, .summary-title strong, .history-item strong,
+.price-timeline strong, .audit-event strong, .source-list dd, .source-events strong,
+.market-scope strong, .market-range strong { font-size: 13px; line-height: 1.45; }
+.detail-address, .tabs button { font-size: 14px; }
+.facts-grid dd, .intelligence-strip strong, .listing-summary > p { font-size: 14px; line-height: 1.6; }
+.member-note, .permission-note, .restricted-note span, .evidence-note p { font-size: 12px; line-height: 1.55; }
+.restricted-note strong, .no-active-listing strong { font-size: 13px; }
+.no-active-listing span { font-size: 12px; }
+.source-score span, .map-pin, .map-legend span, .map-legend small { font-size: 12px; line-height: 1.45; }
+.workspace small { line-height: 1.45; }
+
+.notification-panel header span, .notification-panel header button { font-size: 13px; }
+.notification-item em { font-size: 12px; }
+.notification-item strong { font-size: 14px; line-height: 1.4; }
+.notification-item small { font-size: 12px; line-height: 1.45; }
+
+.contact-row strong, .cma-subject strong, .candidate-row strong, .cma-report-grid strong,
+.rationale-card strong, .app-card > strong { font-size: 14px; }
+.contact-row small, .context-hero p, .context-facts dt, .mini-timeline small,
+.cma-subject small, .candidate-row small, .cma-report-grid span, .cma-report-grid small,
+.rationale-card span, .app-card em, .app-preview li { font-size: 12px; line-height: 1.5; }
+.context-facts dd, .mini-timeline strong, .cma-subject em { font-size: 13px; }
+.app-card p { font-size: 14px; line-height: 1.65; }
+
+.flow-body .field > span, .field label, .status-option strong, .consent-row strong,
+.validation-summary strong, .flow-assurance strong, .issue-dialog-summary strong,
+.record-snapshot strong, .transition-impact strong { font-size: 14px; }
+.field small, .status-option span, .consent-row small, .validation-summary span,
+.flow-assurance span, .issue-dialog-summary span, .issue-dialog-summary small,
+.record-snapshot small, .transition-route small, .transition-impact span { font-size: 12px; line-height: 1.5; }
+.composer-header span, .identity-confirm code { font-size: 12px; }
+
+.access-profile-card p, .access-profile-card small, .access-principle span,
+.exchange-source li, .projection-column li, .projection-row > span,
+.consent-list p, .access-request-form input, .access-request-form select, .access-decision textarea,
+.request-detail-grid dd, .access-request-list strong, .access-audit-list article > span { font-size: 13px; line-height: 1.5; }
+.exchange-source > small, .projection-head > span, .classification, .projection-badge,
+.consent-list small, .consent-list em, .consent-state, .access-request-form label > span,
+.access-decision label > span, .access-request-list small, .request-status, .request-detail-grid dt,
+.request-detail-note, .request-detail-note strong, .request-detail-note small, .access-audit-list small,
+.access-empty span { font-size: 12px; line-height: 1.45; }
+.access-profile-card h2 { font-size: 24px; }
+.access-principle strong, .exchange-source h3 { font-size: 16px; }
+.projection-column header strong, .consent-list strong, .access-empty strong { font-size: 14px; }
+.access-request-list article > button { min-height: 72px; padding-block: 16px; }
+.consent-list article, .access-audit-list article { padding-block: 15px; }
+
+@media (max-width: 980px) {
+  .nav-item { font-size: 12px; }
+}
+
+@media (max-width: 720px) {
+  .page-header p, .command-panel p, .actor-hero p { font-size: 14px; }
+  .metric-strip span, .actor-metrics span, .metric-strip small, .actor-metrics small { font-size: 12px; }
+  .task-list em { font-size: 12px; }
+  .property-row-main > strong { font-size: 15px; }
+  .notification-panel { max-height: calc(100dvh - 76px); overflow-y: auto; }
 }
