@@ -1,5 +1,5 @@
-node_modules
-dist
+node_modules/
+dist/
 .DS_Store
 *.local
 *.log
@@ -7,3 +7,24 @@ var/
 coverage/
 mls-main.zip
 output/qa/**/screenshots/
+
+# Local source media, credentials, deployment state, and scratch work
+tmp/
+.env
+.env.*
+!.env.example
+.vercel/
+
+# Local research exports; tracked QA reports remain allowed
+output/pdf/
+
+# Common generated artifacts
+build/
+.cache/
+.turbo/
+
+# IDE and key material
+.idea/
+.vscode/
+*.pem
+*.key

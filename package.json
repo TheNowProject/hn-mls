@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "db:backup": "node scripts/backup.mjs"
   },
   "dependencies": {

@@ -2,6 +2,8 @@
 
 Prototype MLS chạy được dành cho thị trường Việt Nam, xây dựng bằng React với sáu góc nhìn người dùng. Team và founder có thể dùng bản local để khám phá trọn các luồng từ tìm Property, quản lý Listing, khách hàng, lịch xem, CMA đến quality review và audit trên dữ liệu mô phỏng tại TP. Hồ Chí Minh và Hà Nội.
 
+Đây là repository canonical cho B2G VMLS demo và toàn bộ phát triển HouseNow MLS. Research workspace cũ được bảo toàn nguyên trạng tại [`reference/mls`](./reference/mls), bao gồm evidence và lịch sử nguồn liên quan.
+
 ## Repo này giải quyết điều gì?
 
 HouseNow MLS thử nghiệm một nền tảng dữ liệu bất động sản dùng chung, trong đó:
@@ -22,6 +24,10 @@ Research bắt đầu từ một MLS đang vận hành tại Texas, sử dụng 
 5. Chuyển đặc tả thành một vertical slice có thể chạy và kiểm thử.
 
 Đọc thêm: [kết quả discovery](./docs/research/phase-1-discovery.md), [product requirements](./docs/product/product-requirements-baseline.md) và [domain language](./CONTEXT.md).
+
+## Làm việc với agent
+
+Đọc [`AGENTS.md`](./AGENTS.md) trước khi giao việc. Repository dùng cấu trúc role-based tại [`.agents`](./.agents): `WORKER.md` cho implementation và release, `PM.md` cho Linear/specification, `QA.md` cho verification. Các role file sẽ route agent tới skill phù hợp; `CONTEXT.md`, `MASTER_PLAN.md` và `docs/` là baseline hiện hành, còn `reference/mls` là research snapshot không chỉnh sửa.
 
 ## Sáu actor chính
 
