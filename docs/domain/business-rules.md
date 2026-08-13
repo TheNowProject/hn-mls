@@ -31,6 +31,13 @@ Status: `PROPOSAL BASELINE` unless evidence level says otherwise.
 | BR-PERM-01 | Authorization is evaluated using active Membership, organization, purpose, resource, action, scope, classification, consent, and time. | PROPOSAL | Deny by default |
 | BR-PERM-02 | Public, Industry, and Restricted fields use separate authorized projections across all consumers. | FACT separation + PROPOSAL | Omit field and audit suspicious access where required |
 | BR-CONSENT-01 | Consent is purpose-bound, revocable, time-bounded, and not inferred from account relationship. | PROPOSAL | Deny use outside consent scope |
+| BR-OWNER-01 | An Ownership Claim is evidence to review, not automatic proof and never directly changes canonical Property data. | PROPOSAL | Keep claim Pending/Disputed and block authority-dependent action |
+| BR-OWNER-02 | Seller authority is limited by relationship, ownership share/delegation, subject, transaction, effective period and required co-owner threshold. | PROPOSAL | Block grant/revoke and open evidence/dispute path |
+| BR-OWNER-03 | Representation renew, replacement and revocation append a version/event and preserve every prior agreement and Listing history. | PROPOSAL | Reject destructive overwrite; route Active Listing for review |
+| BR-OWNER-04 | Seller correction, pause and withdrawal actions create a case; only an authorized correction or lifecycle transition mutates the target. | PROPOSAL | Preserve target state and route review with SLA |
+| BR-OWNER-05 | Seller projections expose own authority, consent and permitted milestones but exclude buyer identity, CRM, private remarks, underwriting and unrestricted audit. | PROPOSAL | Omit fields, deny access and audit suspicious reads |
+| BR-CONSENT-02 | Seller distribution consent binds an exact preview/version, field/media scope, channel/recipient, purpose and effective period. | PROPOSAL | Block distribution when decision is missing, expired or mismatched |
+| BR-CONSENT-03 | Consent revocation stops future permitted use and triggers downstream reconciliation without deleting lawful history. | PROPOSAL | Queue withdrawal/reconciliation, expose failure and retain audit |
 
 ## Data governance
 

@@ -9,11 +9,12 @@ Date: 2026-08-13
 | 0 — Product alignment | Draft baseline complete; stakeholder approval pending | Product alignment, assumptions, open questions and decision log |
 | 1 — Discovery | Complete for the supplied research repository | Discovery reports and read-only `reference/mls/` snapshot |
 | 2 — Product/domain specification | Draft baseline complete; product, legal and domain approval pending | Requirements, permissions, lifecycle, rules, acceptance criteria and traceability |
-| 3 — UX prototype | Exploration-ready for six primary actors; core navigation has no placeholder-only modules | React application under `src/` and [`product/phase-6-1-actor-perspectives.md`](./product/phase-6-1-actor-perspectives.md) |
+| 3 — UX prototype | Six locked Primary Market Actors plus Regulator/Data Steward perspectives are navigable | React application under `src/`; Seller has own-property, authority/consent and case workspaces |
 | 4 — Scope lock | Vertical-slice working baseline frozen; human sign-off pending | [`product/phase-4-scope-lock.md`](./product/phase-4-scope-lock.md) |
 | 5 — Technical foundation | Operational for the local vertical slice | HTTP API, SQLite persistence, role scope, audit events and ADR |
 | 6 — MVP execution | Core vertical slice, Property Intelligence, access governance and exploration workspaces operational; broader MVP epics remain | Lifecycle workflow, actor projections, Access Request, sensitive-read audit, price/closing/source history, Contacts, CMA, Quality, Organization and App Hub |
 | 6.3 — Admin control plane | Ready for build; no implementation claim yet | System Admin/Organization Admin separation, Break-glass ADR, AC-13 and build plan |
+| 6.4 — Target actor completion | In progress; first Seller vertical slice operational | Seller identity, own-scope projection, Ownership Claim, versioned revocation, Seller case, notifications, TP.HCM/Hà Nội seed and API tests implemented; grant/renew and downstream enforcement remain |
 
 This status means the local build is suitable for structured product exploration with the team and founder. It does not claim pilot readiness: demo authentication, production integrations, persistence for secondary exploration flows, operational hardening and the unresolved approval gates below remain open.
 
@@ -29,6 +30,7 @@ This status means the local build is suitable for structured product exploration
 
 ### Phase 1
 
+- [HouseNow MLS Primer cho người mới](./research/housenow-mls-primer.md)
 - [Reference discovery summary](./research/reference-discovery.md)
 - [Phase 1 discovery report](./research/phase-1-discovery.md)
 - Read-only research snapshot at `reference/mls/`
@@ -52,6 +54,7 @@ This status means the local build is suitable for structured product exploration
 - [Phase 6.1 actor perspectives](./product/phase-6-1-actor-perspectives.md)
 - [Phase 6.2 access governance](./product/phase-6-2-access-governance.md)
 - [Phase 6.3 System Admin build plan](./product/phase-6-3-system-admin-build-plan.md)
+- [Phase 6.4 Owner/Seller build plan](./product/phase-6-4-owner-seller-build-plan.md)
 - [Admin control-plane ADR](./adr/0001-separate-admin-control-plane-from-data-access.md)
 
 ## Approval gates still open
@@ -65,7 +68,7 @@ The documentation work through Phase 2 is complete as a draft baseline. The foll
 5. Canonical Property/Parcel/Project/Unit identity policy.
 6. Source-of-truth and conflict-resolution ownership per field group.
 7. Public, Industry, Restricted, and consent-based field policy.
-8. Legal/compliance position on representation, owner participation, regulator authority, retention, and dispute.
+8. Legal/compliance position on Seller identity/ownership claim, representation, consent, co-owner threshold, dispute, retention and future regulator authority.
 9. Available implementation repository and permission to reference, fork, or reuse it.
 
 ## Recommended review sequence

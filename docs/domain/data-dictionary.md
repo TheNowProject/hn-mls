@@ -79,6 +79,42 @@ This dictionary defines business fields and ownership semantics, not a database 
 | evidence_refs | Conditional | Restricted documents or source references |
 | verification_state | Yes | Pending, Verified, Rejected, Expired, Revoked |
 
+## Party, Ownership Claim and Seller Request
+
+| Entity.field | Required | Notes |
+|---|---:|---|
+| Party.party_id | Yes | Stable identity for a person or organization; never expose sensitive identity through public projection |
+| Party.party_type | Yes | Person, Organization or governed subtype |
+| OwnershipClaim.claim_id | Yes | Stable claim/case identity; distinct from canonical Property identity |
+| OwnershipClaim.claimant_party_id | Yes | Seller/owner/authorized representative making the claim |
+| OwnershipClaim.property_candidate_id | Yes | Existing Property or candidate under review |
+| OwnershipClaim.relationship_type | Yes | Owner, co-owner, land-use-right holder, authorized representative or approved taxonomy |
+| OwnershipClaim.share_or_authority_scope | Conditional | Required for co-owner/representative cases; never infer full authority from a match |
+| OwnershipClaim.effective_period | Conditional | Time bounds for authority where applicable |
+| OwnershipClaim.evidence_refs | Conditional | Restricted identity/authority evidence; required by verification policy, not public |
+| OwnershipClaim.verification_state | Yes | Pending, Verified, Partially Verified, Rejected, Disputed, Expired or Revoked |
+| SellerRequest.request_id | Yes | Stable correction/pause/withdraw/dispute case identity |
+| SellerRequest.target_refs | Yes | Property, Listing, field, Representation or Consent affected |
+| SellerRequest.request_type | Yes | Correct data, pause distribution, withdraw Listing, dispute authority or governed subtype |
+| SellerRequest.reason/evidence_refs | Yes | Reason plus permitted evidence; does not directly mutate target data |
+| SellerRequest.state/assignee/SLA | Yes | Submitted, InReview, NeedsEvidence, Accepted, PartiallyAccepted, Rejected, Resolved, Appealed |
+| SellerRequest.resolution_refs | Conditional | Authorized correction/transition/case outcome and before/after evidence |
+
+## Distribution Consent
+
+| Field | Required | Notes |
+|---|---:|---|
+| consent_id | Yes | Stable versioned decision identity |
+| subject_party_id | Yes | Seller/authorized Party whose data or authority is used |
+| target_listing/property | Yes | Resource covered by consent |
+| field/media_preview_version | Yes | Exact public projection reviewed at grant time |
+| recipient_or_channel_scope | Yes | Named channel or governed recipient class; no blanket inference |
+| purpose | Yes | Specific distribution/use purpose |
+| effective_period | Yes | Start and expiry/review time |
+| state | Yes | Proposed, Granted, Rejected, Expired or Revoked |
+| acknowledgement/evidence_ref | Conditional | Direct action, offline evidence or e-signature according to approved policy |
+| revoked_at/reason | Conditional | Required for revocation; triggers downstream reconciliation |
+
 ## Verification
 
 | Field | Required | Notes |

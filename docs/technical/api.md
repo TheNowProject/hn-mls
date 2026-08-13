@@ -22,7 +22,9 @@ Returns the actor-scoped Property view, current and historical Listings, allowed
 
 Each Property includes a `market` discriminator (`hcm` or `hanoi`). The local UI applies the selected data-space scope consistently across search, Listing workspace, quality queue and actor dashboards.
 
-Supported demo actors: `agent`, `broker`, `developer`, `bank`, `regulator`, `buyer`, and the operational `steward` role.
+Supported demo actors: `agent`, `broker`, `developer`, `buyer`, `seller`, `bank`, plus the deferred `regulator` perspective and operational `steward` role.
+
+For `seller`, bootstrap returns only Properties linked through that actor's Property–Party relationship or Ownership Claim. The backend rejects direct access to an unrelated Property ID.
 
 ## Notifications
 
@@ -36,9 +38,31 @@ Returns only notifications projected for the authenticated actor and selected ma
 
 Returns a purpose-scoped Property 360 projection. Depending on the actor, the response can include list-price events, Listing episodes, verified closing records, cumulative days on market, relist count, CMA candidate snapshot, source events and audit history.
 
-The projection is enforced by the backend: Buyer receives public fields only; Bank and Developer do not receive private remarks or audit; Regulator keeps audit within the simulated authority scope but receives no private remarks; Agent receives private remarks only for an assigned Listing.
+The projection is enforced by the backend: Buyer receives public fields only; Seller receives an own-relationship projection without private remarks, buyer/CRM/finance fields or unrestricted audit; Bank and Developer do not receive private remarks or audit; Regulator keeps audit within the simulated authority scope but receives no private remarks; Agent receives private remarks only for an assigned Listing.
 
 When the resulting projection contains Restricted fields, the local slice appends a sensitive-read audit event with actor, organization, resource, field group, purpose and time.
+
+## Owner/Seller authority
+
+`POST /ownership-claims`
+
+Creates a pending Ownership Claim with relationship, ownership share, evidence reference and reason. It does not verify ownership or mutate canonical Property data.
+
+`GET|POST /properties/:propertyId/representations`
+
+Returns append-oriented Representation versions or records a Seller command. The current local command supports auditable revocation; grant/renew command forms remain in the Phase 6.4 backlog.
+
+`GET|POST /properties/:propertyId/distribution-consents`
+
+Returns versioned consent records or revokes an effective consent. Revocation appends a version and marks downstream reconciliation as required.
+
+`GET|POST /seller-cases`
+
+Returns cases in the actor's scope or creates a correction, pause, withdrawal or representation-dispute request. Creating a case never mutates Listing status directly.
+
+`POST /seller-cases/:caseId/decision`
+
+Allows a scoped Brokerage reviewer or Data Steward to record a case decision and Audit Event.
 
 ## Access governance
 

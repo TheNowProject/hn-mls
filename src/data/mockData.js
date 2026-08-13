@@ -1,12 +1,13 @@
 import { hanoiActivityFeed, hanoiIntelligenceSeed, hanoiProperties, hanoiQualityIssues } from './hanoiData.js'
 
 export const roles = [
-  { id: 'agent', label: 'Môi giới', shortLabel: 'MG', name: 'Nguyễn Minh An', organization: 'HouseNow Partners', layer: 'Actor chính' },
+  { id: 'agent', label: 'Môi giới BĐS', shortLabel: 'MG', name: 'Nguyễn Minh An', organization: 'HouseNow Partners', layer: 'Actor chính' },
   { id: 'broker', label: 'Sàn môi giới', shortLabel: 'SL', name: 'Lê Hoàng Phúc', organization: 'HouseNow Partners', layer: 'Actor chính' },
-  { id: 'developer', label: 'Chủ đầu tư', shortLabel: 'CĐT', name: 'Phạm Thu Hà', organization: 'Nova Habitat', layer: 'Actor chính' },
-  { id: 'bank', label: 'Ngân hàng', shortLabel: 'NH', name: 'Đặng Đức Long', organization: 'Ngân hàng Đại Việt', layer: 'Actor chính' },
-  { id: 'regulator', label: 'Cơ quan quản lý', shortLabel: 'CQ', name: 'Vũ Minh Châu', organization: 'Cơ quan quản lý mô phỏng', layer: 'Actor chính' },
+  { id: 'developer', label: 'Chủ đầu tư dự án BĐS', shortLabel: 'CĐT', name: 'Phạm Thu Hà', organization: 'Nova Habitat', layer: 'Actor chính' },
   { id: 'buyer', label: 'Người mua', shortLabel: 'NM', name: 'Trần Thảo Vy', organization: 'Không gian cá nhân', layer: 'Actor chính' },
+  { id: 'seller', label: 'Người bán / Chủ sở hữu', shortLabel: 'NB', name: 'Nguyễn Quốc Khánh', organization: 'Không gian chủ sở hữu', layer: 'Actor chính' },
+  { id: 'bank', label: 'Ngân hàng', shortLabel: 'NH', name: 'Đặng Đức Long', organization: 'Ngân hàng Đại Việt', layer: 'Actor chính' },
+  { id: 'regulator', label: 'Cơ quan quản lý', shortLabel: 'CQ', name: 'Vũ Minh Châu', organization: 'Cơ quan quản lý mô phỏng', layer: 'Mở rộng / deferred' },
   { id: 'steward', label: 'Data Steward', shortLabel: 'DS', name: 'Trần Gia Hân', organization: 'HouseNow MLS', layer: 'Vận hành bổ sung' },
 ]
 

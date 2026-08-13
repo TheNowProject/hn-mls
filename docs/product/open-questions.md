@@ -10,9 +10,11 @@
 ## Governance and permissions
 
 - Who can create, verify, approve, correct, merge, and retire records?
-- Is a seller account required, or is consent represented through documents and an authorized party?
-- Which regulator roles define standards, own source data, and supervise activity?
-- Which fields are public, member-only, organization-restricted, regulator-restricted, or consent-based?
+- Which Seller actions require a direct account, Agent-assisted evidence, e-signature or an offline document?
+- Who verifies Ownership Claims, which evidence is sufficient, and how are conflicting claimants handled?
+- What co-owner or delegated-authority threshold is required to grant, renew or revoke representation/consent?
+- Which concrete future regulator workflow has a jurisdiction, lawful purpose, suppression policy and record-level access contract?
+- Which fields are public, member-only, organization-restricted, Seller-own-scope, future-authority-restricted, or consent-based?
 - Which Organization or data owner approves each Access Request type?
 - Which Restricted Field groups require dual approval for Break-glass Access?
 - What retention and notification policy applies to sensitive-read audit events?

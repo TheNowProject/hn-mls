@@ -31,40 +31,42 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 
 ## Resource-action-scope matrix
 
-| Resource / action | Agent | Brokerage | Developer | Bank | Regulator | Buyer | Steward |
-|---|---|---|---|---|---|---|---|
-| Property / read | Assigned/industry scope | Organization scope | Own Project/Unit scope | Purpose-limited | Jurisdiction scope | Public projection | Quality scope |
-| Property / propose correction | Yes | Yes | Own scope | Yes | Request/override by authority | Report | Yes |
-| Property / merge | No | Recommend | Recommend | No | Override by authority | No | Assigned Steward only |
-| Listing / create | Own representation | On behalf within organization | Own inventory | No | No | No | Assisted correction only |
-| Listing / edit | Responsible Listing | Organization scope | Own inventory | No | Override by authority | No | Correction scope |
-| Listing / submit | Responsible Listing | Organization scope | Own inventory | No | No | No | No |
-| Listing / approve Active | No | Configured organization scope | Configured own inventory | No | Override/supervision only | No | Quality co-review only |
-| Listing / transition | Allowed own transitions | Allowed organization transitions | Own inventory transitions | No | Authorized override | No | Correction only |
-| Listing / restricted fields | Need-to-know subset | Organization policy | Own inventory subset | Explicit purpose/consent only | Statutory scope | No | Assigned investigation scope |
-| Representation / create | Propose | Validate organization party | Create distribution basis | No | Inspect by authority | No | Verify evidence |
-| Project/Unit / maintain | No | Assigned distribution subset | Own Project scope | No | Override by authority | No | Identity/quality correction |
-| Audit / read | Own resources | Organization scope | Own resources | Limited purpose | Statutory scope | Public history only | Assigned/all operational scope |
-| Audit / mutate/delete | No | No | No | No | No | No | No |
-| Data Issue / report | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Data Issue / resolve | No | Organization correction | Own-data correction | No | Authority workflow | No | Assigned Steward |
-| Aggregate dashboard | Own metrics | Organization metrics | Own Project metrics | Approved market/product view | Jurisdiction view | No | Operational quality view |
+| Resource / action | Agent | Brokerage | Developer | Bank | Buyer | Owner/Seller | Steward | Future Regulator |
+|---|---|---|---|---|---|---|---|---|
+| Property / read | Assigned/industry scope | Organization scope | Own Project/Unit scope | Purpose-limited | Public projection | Own verified/claimed relationship | Quality scope | Jurisdiction scope |
+| Property / propose correction | Yes | Yes | Own scope | Yes | Report | Own Property case | Yes | Request/override by authority |
+| Property / merge | No | Recommend | Recommend | No | No | Dispute only | Assigned Steward only | Override by authority |
+| Ownership Claim / create | Assisted | View organization-linked | No | No | No | Own claim | Verify assigned case | Inspect by authority |
+| Listing / create | Own representation | On behalf within organization | Own inventory | No | No | No direct create; supply authority/consent | Assisted correction only | No |
+| Listing / edit | Responsible Listing | Organization scope | Own inventory | No | No | Request correction only | Correction scope | Override by authority |
+| Listing / submit | Responsible Listing | Organization scope | Own inventory | No | No | Acknowledge own authority scope | No | No |
+| Listing / approve Active | No | Configured organization scope | Configured own inventory | No | No | No | Quality co-review only | Override/supervision only |
+| Listing / transition | Allowed own transitions | Allowed organization transitions | Own inventory transitions | No | No | Request only | Correction only | Authorized override |
+| Listing / restricted fields | Need-to-know subset | Organization policy | Own inventory subset | Explicit purpose/consent only | No | Own authority/consent projection only | Assigned investigation scope | Statutory scope |
+| Representation / create | Propose | Validate organization party | Create distribution basis | No | No | Grant/renew/revoke own authority | Verify evidence | Inspect by authority |
+| Distribution consent / decide | Propose scope | Validate and execute | Own-unit distribution scope | No | Own buyer consent only | Grant/revoke own Listing channels | Verify assigned case | Inspect by authority |
+| Project/Unit / maintain | No | Assigned distribution subset | Own Project scope | No | No | No; view owned Unit projection | Identity/quality correction | Override by authority |
+| Audit / read | Own resources | Organization scope | Own resources | Limited purpose | Public history only | Own consent/authority/milestones | Assigned/all operational scope | Statutory scope |
+| Audit / mutate/delete | No | No | No | No | No | No | No | No |
+| Data Issue / report | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Data Issue / resolve | No | Organization correction | Own-data correction | No | No | Accept/reject own outcome only | Assigned Steward | Authority workflow |
+| Aggregate dashboard | Own metrics | Organization metrics | Own Project metrics | Approved market/product view | No | Own Listing summary | Operational quality view | Jurisdiction view |
 
 ## Field-level visibility matrix
 
-| Field group | Public | Agent/member | Responsible Agent | Brokerage | Developer | Bank | Regulator | Steward |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Public address/location projection | Yes | Yes | Yes | Yes | Yes | Purpose-limited | Aggregate/detail by authority | Yes |
-| Exact unit/access detail | Policy-dependent | Entitled | Yes | Yes | Own inventory | No by default | Authority | Assigned case |
-| Public price/status/features/media | Yes if distributed | Yes | Yes | Yes | Own inventory | Purpose-limited | Yes | Yes |
-| Private remarks/showing instructions | No | No by default | Yes | Need-to-know | Own inventory subset | No | Authority if lawful | Assigned case |
-| Owner identity/contact | No | No by default | Consent/purpose | Supervisory need | Own relationship | Explicit consent only | Statutory purpose | Verification case only |
-| Representation evidence/documents | No | No | Own Listing | Review scope | Own scope | No | Authority | Verification scope |
-| Agent/organization industry contact | Public subset | Yes | Yes | Yes | Yes | Purpose-limited | Yes | Yes |
-| Verification evidence | Outcome only | Outcome/scope | Relevant details | Review details | Own details | Outcome only | Authority | Full assigned case |
-| Source/provenance | Public summary | Industry projection | Relevant details | Relevant details | Own details | Purpose-limited | Authority | Full assigned case |
-| Audit event | Public milestone only | Own scope | Own Listing | Organization scope | Own resource | Limited purpose | Authority | Operational scope |
-| Closing/finance/consent data | No by default | No by default | Allowed transaction scope | Supervisory allowed scope | Own transaction subset | Explicit consent/purpose | Authority | Incident/quality scope |
+| Field group | Public | Agent/member | Responsible Agent | Brokerage | Developer | Bank | Buyer | Owner/Seller | Steward | Future Regulator |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Public address/location projection | Yes | Yes | Yes | Yes | Yes | Purpose-limited | Yes | Own Property | Yes | Aggregate/detail by authority |
+| Exact unit/access detail | Policy-dependent | Entitled | Yes | Yes | Own inventory | No by default | No | Own Property; access instruction excluded | Assigned case | Authority |
+| Public price/status/features/media | Yes if distributed | Yes | Yes | Yes | Own inventory | Purpose-limited | Yes | Own Listing | Yes | Yes |
+| Private remarks/showing instructions | No | No by default | Yes | Need-to-know | Own inventory subset | No | No | No by default | Assigned case | Authority if lawful |
+| Owner identity/contact | No | No by default | Consent/purpose | Supervisory need | Own relationship | Explicit consent only | No | Own identity/authorized co-owner subset | Verification case only | Statutory purpose |
+| Representation evidence/documents | No | No | Own Listing | Review scope | Own scope | No | No | Own agreement | Verification scope | Authority |
+| Agent/organization industry contact | Public subset | Yes | Yes | Yes | Yes | Purpose-limited | Public subset | Responsible party for own Listing | Yes | Yes |
+| Verification evidence | Outcome only | Outcome/scope | Relevant details | Review details | Own details | Outcome only | Outcome only | Own claim outcome and permitted evidence | Full assigned case | Authority |
+| Source/provenance | Public summary | Industry projection | Relevant details | Relevant details | Own details | Purpose-limited | Public summary | Own-claim relevant subset | Full assigned case | Authority |
+| Audit event | Public milestone only | Own scope | Own Listing | Organization scope | Own resource | Limited purpose | Public milestone | Own authority/consent/milestone events | Operational scope | Authority |
+| Closing/finance/consent data | No by default | No by default | Allowed transaction scope | Supervisory allowed scope | Own transaction subset | Explicit consent/purpose | Own buyer consent only | Own consent and permitted transaction milestones | Incident/quality scope | Authority |
 
 ## Permission states required in UI
 
@@ -81,6 +83,6 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 - Separate projections/indexes for Public, Industry, and Restricted data.
 - Scope audit for restricted reads and all material writes.
 - Prevent restricted data from logs, analytics payloads, exports, caches, notifications, and search snippets.
-- Admin/regulator override requires purpose, reason, authority scope, and Audit Event.
+- Admin or future regulator override requires purpose, reason, authority scope, and Audit Event.
 - System Admin has no blanket business-data projection; exceptional Restricted reads require Break-glass Access and cannot be granted to the requester by the requester alone.
 - Consent is purpose-bound, revocable, time-bounded, and never inferred from a generic account relationship.

@@ -18,6 +18,15 @@ Tài liệu này chuyển nội dung được trình diễn trong video thành:
 
 Mục tiêu của prototype không phải sao chép nguyên giao diện cũ của Matrix. Housenow cần giữ lại **mô hình nghiệp vụ, mật độ thông tin và khả năng truy vết** giống video, nhưng trình bày bằng UI hiện đại, dễ học và phù hợp thị trường Việt Nam.
 
+### 1.1 Target actor scope update — 2026-08-13
+
+Research quan sát từ Matrix vẫn giữ nguyên. Với product scope Housenow, sáu actor mục tiêu được cập nhật thành: Môi giới, Sàn môi giới, Chủ đầu tư, Người mua, Người bán/Chủ sở hữu và Ngân hàng.
+
+- Seller thay Regulator trong primary navigation; Regulator research/workspace được giữ ở future scope.
+- Seller cần các surface: Owned Property/Ownership Claim, Representation, Distribution Consent, Listing Milestones và Correction/Dispute Case.
+- Seller request không trực tiếp sửa canonical Property hoặc Listing status; mọi mutation đi qua verification/review/authorized transition và Audit Event.
+- Các flow Search, Property 360, Listing lifecycle, Brokerage review, Buyer collaboration, Project/Unit và Finance tiếp tục tái sử dụng.
+
 ## 2. Kết luận quan trọng từ video
 
 ### 2.1 Ba lớp sản phẩm khác nhau

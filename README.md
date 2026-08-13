@@ -1,6 +1,8 @@
 # HouseNow MLS
 
-Prototype MLS chạy được dành cho thị trường Việt Nam, xây dựng bằng React với sáu góc nhìn người dùng. Team và founder có thể dùng bản local để khám phá trọn các luồng từ tìm Property, quản lý Listing, khách hàng, lịch xem, CMA đến quality review và audit trên dữ liệu mô phỏng tại TP. Hồ Chí Minh và Hà Nội.
+Prototype MLS chạy được dành cho thị trường Việt Nam, xây dựng bằng React với sáu actor thị trường cùng các góc nhìn vận hành/mở rộng. Team và founder có thể dùng bản local để khám phá trọn các luồng từ tìm Property, quản lý Listing, quyền chủ sở hữu, khách hàng, lịch xem, CMA đến quality review và audit trên dữ liệu mô phỏng tại TP. Hồ Chí Minh và Hà Nội.
+
+Nếu bạn mới tìm hiểu MLS hoặc mới tham gia dự án, hãy bắt đầu với [HouseNow MLS Primer](./docs/research/housenow-mls-primer.md): tài liệu giải thích bằng một ví dụ xuyên suốt MLS là gì, khác portal đăng tin ra sao, bối cảnh Việt Nam, ứng dụng thực tế và demo hiện tại đang kiểm chứng điều gì.
 
 Đây là repository canonical cho B2G VMLS demo và toàn bộ phát triển HouseNow MLS. Research workspace cũ được bảo toàn nguyên trạng tại [`reference/mls`](./reference/mls), bao gồm evidence và lịch sử nguồn liên quan.
 
@@ -33,14 +35,16 @@ Research bắt đầu từ một MLS đang vận hành tại Texas, sử dụng 
 
 | Actor | Use case chính trong MLS |
 |---|---|
-| **Môi giới** | Tìm Property, xem Property 360, tạo/quản lý Listing, quản lý khách hàng, đặt lịch xem và tạo CMA. |
+| **Môi giới BĐS** | Tìm Property, xem Property 360, tạo/quản lý Listing, quản lý khách hàng, đặt lịch xem và tạo CMA. |
 | **Sàn môi giới** | Review hồ sơ, đổi trạng thái, quản lý inventory của sàn, xử lý quality queue, thành viên và entitlement. |
-| **Chủ đầu tư** | Khám phá Project/Unit inventory, availability, giá, trạng thái pháp lý và assignment phân phối. |
-| **Ngân hàng** | Khám phá finance-fit theo purpose/consent và ghi nhận bước xử lý của từng hồ sơ. |
-| **Cơ quan quản lý** | Theo dõi tín hiệu thị trường, mở hồ sơ giám sát và xử lý quality issue trong phạm vi thẩm quyền. |
+| **Chủ đầu tư dự án BĐS** | Khám phá Project/Unit inventory, availability, giá, trạng thái pháp lý và assignment phân phối. |
 | **Người mua** | Tìm Listing đã xác minh, xem lịch sử giá, quản lý shortlist, đặt lịch xem và báo sai dữ liệu. |
+| **Người bán / Chủ sở hữu** | Liên kết BĐS của mình, quản lý quyền đại diện và consent phân phối, theo dõi Listing, yêu cầu sửa hoặc thu hồi theo quy trình. |
+| **Ngân hàng** | Khám phá finance-fit theo purpose/consent và ghi nhận bước xử lý của từng hồ sơ. |
 
 `Data Steward` là vai trò vận hành bổ sung: xử lý trùng Property, xung đột nguồn, định danh, provenance, taxonomy và quality issue. Đây không phải System Admin.
+
+Target scope đã được chốt theo thứ tự trên. `Người bán / Chủ sở hữu` đã có vertical slice đầu tiên cho BĐS liên kết, Ownership Claim, Representation, consent và case; `Cơ quan quản lý` và `Data Steward` vẫn được giữ ở cuối danh sách dưới nhóm mở rộng/vận hành. Tiến độ chi tiết nằm tại [Phase 6.4](./docs/product/phase-6-4-owner-seller-build-plan.md).
 
 ## Hiện tại đang ở giai đoạn nào?
 
@@ -69,6 +73,7 @@ Các flow khám phá đã có điểm kết thúc rõ ràng:
 - Organization với thành viên, entitlement review và lời mời theo role/scope.
 - Quyền & chia sẻ với actor-to-actor projection, field matrix, consent, Access Request có thời hạn và sensitive-read audit.
 - Notification Center theo từng actor và data space; mỗi thông báo chỉ dẫn tới workspace actor được phép truy cập.
+- Seller workspace với own-property projection, Ownership Claim, Representation/consent version và correction/pause/withdrawal case.
 - Project, Finance, Oversight và Shortlist với record detail và next step.
 - App Hub nối MLS Core, CMA Studio, Showing Desk và Distribution Monitor.
 

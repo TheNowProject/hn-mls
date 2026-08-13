@@ -1,7 +1,7 @@
 # Phase 2: Product requirements baseline
 
 Status: `DRAFT FOR STAKEHOLDER REVIEW`  
-Scope: Prototype baseline and MVP requirement foundation  
+Scope: Target six-actor baseline and MVP requirement foundation
 Evidence date: 2026-08-12
 
 ## Requirement policy
@@ -19,31 +19,36 @@ Evidence date: 2026-08-12
 | Brokerage Reviewer | Assure representation, quality, compliance, and current state | Listings and members inside one or more authorized offices |
 | Developer Operator | Maintain Project/Unit identity, inventory, price, legal-document status, and distribution assignments | Owned/managed Projects and Units |
 | Bank Operator | Assess permitted property/project context and manage consented finance leads | Approved products and purpose-bound consent scope |
-| Regulatory Viewer | Inspect aggregate market data, standards, issues, and audit under legal authority | Jurisdiction and statutory purpose |
 | Buyer | Discover verified public offerings, shortlist, contact, schedule, and report issues | Public data plus personal consented workspace |
+| Owner/Seller | Prove or claim authority over a Property, grant representation and distribution consent, monitor the Listing, and request correction, suspension or revocation | Own verified/claimed Properties, agreements, consent and permitted transaction milestones |
 | Housenow Data Steward | Resolve identity, duplicate, provenance, verification, taxonomy, and quality issues | Assigned queues and governed override scope |
-| Owner/Seller | Grants representation, marketing consent, and correction/dispute input | Own claims and agreements; direct account participation unresolved |
+| Regulatory Viewer | Future oversight role; inspect aggregates, issues and authorized evidence when HouseNow enables a lawful regulatory workflow | Jurisdiction and statutory purpose; not one of the target six market actors |
 
 ## Actor-use case matrix
 
 Legend: `P` primary actor, `S` supporting actor, `V` permitted viewer, blank means no baseline capability.
 
-| Use case | Agent | Brokerage | Developer | Bank | Regulator | Buyer | Steward | Owner |
+| Use case | Agent | Brokerage | Developer | Bank | Buyer | Owner/Seller | Steward | Future Regulator |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| UC-01 Search Property/Listing | P | P | V | V | V | P | P | V |
-| UC-02 Inspect identity, provenance, verification | P | P | P | V | V | V-public | P | V-scope |
-| UC-03 Create Listing Input from existing Property | P | S | P-unit |  |  |  | S | S-consent |
-| UC-04 Declare representation/distribution basis | P | S | P |  | V-authority |  | V | P |
-| UC-05 Validate and submit Listing | P | S | P-unit |  |  |  | S |  |
-| UC-06 Review and activate Listing |  | P | P-own inventory |  | V/override |  | S |  |
-| UC-07 Change Listing status/price | P-own | P-scope | P-own |  | Override |  | S | Request |
-| UC-08 Review history and audit | V-own | V-scope | V-own | V-limited | V-authority | V-public | P | V-own |
-| UC-09 Resolve duplicate/correction | Report | Review | Report | Report | Request | Report | P | Dispute |
-| UC-10 Maintain Project/Unit inventory |  | V-assigned | P | V-permitted | V-authority | V-public | S |  |
-| UC-11 Save/share/schedule Listing | P | V | V |  |  | P |  |  |
-| UC-12 Report a data issue | P | P | P | P | P | P | P | P |
-| UC-13 View finance fit and calculator | V | V | V | P |  | P |  |  |
-| UC-14 View aggregate quality/market dashboard | V-own | P-scope | P-own | V-product | P-authority |  | P |  |
+| UC-01 Search Property/Listing | P | P | V | V | P | V-own | P | V-authority |
+| UC-02 Inspect identity, provenance, verification | P | P | P | V | V-public | V-own | P | V-authority |
+| UC-03 Create Listing Input from existing Property | P | S | P-unit |  |  | S-authority | S |  |
+| UC-04 Declare representation/distribution basis | P | S | P |  |  | P | V | V-authority |
+| UC-05 Validate and submit Listing | P | S | P-unit |  |  | Acknowledge | S |  |
+| UC-06 Review and activate Listing |  | P | P-own inventory |  |  | V-own | S | V-authority |
+| UC-07 Change Listing status/price | P-own | P-scope | P-own |  |  | Request | S | Override-authority |
+| UC-08 Review history and audit projection | V-own | V-scope | V-own | V-limited | V-public | V-own-milestones | P | V-authority |
+| UC-09 Resolve duplicate/correction | Report | Review | Report | Report | Report | Dispute | P | Request |
+| UC-10 Maintain Project/Unit inventory |  | V-assigned | P | V-permitted | V-public | V-owned-unit | S | V-authority |
+| UC-11 Save/share/schedule Listing | P | V | V |  | P | V-own-summary |  |  |
+| UC-12 Report a data issue | P | P | P | P | P | P | P | P-authority |
+| UC-13 View finance fit and calculator | V | V | V | P | P | V-own-consent |  |  |
+| UC-14 View organization/market quality dashboard | V-own | P-scope | P-own | V-product |  | V-own-listing | P | P-authority |
+| UC-15 Claim or link an owned Property | S | V |  |  |  | P | P-verify | V-authority |
+| UC-16 Grant, renew or revoke representation | S | S |  |  |  | P | V-case | V-authority |
+| UC-17 Grant or revoke listing/distribution consent | S | S | P-own-unit |  |  | P | V-case | V-authority |
+| UC-18 Monitor owned Listing and transaction milestones | V-assigned | V-scope | V-own-unit | V-consent |  | P | V-case | V-authority |
+| UC-19 Request correction, pause or withdrawal | S | P-review | S-own |  | Report | P | S-case | V-authority |
 
 ## Role hierarchy proposal
 
@@ -57,9 +62,10 @@ flowchart TB
     OrgRole --> BrokerRole["Brokerage Reviewer"]
     OrgRole --> DeveloperRole["Developer Operator"]
     OrgRole --> BankRole["Bank Operator"]
-    OrgRole --> RegRole["Regulatory Viewer"]
+    OrgRole --> SellerRole["Owner/Seller"]
     OrgRole --> StewardRole["Housenow Data Steward"]
     OrgRole --> OrgAdmin["Organization Admin"]
+    FutureAuthority["Future Regulatory Viewer"] --> AuthorityScope["Jurisdiction + statutory purpose"]
 ```
 
 `PROPOSAL`: A User may hold multiple Memberships, but every action evaluates the selected Membership, Organization, purpose, resource scope, and field classification.
@@ -112,6 +118,44 @@ Exception paths:
 3. Policy verifies actor, organization scope, current state, representation period, and concurrency version.
 4. System commits transition and Audit Event atomically.
 5. Search, notifications, reports, and permitted feeds receive a versioned change event.
+
+### WF-05 Claim or link an owned Property
+
+1. Seller searches by canonical Property ID, normalized address, Project/Unit reference or an invitation from the responsible Agent/Brokerage.
+2. Seller submits an `OwnershipClaim` with claimant identity, claimed relationship, effective period and permitted evidence references.
+3. The system links the claim to a candidate Property without changing canonical Property fields or marking ownership verified automatically.
+4. Data Steward or the accountable verification workflow compares identity, source and conflicting claims.
+5. The claim becomes Pending, Verified, Partially Verified, Rejected, Expired or Revoked with reason and audit evidence.
+6. Only a verified or policy-approved claim unlocks seller actions that require authority; rejected claims retain a safe dispute route.
+
+Exception paths: no matching Property creates a candidate for review; multiple matches require disambiguation; multiple owners preserve separate Party shares/authority; a disputed claim blocks new representation changes but does not erase an existing lawful Listing.
+
+### WF-06 Grant, renew or revoke representation
+
+1. Seller opens a verified Property and reviews the proposed Agent/Brokerage, transaction type, exclusivity, territory/channel scope and effective dates.
+2. Seller accepts, rejects or requests correction to the proposed `Representation`; acceptance records acknowledgement/evidence and the exact policy/document version.
+3. The system notifies the Agent and Brokerage and exposes only the authority outcome needed to prepare a Listing.
+4. Renewal creates a new effective period or version; it does not overwrite the prior agreement.
+5. Revocation records effective time and reason, blocks future actions that rely on the revoked authority, and routes active Listings for Brokerage review.
+6. Existing history remains queryable; the system never silently withdraws or deletes a Listing solely from a UI click.
+
+### WF-07 Grant or revoke distribution consent
+
+1. Seller reviews the public field preview, media, intended channels, recipient classes, purpose and consent duration.
+2. Seller may grant consent per channel or approved channel group; refusal to one channel does not imply refusal to all processing.
+3. Activation checks that representation and required distribution consent are valid at the effective time.
+4. A consent change creates a versioned event and triggers reconciliation with every affected downstream channel.
+5. Revocation prevents future distribution after the applicable effective time while preserving lawful audit and previously completed transaction history.
+6. Failed downstream withdrawal is visible as an operational issue with owner, retry state and SLA.
+
+### WF-08 Seller correction, pause or withdrawal request
+
+1. Seller selects the owned Property/Listing, identifies the disputed field or requested action and supplies a reason/evidence.
+2. The system creates a case rather than directly mutating canonical data or Listing status.
+3. Responsible Agent/Brokerage receives the request with SLA; Data Steward joins when identity, source or duplicate resolution is required.
+4. A safety-critical or authority dispute may place the Listing in policy-defined review/hold state, but only an authorized transition changes lifecycle state.
+5. Resolution records accepted/rejected/partially accepted outcome, before/after evidence and notifications.
+6. Seller can see the case outcome and permitted milestones without seeing internal remarks, buyer identity or unrestricted audit content.
 
 ## Proposed Listing lifecycle
 
@@ -176,7 +220,7 @@ Unit commercial availability such as Available, Held, Reserved, and Sold must be
 - A Listing references a Representation or Distribution Assignment; it does not infer authority from Organization Membership alone.
 - Authority has parties, scope, transaction type, effective period, consent/distribution conditions, evidence, and verification state.
 - Expiry, revocation, or dispute may block future transitions without erasing prior actions.
-- `OPEN QUESTION`: Whether a seller account or e-signature is required in MVP.
+- Target scope includes a Seller workspace. Legal/Product must still decide which actions require a direct account, offline evidence, e-signature or a verified Agent-assisted flow.
 
 ## Verification workflow
 
@@ -246,9 +290,12 @@ Search indexes must be separated by Public, Industry, and Restricted visibility 
 | Brokerage review | UC-06 | BR-REP-02, BR-LIFE-01, BR-AUDIT-01 |
 | Project inventory | UC-10 | BR-UNIT-01, BR-DATA-01 |
 | Bank finance context | UC-13 | BR-CONSENT-01, BR-PERM-02 |
-| Regulator dashboard | UC-14 | BR-AGG-01, BR-PERM-01 |
 | Buyer experience | UC-01, UC-11, UC-12 | BR-PERM-02, BR-CONSENT-01 |
+| Seller property and authority workspace | UC-15, UC-16 | BR-ID-01, BR-REP-01, BR-PERM-01, BR-AUDIT-01 |
+| Seller consent and listing oversight | UC-17, UC-18 | BR-CONSENT-01, BR-LIST-01, BR-PERM-02 |
+| Seller correction/dispute case | UC-09, UC-12, UC-19 | BR-DATA-01, BR-LIFE-01, BR-AUDIT-01 |
 | Data quality queue | UC-09, UC-12 | BR-DUP-01, BR-AUDIT-01 |
+| Future regulator dashboard | UC-14 | BR-AGG-01, BR-PERM-01 |
 
 ## Phase 2 exit assessment
 

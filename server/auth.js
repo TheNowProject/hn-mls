@@ -6,6 +6,7 @@ const sessions = {
   'demo-regulator': { userId: 'USR-005', name: 'Vũ Minh Châu', role: 'regulator', roleLabel: 'Cơ quan quản lý', organization: 'Cơ quan quản lý mô phỏng' },
   'demo-buyer': { userId: 'USR-006', name: 'Trần Thảo Vy', role: 'buyer', roleLabel: 'Người mua', organization: 'Không gian cá nhân' },
   'demo-steward': { userId: 'USR-007', name: 'Trần Gia Hân', role: 'steward', roleLabel: 'Data Steward', organization: 'HouseNow MLS' },
+  'demo-seller': { userId: 'USR-008', partyId: 'PTY-SELLER-001', name: 'Nguyễn Quốc Khánh', role: 'seller', roleLabel: 'Người bán / Chủ sở hữu', organization: 'Không gian chủ sở hữu' },
 }
 
 export function createDemoSession(roleId) {

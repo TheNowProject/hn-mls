@@ -75,6 +75,25 @@ export const actorExperiences = {
     ],
     note: 'Khi chia sẻ với môi giới hoặc ngân hàng, người mua chọn rõ mục đích, dữ liệu và thời hạn consent.',
   },
+  seller: {
+    kicker: 'Ownership & authority workspace',
+    title: 'Kiểm soát quyền đại diện và phạm vi phân phối',
+    description: 'Theo dõi BĐS liên kết, Listing milestone và mọi consent mà không lộ dữ liệu CRM hoặc người mua.',
+    metrics: [
+      ['Property liên kết', '2', '1 quan hệ đã xác minh'],
+      ['Ownership Claim', '1', 'Đang chờ đối chiếu evidence'],
+      ['Representation', '1', 'Sắp hết hạn trong 14 ngày'],
+      ['Yêu cầu đang mở', '1', 'Brokerage đã tiếp nhận'],
+    ],
+    queueTitle: 'Việc cần chủ sở hữu xem xét',
+    rows: [
+      ['The Metropole · T2-18.04', 'Đã xác minh', 'Listing Active', 'Consent có hiệu lực', 'Representation 01/02/2027'],
+      ['City Garden · D2-28.08', 'Chờ xác minh', 'Listing Active', 'Chưa cấp consent', 'Cần bổ sung evidence'],
+      ['HN-PROP-000184', 'Giá vừa cập nhật', '12,8 tỷ', 'Đã ghi audit', 'Xem milestone'],
+      ['SC-2026-001', 'Yêu cầu sửa dữ liệu', 'Đã tiếp nhận', 'HouseNow Partners', 'Theo dõi SLA'],
+    ],
+    note: 'Seller chỉ thấy Property có quan hệ của mình; mọi pause/withdrawal là request case, không phải direct Listing transition.',
+  },
 }
 
 const hanoiActorExperiences = {
@@ -97,6 +116,11 @@ const hanoiActorExperiences = {
     ...actorExperiences.buyer,
     metrics: [['Đã lưu', '8', '3 listing vừa thay đổi giá'], ['Lịch xem', '3', 'Lịch gần nhất 18:00 hôm nay'], ['Listing mới phù hợp', '12', 'Theo nhu cầu Hà Nội'], ['Đã xác minh', '7/8', 'Một property cần bổ sung nguồn']],
     rows: [['Vinhomes Metropolis · 2 PN', '13,2 tỷ', 'Đã đối chiếu', 'Giảm 4,3%', 'Lịch xem 18:00'], ['Masteri Waterfront · 2 PN', '6,1 tỷ', 'Đã đối chiếu', 'Mới 4 ngày', 'Đã lưu'], ['Sunshine City · 3 PN', '8,9 tỷ', 'Đã xác minh', 'Giảm 3,3%', 'Theo dõi'], ['Keangnam · 3 PN', '42 triệu/tháng', 'Đã đối chiếu', '9 DOM', 'Đã lưu']],
+  },
+  seller: {
+    ...actorExperiences.seller,
+    metrics: [['Property liên kết', '1', 'Quan hệ đã xác minh'], ['Ownership Claim', '0', 'Không có claim đang chờ'], ['Representation', '1', 'Theo dõi hạn 01/02/2027'], ['Yêu cầu đang mở', '0', 'Không có case quá SLA']],
+    rows: [['Vinhomes Metropolis · M2-2208', 'Đã xác minh', 'Listing Active', 'Consent có hiệu lực', 'Representation 01/02/2027'], ['HN-PROP-100101', 'Giá vừa cập nhật', '13,2 tỷ', 'Đã ghi audit', 'Xem milestone'], ['Public preview V2', 'Đã duyệt', '3 kênh phân phối', 'Hết hạn 01/02/2027', 'Quản lý consent'], ['Không có case mở', 'Sẵn sàng', '0 việc gần SLA', 'Own scope', 'Tạo yêu cầu mới']],
   },
 }
 

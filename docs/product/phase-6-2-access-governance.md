@@ -13,7 +13,7 @@ The local prototype now makes this model explorable instead of relying only on a
 
 - A `Quyền & chia sẻ` workspace available to every actor.
 - Actor-to-actor exchange views for data contributed by Agent, Bank and Developer.
-- A field projection matrix across Agent, Brokerage, Developer, Bank, Regulator, Buyer and Data Steward.
+- An implemented field projection matrix across all six Primary Market Actors plus Regulator and Data Steward. Seller own-relationship projection is enforced by the backend; grant/renew and downstream consent enforcement remain Phase 6.4 work.
 - Public, Industry and Restricted field classifications.
 - Purpose-bound consent records with recipient, fields and expiry.
 - Time-bounded Access Request creation through the API and SQLite.
@@ -32,5 +32,5 @@ In the reverse direction, an Agent can receive a Bank case status or a shared re
 - Approved Access Requests do not yet materialize durable Entitlement grants.
 - Demo sessions do not represent real Membership or Organization federation.
 - Consent is seeded exploration data; revocation and legal evidence workflows are not implemented.
-- Regulator authority, banking purpose taxonomy, local retention and disclosure policy need accountable human approval.
+- Seller own-scope, ownership-claim and consent policy; future Regulator authority; banking purpose taxonomy; local retention and disclosure policy need accountable human approval.
 - Search, export, analytics, notification and cache leakage controls still require security testing with production architecture.

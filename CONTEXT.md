@@ -60,6 +60,14 @@ _Avoid_: Listing, Property History
 
 ## Parties and authority
 
+**Primary Market Actor**:
+A product-experience perspective for one of the six participants in the locked market scope: Real-estate Agent, Brokerage, Developer, Buyer, Owner/Seller, or Bank. For an organizational actor such as a Brokerage, Developer, or Bank, the authenticated User still acts through a scoped Membership and Role.
+_Avoid_: operational administrator, universal authorization role, every Party subtype
+
+**Operational Role**:
+A scoped platform or organization responsibility such as Data Steward, Organization Admin, or System Admin. It is not counted as a Primary Market Actor and never implies blanket access to business data.
+_Avoid_: seventh market actor, superuser, unrestricted admin
+
 **Party**:
 A person or organization participating as owner, seller, buyer, landlord, tenant, representative, distributor, lender, or authority.
 _Avoid_: User, Agent, Owner mặc định

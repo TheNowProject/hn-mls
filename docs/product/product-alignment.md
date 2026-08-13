@@ -1,6 +1,6 @@
 # Phase 0: Product alignment baseline
 
-Status: `DRAFT BASELINE`  
+Status: `ACTOR SCOPE LOCKED; OTHER ALIGNMENT GATES OPEN`
 Evidence date: 2026-08-12
 
 ## One-sentence product definition
@@ -29,14 +29,14 @@ Users can determine what an asset is, who is authorized to market it, where its 
 
 | Actor | Prototype responsibility | Evidence status |
 |---|---|---|
-| Agent | Find Property, prepare Listing, submit and maintain it | `FACT` in reference, adapted as `PROPOSAL` |
-| Brokerage reviewer | Review representation, quality, and activation | `INFERENCE + PROPOSAL` |
-| Developer operator | Maintain Project/Unit inventory and distribution assignment | `PROPOSAL` |
-| Bank operator | View permitted verified data and finance-fit context | `PROPOSAL` |
-| Regulatory viewer | Inspect aggregates, issues, and audit within authority | `PROPOSAL` |
-| Buyer | Discover verified public data, shortlist, contact, and report issues | `PROPOSAL` |
-| Housenow Data Steward | Resolve identity, provenance, duplicate, and data-quality cases | `PROPOSAL`, strongly required by governance needs |
-| Owner or seller | Grants ownership/marketing consent and representation authority | `PROPOSAL` in domain, account participation unresolved |
+| Agent | Find Property, prepare Listing, submit and maintain it | `LOCKED PRIMARY ACTOR`; responsibility still requires workflow validation |
+| Brokerage reviewer | Review representation, quality, and activation | `LOCKED PRIMARY ACTOR`; responsibility still requires workflow validation |
+| Developer operator | Maintain Project/Unit inventory and distribution assignment | `LOCKED PRIMARY ACTOR`; responsibility still requires workflow validation |
+| Buyer | Discover verified public data, shortlist, contact, and report issues | `LOCKED PRIMARY ACTOR`; responsibility still requires workflow validation |
+| Owner or seller | Link/claim owned Property, grant/revoke representation and distribution consent, monitor Listing, and submit correction/dispute requests | `LOCKED PRIMARY ACTOR`; first durable vertical slice implemented, policy completion remains |
+| Bank operator | View permitted verified data and finance-fit context | `LOCKED PRIMARY ACTOR`; responsibility still requires workflow validation |
+| Housenow Data Steward | Resolve identity, provenance, duplicate, and data-quality cases | `OPERATIONAL ROLE`; retained after the six primary actors |
+| Regulatory viewer | Future oversight only; inspect aggregates, issues, and audit within authority | `DEFERRED PROPOSAL`; implemented exploration remains as evidence |
 
 ## Proposed first slice
 
@@ -60,7 +60,7 @@ These are working assumptions for prototype progress, not signed business decisi
 - Verification and provenance presentation.
 - Append-oriented audit timeline.
 - Field visibility differences by actor.
-- Project/Unit, bank, regulator, buyer, and quality-queue concept screens after the core slice.
+- Project/Unit, bank, buyer, Seller, and quality-queue concept screens after the core slice; regulator exploration is retained but deferred from target scope.
 
 ## Non-goals through prototype
 
@@ -88,7 +88,7 @@ These are working assumptions for prototype progress, not signed business decisi
 | Phase 0 criterion | Status |
 |---|---|
 | One-sentence product definition | Drafted |
-| Actors and operating actors | Drafted |
+| Actors and operating actors | Six Primary Market Actors locked; operational/deferred perspectives separated |
 | Prototype validation objective | Drafted |
 | Scope and non-scope | Drafted |
 | First buyer, pilot group, segment, locality | `OPEN QUESTION`; working proposal recorded |

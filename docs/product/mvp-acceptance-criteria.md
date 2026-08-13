@@ -47,7 +47,7 @@ For every proposed transition:
 
 ## AC-05 Field visibility
 
-For Public, Agent, responsible Agent, Brokerage, Developer, Bank, Regulator, Buyer, and Steward scenarios:
+For Public, Agent, responsible Agent, Brokerage, Developer, Bank, Buyer, Owner/Seller, Steward, and future authority-scoped Regulator scenarios:
 
 - every field group matches the approved visibility matrix;
 - restricted values do not leak through search snippets, counts where sensitive, exports, reports, notifications, URLs, logs, analytics, caches, or error messages;
@@ -98,12 +98,14 @@ When duplicate candidates are reviewed:
 - Revocation prevents future access while preserving lawful audit/history.
 - Data Issue reports can be submitted without exposing reporter details to unauthorized parties.
 
-## AC-11 Operations and regulator oversight
+## AC-11 Operations and future regulator oversight
 
 - Quality queues show assignment, severity, age, source, affected resources, and resolution history.
 - Regulator detail access is bounded by authority and purpose; default dashboard views are aggregate.
 - Override requires reason, authority reference where applicable, and Audit Event.
 - Audit search/export applies retention, masking, and export authorization.
+
+Regulator scenarios remain a deferred authorization boundary and are not part of the target six-actor market release.
 
 ## AC-12 Integration reliability
 
@@ -122,6 +124,19 @@ When duplicate candidates are reviewed:
 - Elevated access expires automatically, cannot be silently renewed and records every Restricted read in an immutable audit trail.
 - Consent records and Access Request decisions are projected only to the data subject, requester, data owner, scoped approver or lawful authority.
 - Cross-organization approval without explicit ownership or delegated authority is rejected by the backend.
+
+## AC-14 Owner/Seller authority and oversight
+
+- A Seller can see only Properties linked through an own verified/claimed relationship and receives no organization-wide search entitlement from the Seller role.
+- Creating an Ownership Claim records claimant, claimed relationship, Property candidate, evidence references, status, effective time and Audit Event; it does not alter canonical Property data or imply automatic verification.
+- Granting representation records Agent/Brokerage party, transaction and exclusivity scope, effective/expiry dates, evidence or acknowledgement version and distribution conditions.
+- Renewing, replacing or revoking representation creates a new version/event and preserves the prior agreement and every Listing created under it.
+- Seller distribution consent presents the exact public-field preview, channel or recipient class, purpose, duration and revocation effect before confirmation.
+- Revocation blocks future use after its effective time and creates downstream reconciliation work; it does not silently delete history or fabricate a Listing transition.
+- A Seller request to correct data, pause distribution or withdraw a Listing creates a review case with reason, evidence, owner, SLA and outcome; only an authorized lifecycle transition mutates Listing status.
+- Seller Listing views expose permitted price/status/distribution and transaction milestones but never buyer identity, brokerage CRM, private remarks, underwriting data or unrestricted audit events.
+- Conflicting claimants, co-owners, expired authority and disputed representation enter explicit pending/blocked states and cannot be bypassed by client-side controls.
+- Every sensitive Seller action and every restricted read is purpose-, scope- and time-checked and audited.
 
 ## Prototype acceptance subset
 

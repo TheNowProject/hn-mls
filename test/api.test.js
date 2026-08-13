@@ -141,6 +141,187 @@ test('six actor projections expose only the intended Property Intelligence field
   assert.equal(hanoiDetail.body.property.intelligence.marketSnapshot.scope.includes('Hà Nội'), true)
 })
 
+test('seller receives only linked Property relationships through the HTTP projection', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+
+  const session = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'seller' } })
+  assert.equal(session.status, 200)
+  assert.equal(session.body.actor.role, 'seller')
+
+  const bootstrap = await request(baseUrl, '/bootstrap', { token: session.body.token })
+  assert.equal(bootstrap.status, 200)
+  assert.deepEqual(
+    bootstrap.body.properties.map((property) => property.id).sort(),
+    ['HN-PROP-000184', 'HN-PROP-000288', 'HN-PROP-100101'],
+  )
+  assert.equal(bootstrap.body.properties.every((property) => property.sellerRelationship?.status), true)
+  assert.equal(bootstrap.body.properties.some((property) => property.market === 'hanoi'), true)
+  assert.equal(bootstrap.body.properties.every((property) => !property.currentListing?.privateRemarks), true)
+  assert.equal(bootstrap.body.properties.every((property) => !('audit' in property)), true)
+
+  const owned = await request(baseUrl, '/properties/HN-PROP-000184/intelligence', { token: session.body.token })
+  assert.equal(owned.status, 200)
+  assert.equal(owned.body.property.sellerRelationship.status, 'Đã xác minh')
+  assert.equal('privateRemarks' in owned.body.property.currentListing, false)
+  assert.equal('audit' in owned.body.property, false)
+  assert.deepEqual(owned.body.property.allowedTransitions, [])
+
+  const unowned = await request(baseUrl, '/properties/HN-PROP-000219/intelligence', { token: session.body.token })
+  assert.equal(unowned.status, 403)
+  assert.equal(unowned.body.error.code, 'PROPERTY_SCOPE_FORBIDDEN')
+})
+
+test('seller revokes Representation by appending a new version through the HTTP interface', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+  const session = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'seller' } })
+
+  const before = await request(baseUrl, '/properties/HN-PROP-000184/representations', { token: session.body.token })
+  assert.equal(before.status, 200)
+  assert.equal(before.body.representations.length, 1)
+  assert.equal(before.body.representations[0].status, 'Có hiệu lực')
+
+  const revoked = await request(baseUrl, '/properties/HN-PROP-000184/representations', {
+    token: session.body.token,
+    method: 'POST',
+    body: {
+      action: 'revoke',
+      representationId: before.body.representations[0].id,
+      effectiveAt: '2026-08-13',
+      reason: 'Chủ sở hữu kết thúc phạm vi đại diện hiện tại.',
+    },
+  })
+  assert.equal(revoked.status, 201)
+  assert.equal(revoked.body.representation.status, 'Đã thu hồi')
+  assert.equal(revoked.body.representation.version, 2)
+
+  const after = await request(baseUrl, '/properties/HN-PROP-000184/representations', { token: session.body.token })
+  assert.equal(after.body.representations.length, 2)
+  assert.equal(after.body.representations.some((representation) => representation.status === 'Có hiệu lực'), true)
+  assert.equal(after.body.representations.some((representation) => representation.status === 'Đã thu hồi'), true)
+
+  const forbidden = await request(baseUrl, '/properties/HN-PROP-000219/representations', { token: session.body.token })
+  assert.equal(forbidden.status, 403)
+  assert.equal(forbidden.body.error.code, 'PROPERTY_SCOPE_FORBIDDEN')
+})
+
+test('seller revokes distribution consent without deleting its prior version', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+  const session = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'seller' } })
+
+  const before = await request(baseUrl, '/properties/HN-PROP-000184/distribution-consents', { token: session.body.token })
+  assert.equal(before.status, 200)
+  assert.equal(before.body.consents.length, 1)
+  assert.equal(before.body.consents[0].status, 'Có hiệu lực')
+
+  const revoked = await request(baseUrl, '/properties/HN-PROP-000184/distribution-consents', {
+    token: session.body.token,
+    method: 'POST',
+    body: {
+      action: 'revoke',
+      consentId: before.body.consents[0].id,
+      effectiveAt: '2026-08-13',
+      reason: 'Dừng phân phối trên các kênh đã cấp trước đó.',
+    },
+  })
+  assert.equal(revoked.status, 201)
+  assert.equal(revoked.body.consent.status, 'Đã thu hồi')
+  assert.equal(revoked.body.consent.version, 2)
+  assert.equal(revoked.body.consent.reconciliationRequired, true)
+
+  const after = await request(baseUrl, '/properties/HN-PROP-000184/distribution-consents', { token: session.body.token })
+  assert.equal(after.body.consents.length, 2)
+  assert.equal(after.body.consents.some((consent) => consent.status === 'Có hiệu lực'), true)
+  assert.equal(after.body.consents.some((consent) => consent.status === 'Đã thu hồi'), true)
+})
+
+test('seller pause request creates a review case and never mutates Listing directly', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+  const sellerSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'seller' } })
+  const brokerSession = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'broker' } })
+
+  const before = await request(baseUrl, '/properties/HN-PROP-000184/intelligence', { token: sellerSession.body.token })
+  assert.equal(before.body.property.currentListing.status, 'Active')
+
+  const created = await request(baseUrl, '/seller-cases', {
+    token: sellerSession.body.token,
+    method: 'POST',
+    body: {
+      propertyId: 'HN-PROP-000184',
+      type: 'Tạm dừng phân phối',
+      reason: 'Cần rà soát lại phạm vi đại diện trước khi tiếp tục phân phối.',
+      evidenceReference: 'EV-SELLER-PAUSE-001',
+    },
+  })
+  assert.equal(created.status, 201)
+  assert.equal(created.body.case.status, 'Mới')
+
+  const unchanged = await request(baseUrl, '/properties/HN-PROP-000184/intelligence', { token: sellerSession.body.token })
+  assert.equal(unchanged.body.property.currentListing.status, 'Active')
+
+  const decided = await request(baseUrl, `/seller-cases/${created.body.case.id}/decision`, {
+    token: brokerSession.body.token,
+    method: 'POST',
+    body: { status: 'Đã tiếp nhận', reason: 'Sàn đã khóa lịch phân phối mới và chuyển hồ sơ sang review.' },
+  })
+  assert.equal(decided.status, 200)
+  assert.equal(decided.body.case.status, 'Đã tiếp nhận')
+  assert.equal(decided.body.case.decidedBy, 'Lê Hoàng Phúc')
+
+  const cases = await request(baseUrl, '/seller-cases', { token: sellerSession.body.token })
+  assert.equal(cases.status, 200)
+  assert.equal(cases.body.cases.some((item) => item.id === created.body.case.id && item.status === 'Đã tiếp nhận'), true)
+})
+
+test('seller Ownership Claim stays pending and does not verify canonical Property', async (context) => {
+  const store = createMlsStore({ dbPath: ':memory:' })
+  const server = createHttpServer({ store })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  context.after(() => { server.close(); store.close() })
+  const baseUrl = `http://127.0.0.1:${server.address().port}`
+  const session = await request(baseUrl, '/session', { method: 'POST', body: { roleId: 'seller' } })
+
+  const created = await request(baseUrl, '/ownership-claims', {
+    token: session.body.token,
+    method: 'POST',
+    body: {
+      propertyId: 'HN-PROP-000219',
+      relationshipType: 'Chủ sở hữu',
+      ownershipShare: 100,
+      evidenceReference: 'EV-CLAIM-NEW-0219',
+      reason: 'Yêu cầu liên kết tài sản để HouseNow đối chiếu hồ sơ.',
+    },
+  })
+  assert.equal(created.status, 201)
+  assert.equal(created.body.claim.status, 'Chờ xác minh')
+
+  const bootstrap = await request(baseUrl, '/bootstrap', { token: session.body.token })
+  const claimedProperty = bootstrap.body.properties.find((property) => property.id === 'HN-PROP-000219')
+  assert.ok(claimedProperty)
+  assert.equal(claimedProperty.sellerRelationship.status, 'Chờ xác minh')
+  assert.notEqual(claimedProperty.verification, 'Đã xác minh quyền sở hữu')
+})
+
 test('notification feed is projected by authenticated actor and market', async (context) => {
   const store = createMlsStore({ dbPath: ':memory:' })
   const server = createHttpServer({ store })
@@ -155,6 +336,7 @@ test('notification feed is projected by authenticated actor and market', async (
     bank: ['finance', 'access'],
     regulator: ['oversight', 'quality', 'access'],
     buyer: ['shortlist', 'discover', 'access'],
+    seller: ['properties', 'authority', 'seller-cases', 'access'],
     steward: ['quality', 'access'],
   }
   const titlesByRole = {}

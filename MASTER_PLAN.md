@@ -1,8 +1,8 @@
 # Housenow MLS — Master Plan
 
-> Phiên bản: 0.2
-> Trạng thái: Phase 6.2 operational prototype; Phase 6.3 System Admin control plane ready for build
-> Phạm vi: Phase 0 đến Phase 6.3
+> Phiên bản: 0.3
+> Trạng thái: Six-actor product scope locked; Phase 6.4 Owner/Seller vertical slice in progress; Phase 6.3 System Admin control plane ready for build
+> Phạm vi: Phase 0 đến Phase 6.4
 > Sản phẩm tham chiếu: MLS Matrix tại Mỹ
 > Mục tiêu: Xây dựng nền tảng dữ liệu và vận hành thị trường bất động sản đa bên phù hợp với Việt Nam.
 
@@ -19,6 +19,7 @@
 | Phase 6 - MVP execution | Core vertical slice and exploration layer operational; broader epics and production hardening remain | End-to-end lifecycle plus Property 360, Contacts, CMA, Quality, Organization and actor-specific workspaces |
 | Phase 6.2 - Access governance | Implemented proposal; policy/legal validation pending | Actor projections, consent view, Access Request persistence, decisions and sensitive-read audit |
 | Phase 6.3 - Admin control plane | Ready for build | [Build plan](./docs/product/phase-6-3-system-admin-build-plan.md), [ADR](./docs/adr/0001-separate-admin-control-plane-from-data-access.md), AC-13 |
+| Phase 6.4 - Target actor completion | In progress; first vertical slice operational | Seller own-scope, Ownership Claim, versioned revocation, case workflow, notifications and [build plan](./docs/product/phase-6-4-owner-seller-build-plan.md) |
 
 The supplied `TheNowProject/mls` ZIP is a research and domain-discovery repository, not an implementation repository. Texas-specific observations remain evidence inputs and are not promoted to Vietnam requirements without an explicit decision.
 
@@ -60,12 +61,14 @@ Nền tảng phải giúp người sử dụng trả lời được:
 
 ### 2.1 Actors chính
 
-1. Môi giới.
+1. Môi giới BĐS.
 2. Sàn môi giới.
-3. Chủ đầu tư.
-4. Ngân hàng.
-5. Cơ quan quản lý.
-6. Người mua.
+3. Chủ đầu tư dự án BĐS.
+4. Người mua.
+5. Người bán / Chủ sở hữu BĐS.
+6. Ngân hàng.
+
+Đây là thứ tự canonical trong role switcher, tài liệu và actor regression. `Cơ quan quản lý` và `Data Steward` được giữ sau sáu actor này dưới nhóm mở rộng/vận hành; chúng không làm thay đổi target market scope.
 
 ### 2.2 Actors vận hành
 
@@ -92,15 +95,22 @@ Các role dưới đây không được tính vào sáu actor thị trường v�
 - Theo dõi chất lượng dữ liệu, SLA và lỗi đồng bộ.
 - Chỉ mở Restricted Field trong quality case được giao.
 
-#### Chủ sở hữu / Người bán
+#### Cơ quan quản lý — future oversight actor
 
-Chưa nhất thiết phải có tài khoản trong MVP, nhưng phải tồn tại trong domain model để biểu diễn:
+Không thuộc target sáu actor của release hiện tại. Giữ policy và prototype exploration để tái sử dụng khi có workflow pháp lý cụ thể về jurisdiction, statutory purpose, aggregate suppression và record-level access.
+
+### 2.3 Phạm vi Người bán / Chủ sở hữu
+
+Người bán là actor chính trong target scope. Seller workspace có thể triển khai trực tiếp hoặc Agent-assisted theo quyết định định danh/pháp lý, nhưng domain phải biểu diễn:
 
 - Quyền sở hữu hoặc quyền định đoạt.
 - Sự đồng ý cho đăng listing.
 - Quyền đại diện của môi giới hoặc sàn.
 - Phạm vi công khai và phân phối dữ liệu.
 - Việc gia hạn hoặc chấm dứt quyền đại diện.
+- Ownership Claim và trạng thái xác minh/tranh chấp.
+- Yêu cầu sửa dữ liệu, tạm dừng phân phối hoặc rút Listing qua review case.
+- Các milestone Listing/giao dịch được phép xem mà không lộ CRM, buyer identity hoặc private remarks.
 
 ## 3. Core domain model
 
@@ -276,32 +286,33 @@ Lifecycle trên là giả thuyết ban đầu. Repo, tech lead, product owner v�
 
 Nguyên tắc: ngân hàng không mặc định được xem dữ liệu cá nhân hoặc dữ liệu giao dịch. Quyền truy cập phải dựa trên mục đích, consent và chính sách lưu trữ.
 
-### 4.5 Cơ quan quản lý
+### 4.5 Người bán / Chủ sở hữu BĐS
 
 #### P0 — Prototype
 
-- Xem dashboard chất lượng dữ liệu.
-- Xem dữ liệu tổng hợp theo địa bàn và trạng thái.
-- Xem audit trail và listing bất thường.
-- Xem queue báo cáo vi phạm.
+- Xem các Property đã được liên kết hoặc đang chờ xác minh ownership claim.
+- Xem Agent/Sàn nào đang đề nghị hoặc đang có quyền đại diện, phạm vi và thời hạn.
+- Xác nhận hoặc từ chối căn cứ đại diện và consent phân phối theo kênh.
+- Xem public preview, trạng thái Listing, thay đổi giá và milestone giao dịch được phép.
+- Gửi yêu cầu sửa thông tin, tạm dừng phân phối hoặc rút Listing vào review case.
 
 #### P1 — MVP
 
-- Quản lý chuẩn dữ liệu dùng chung.
-- Kiểm tra/xác minh giấy phép theo phạm vi tích hợp.
-- Theo dõi provenance và chất lượng dữ liệu.
-- Yêu cầu tổ chức sửa dữ liệu.
-- Xuất báo cáo theo thẩm quyền.
-- Quản lý phạm vi truy cập và retention.
+- Tạo tài khoản và hoàn tất identity/ownership claim verification.
+- Quản lý nhiều Property, đồng sở hữu và người được ủy quyền trong đúng scope.
+- Grant, renew, replace hoặc revoke representation mà không ghi đè lịch sử.
+- Quản lý granular consent theo field preview, channel, purpose và expiry.
+- Theo dõi SLA và kết quả correction/dispute case.
+- Nhận cảnh báo representation/consent sắp hết hạn và Listing thay đổi quan trọng.
 
 #### P2 — Sau MVP
 
-- Phát hiện giá hoặc hành vi bất thường.
-- Tích hợp đất đai, quy hoạch và thuế.
-- Cổng dữ liệu mở ở mức tổng hợp.
-- Cảnh báo sớm rủi ro thị trường.
+- Chữ ký điện tử và hồ sơ hợp đồng đầy đủ.
+- Offer/counter-offer và transaction room.
+- Báo cáo lịch xem/phản hồi đã ẩn danh theo consent.
+- Theo dõi settlement, bàn giao và hậu giao dịch.
 
-Không gom toàn bộ cơ quan quản lý vào một role. Cần tách cơ quan định chuẩn, cấp phép, giám sát và sở hữu dữ liệu nguồn.
+Nguyên tắc: Seller là nguồn authority/consent, không phải Listing reviewer. Mọi yêu cầu sửa, hold hoặc withdraw phải qua case và transition có quyền; Seller không được xem buyer identity, CRM, private remarks, underwriting hay full internal audit.
 
 ### 4.6 Người mua
 
@@ -334,14 +345,14 @@ Không gom toàn bộ cơ quan quản lý vào một role. Cần tách cơ quan 
 
 ## 5. Permission baseline
 
-| Hành động | Môi giới | Sàn | CĐT | Ngân hàng | Cơ quan quản lý | Người mua |
+| Hành động | Môi giới | Sàn | CĐT | Ngân hàng | Người mua | Người bán/Chủ sở hữu |
 |---|---:|---:|---:|---:|---:|---:|
 | Tạo listing | Có | Có | Theo loại | Không | Không | Không |
-| Duyệt listing | Không | Trong sàn | Quỹ căn mình | Không | Giám sát | Không |
-| Xem dữ liệu hạn chế | Theo quyền | Theo sàn | Dự án mình | Theo consent | Theo thẩm quyền | Không |
-| Sửa trạng thái | Listing mình | Trong sàn | Inventory mình | Không | Override có audit | Không |
-| Xem audit | Của mình | Trong sàn | Dự án mình | Giới hạn | Theo thẩm quyền | Không |
-| Báo cáo sai phạm | Có | Có | Có | Có | Tiếp nhận/xử lý | Có |
+| Duyệt listing | Không | Trong sàn | Quỹ căn mình | Không | Không | Không; xác nhận authority/consent |
+| Xem dữ liệu hạn chế | Theo quyền | Theo sàn | Dự án mình | Theo consent | Không | Chỉ own authority/consent projection |
+| Sửa trạng thái | Listing mình | Trong sàn | Inventory mình | Không | Không | Gửi request, không transition trực tiếp |
+| Xem audit | Của mình | Trong sàn | Dự án mình | Giới hạn | Public milestone | Own authority/consent/milestone events |
+| Báo cáo sai phạm | Có | Có | Có | Có | Có | Có; correction/dispute case |
 
 Bảng trên là permission baseline. Trước MVP phải chi tiết đến role, resource, action, scope và field-level visibility.
 
@@ -372,7 +383,7 @@ Nguyên tắc bắt buộc: control-plane authority không đồng nghĩa data-p
 - Verification badge.
 - Data provenance.
 - Audit timeline.
-- Dashboard cơ bản cho ngân hàng/cơ quan quản lý.
+- Dashboard cơ bản cho ngân hàng và Seller workspace.
 - Buyer experience.
 - Admin quality queue.
 - Quyền của tôi và actor-to-actor data projection.
@@ -403,7 +414,7 @@ Nguyên tắc bắt buộc: control-plane authority không đồng nghĩa data-p
 - Commission.
 - Mortgage pre-approval sâu.
 - IDX/data distribution mở rộng.
-- Regulatory analytics nâng cao.
+- Regulatory analytics nâng cao (future scope; chỉ kích hoạt khi có authority/purpose cụ thể).
 - AI search và anomaly detection nâng cao.
 
 ## 7. Phase plan
@@ -417,7 +428,7 @@ Thống nhất Housenow đang xây gì, cho ai và chưa xây gì.
 ### Checklist
 
 - [ ] Viết product vision một trang.
-- [ ] Chốt actors chính và actors vận hành.
+- [x] Chốt actors chính và actors vận hành.
 - [ ] Chọn buyer đầu tiên của sản phẩm.
 - [ ] Chọn nhóm người dùng pilot đầu tiên.
 - [ ] Chọn phân khúc: sơ cấp, thứ cấp hoặc thứ tự triển khai cả hai.
@@ -621,8 +632,9 @@ Tạo một prototype đủ thật để sáu actor nhìn thấy sản phẩm, t
 - [ ] Sàn — review/approve/reject listing.
 - [ ] Chủ đầu tư — project inventory.
 - [ ] Ngân hàng — finance eligibility.
-- [ ] Cơ quan quản lý — data-quality dashboard.
 - [ ] Người mua — verified listing experience.
+- [ ] Người bán — owned Property, representation, consent và correction/dispute case.
+- [ ] Cơ quan quản lý — data-quality dashboard (giữ dưới future/deferred scope).
 - [ ] Data Steward — verification/data issue queue.
 - [ ] Organization Admin — membership và entitlement trong tổ chức.
 - [ ] System Admin — organization, policy và security metadata; không có blanket data access.
@@ -853,7 +865,7 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 - [ ] Data Steward quality queue.
 - [ ] Duplicate review.
 - [ ] Verification workflow.
-- [ ] Regulatory aggregate dashboard.
+- [ ] Regulatory aggregate dashboard (future/deferred).
 - [ ] Audit search/export theo quyền.
 
 #### Epic 8 — Finance light integration
@@ -877,6 +889,19 @@ Build một vertical-slice MVP có thể vận hành bằng dữ liệu và quy�
 - [ ] Security-negative tests cho search, export, notification, analytics, cache và error payload.
 
 Build packet: [`docs/product/phase-6-3-system-admin-build-plan.md`](./docs/product/phase-6-3-system-admin-build-plan.md).
+
+#### Epic 10 — Hoàn tất sáu actor mục tiêu
+
+- [x] Khóa thứ tự Môi giới BĐS, Sàn môi giới, Chủ đầu tư dự án BĐS, Người mua, Người bán/Chủ sở hữu và Ngân hàng.
+- [x] Giữ Regulator và Data Steward sau sáu actor chính thay vì xóa code khám phá.
+- [x] Thêm Seller demo identity, navigation, notification và own-scope projection.
+- [x] Thêm durable Property–Party relationship và Ownership Claim.
+- [ ] Thêm Representation và distribution consent có version/effective period.
+- [x] Thêm correction, pause, withdrawal và dispute case thay cho direct Listing mutation.
+- [x] Seed trạng thái Seller thực tế cho TP.HCM và Hà Nội.
+- [x] Chạy six-actor projection regression và security-negative tests cho vertical slice hiện tại.
+
+Build packet: [`docs/product/phase-6-4-owner-seller-build-plan.md`](./docs/product/phase-6-4-owner-seller-build-plan.md).
 
 ### Definition of Done cho mọi feature
 
@@ -973,8 +998,10 @@ Mỗi feature cần truy ngược được theo chuỗi:
 - [ ] Ai là source of truth cho từng nhóm dữ liệu?
 - [ ] Ai có quyền xác minh property và listing?
 - [ ] Listing có bắt buộc độc quyền không?
-- [ ] Người bán có tài khoản trực tiếp trong MVP không?
-- [ ] Cơ quan quản lý chỉ giám sát hay tham gia phê duyệt?
+- [ ] Seller action nào cần tài khoản trực tiếp, e-signature hoặc Agent-assisted evidence?
+- [ ] Ownership Claim được xác minh bởi ai, với evidence và dispute policy nào?
+- [ ] Co-owner/authorized representative cần threshold đồng thuận nào để grant hoặc revoke?
+- [ ] Cơ quan quản lý có workflow pháp lý cụ thể nào đủ điều kiện đưa lại vào target scope?
 - [ ] Dữ liệu nào public, industry-only và restricted?
 - [ ] Field group nào yêu cầu dual approval khi Break-glass?
 - [ ] Organization/data owner nào có quyền duyệt từng loại Access Request?
@@ -1005,14 +1032,13 @@ Repo hiện đã có prototype chạy được, backend local, SQLite, automated
 
 ## 11. Immediate next step
 
-Phase 6.3 bắt đầu theo thứ tự:
+Ưu tiên tiếp theo là hoàn tất actor còn thiếu trước khi mở rộng control plane:
 
-1. Viết failing tests cho Consent leakage và cross-organization approval đang biết.
-2. Sửa projection và approver scope trước khi thêm System Admin UI.
-3. Thêm Organization Admin/System Admin demo identity nhưng không cấp business-data projection.
-4. Thêm durable Entitlement Grant và Policy Version.
-5. Build ba surface: Quyền của tôi, Quản trị tổ chức và System Admin.
-6. Build Break-glass request, separate approval, countdown, revoke và expiry.
-7. Chạy actor regression, responsive review và security-negative tests.
+1. Viết failing tests cho Seller own-scope projection và forbidden-field leakage.
+2. Thêm Seller identity, navigation, notification và permission states.
+3. Thêm durable Ownership Claim, Representation, distribution consent và Seller case.
+4. Build `BĐS của tôi`, `Đại diện & phân phối` và `Yêu cầu` cho TP.HCM/Hà Nội.
+5. Chạy six-actor regression, responsive review và security-negative tests.
+6. Tiếp tục Phase 6.3 với Consent/cross-organization hardening trước System Admin UI.
 
-Chi tiết sẵn sàng triển khai tại [`docs/product/phase-6-3-system-admin-build-plan.md`](./docs/product/phase-6-3-system-admin-build-plan.md).
+Build packet Seller: [`docs/product/phase-6-4-owner-seller-build-plan.md`](./docs/product/phase-6-4-owner-seller-build-plan.md). Build packet Admin: [`docs/product/phase-6-3-system-admin-build-plan.md`](./docs/product/phase-6-3-system-admin-build-plan.md).

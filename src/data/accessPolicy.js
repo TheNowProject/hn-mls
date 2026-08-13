@@ -1,4 +1,4 @@
-export const accessRoleOrder = ['agent', 'broker', 'developer', 'bank', 'regulator', 'buyer', 'steward']
+export const accessRoleOrder = ['agent', 'broker', 'developer', 'buyer', 'seller', 'bank', 'regulator', 'steward']
 
 export const fieldGroups = [
   { id: 'public-listing', label: 'Giá, trạng thái, đặc điểm, media', classification: 'Public' },
@@ -41,6 +41,11 @@ export const roleAccessProfiles = {
     label: 'Người mua', scope: 'Public Active Listing + own relationship', purpose: 'Khám phá, shortlist và xem nhà',
     capabilities: ['Xem Public Field của Active Listing', 'Lưu shortlist và lịch xem của mình', 'Cấp hoặc thu hồi consent', 'Báo sai nhưng không sửa canonical data'],
     projection: ['allowed', 'public-subset', 'never', 'own', 'never', 'outcome', 'milestone', 'own'],
+  },
+  seller: {
+    label: 'Người bán / Chủ sở hữu', scope: 'Own verified/claimed Property relationship', purpose: 'Quản lý authority, consent và Listing milestone của BĐS liên kết',
+    capabilities: ['Xem BĐS liên kết và trạng thái Ownership Claim', 'Quản lý Representation và consent phân phối', 'Theo dõi Listing milestone được phép', 'Tạo correction/dispute case thay vì sửa Listing trực tiếp'],
+    projection: ['own-scope', 'public-subset', 'never', 'own', 'own-scope', 'outcome', 'milestone', 'own'],
   },
   steward: {
     label: 'Data Steward', scope: 'Assigned quality/identity case', purpose: 'Giải quyết định danh, nguồn, duplicate và chất lượng',

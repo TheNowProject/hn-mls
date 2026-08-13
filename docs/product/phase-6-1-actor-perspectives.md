@@ -5,7 +5,7 @@ Status: IMPLEMENTED PROPOSAL — requires product, legal and data-governance val
 
 ## Actor model
 
-The reference material defines six primary product actors. Data Steward is retained as a seventh operational role, not counted as a primary market actor.
+The prototype now exposes all six locked Primary Market Actors: Agent, Brokerage, Developer, Buyer, Owner/Seller and Bank. Data Steward remains an operational role, while Regulator code is retained as deferred exploration evidence until a lawful oversight workflow is committed.
 
 | Actor | Primary decision surface | Default projection |
 |---|---|---|
@@ -13,8 +13,8 @@ The reference material defines six primary product actors. Data Steward is retai
 | Sàn môi giới | Review queue, lifecycle approval, quality and organization | Brokerage-scoped audit and restricted data |
 | Chủ đầu tư | Project/Unit inventory, availability and distribution assignment | Own-inventory; no private remarks or audit |
 | Ngân hàng | Finance-fit cases with purpose and consent | Consent-based; minimum necessary data |
-| Cơ quan quản lý | Aggregate market signals and quality oversight | Authority-scoped; audit retained, private remarks hidden |
 | Người mua | Verified search, shortlist, price changes and showing | Public; Active Listings only |
+| Người bán / Chủ sở hữu | Owned Property, representation, distribution consent, Listing milestones and correction/dispute requests | Own verified/claimed relationship; no CRM, buyer identity, private remarks or unrestricted audit |
 | Data Steward | Identity, source, duplicate and quality resolution | Operational projection with source and audit evidence |
 
 ## Property Intelligence delivered
@@ -36,7 +36,7 @@ The reference material defines six primary product actors. Data Steward is retai
 - CMA supports subject selection, comparable include/exclude, analyst rationale and a saved draft with an indicative range.
 - Quality Queue supports filtering, assignment, resolution evidence and visible removal of resolved items during the session.
 - Organization supports member filtering, entitlement review and scoped invitations.
-- Developer, Bank, Regulator and Buyer workspaces open role-specific record context and save a next step.
+- Developer, Bank, Regulator and Buyer workspaces open role-specific record context and save a next step. Seller now has a backend-scoped first vertical slice for own Property, Ownership Claim, Representation, distribution consent and review cases; Regulator remains a legacy/deferred exploration perspective.
 - App Hub routes to MLS Core, CMA Studio, Showing Desk and Distribution Monitor.
 
 Core Listing mutations use the HTTP API and SQLite. Secondary exploration actions intentionally use in-memory session state until their domain policy and persistence contracts are approved.
@@ -44,7 +44,8 @@ Core Listing mutations use the HTTP API and SQLite. Secondary exploration action
 ## Governance boundaries
 
 - The finance view is not a lending commitment or valuation.
-- The regulator view does not infer legal status or violations from market signals.
+- The retained regulator exploration view does not infer legal status or violations from market signals and is outside the target six-actor release.
+- Seller access must be relationship-scoped and must not expose buyer identity, brokerage CRM, private remarks, underwriting data or unrestricted audit.
 - Buyer data never includes private remarks, audit events, internal status events or restricted source details.
 - Developer and Bank views omit private remarks and full audit history.
 - Demo sessions are not production authentication; consent, jurisdiction and organization scope remain simulated.
@@ -53,6 +54,6 @@ Core Listing mutations use the HTTP API and SQLite. Secondary exploration action
 
 1. Confirm actual purpose/consent fields and expiry behavior with legal and banking stakeholders.
 2. Confirm developer Project/Unit ownership and distribution-assignment boundaries.
-3. Confirm regulator jurisdiction, aggregation thresholds and permitted drill-down.
+3. Confirm Seller ownership-claim, representation, consent, co-owner and dispute policy; then implement the Seller workspace and backend projection.
 4. Replace synthetic market candidates with an explainable comparable-selection service.
-5. Add owner/seller operational participation only after representation and identity policy is approved.
+5. Keep regulator authorization and aggregate views deferred until jurisdiction, legal authority, aggregation thresholds and drill-down rules are approved.

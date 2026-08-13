@@ -77,6 +77,38 @@ export function createHttpServer({ store }) {
         return json(response, 200, store.notifications(actor, url.searchParams.get('market') ?? 'hcm'))
       }
 
+      if (request.method === 'POST' && url.pathname === '/api/ownership-claims') {
+        return json(response, 201, { claim: store.createOwnershipClaim(actor, await readBody(request)) })
+      }
+
+      const representationMatch = url.pathname.match(/^\/api\/properties\/([^/]+)\/representations$/)
+      if (request.method === 'GET' && representationMatch) {
+        return json(response, 200, { representations: store.representations(actor, decodeURIComponent(representationMatch[1])) })
+      }
+      if (request.method === 'POST' && representationMatch) {
+        return json(response, 201, { representation: store.changeRepresentation(actor, decodeURIComponent(representationMatch[1]), await readBody(request)) })
+      }
+
+      const distributionConsentMatch = url.pathname.match(/^\/api\/properties\/([^/]+)\/distribution-consents$/)
+      if (request.method === 'GET' && distributionConsentMatch) {
+        return json(response, 200, { consents: store.distributionConsents(actor, decodeURIComponent(distributionConsentMatch[1])) })
+      }
+      if (request.method === 'POST' && distributionConsentMatch) {
+        return json(response, 201, { consent: store.changeDistributionConsent(actor, decodeURIComponent(distributionConsentMatch[1]), await readBody(request)) })
+      }
+
+      if (request.method === 'GET' && url.pathname === '/api/seller-cases') {
+        return json(response, 200, { cases: store.sellerCases(actor) })
+      }
+      if (request.method === 'POST' && url.pathname === '/api/seller-cases') {
+        return json(response, 201, { case: store.createSellerCase(actor, await readBody(request)) })
+      }
+      const sellerCaseDecisionMatch = url.pathname.match(/^\/api\/seller-cases\/([^/]+)\/decision$/)
+      if (request.method === 'POST' && sellerCaseDecisionMatch) {
+        requireRole(actor, ['broker', 'steward'])
+        return json(response, 200, { case: store.decideSellerCase(actor, decodeURIComponent(sellerCaseDecisionMatch[1]), await readBody(request)) })
+      }
+
       if (request.method === 'POST' && url.pathname === '/api/access-requests') {
         return json(response, 201, { request: store.createAccessRequest(actor, await readBody(request)) })
       }

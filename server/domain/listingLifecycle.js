@@ -85,6 +85,16 @@ export function projectPropertyForActor(property, actorOrRole) {
   } else if (['bank', 'developer'].includes(role)) {
     if (listing) delete listing.privateRemarks
     delete projected.audit
+  } else if (role === 'seller') {
+    if (listing) delete listing.privateRemarks
+    delete projected.audit
+    for (const item of projected.history) {
+      delete item.statusEvents
+      if (item.closingRecord) delete item.closingRecord.source
+    }
+    if (projected.intelligence) {
+      projected.intelligence.sourceEvents = projected.intelligence.sourceEvents.filter((event) => event.visibility === 'Public')
+    }
   } else if (role === 'regulator') {
     if (listing) delete listing.privateRemarks
   } else if (role === 'agent' && !responsibleAgent) {

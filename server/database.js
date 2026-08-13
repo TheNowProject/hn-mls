@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { intelligenceSeed, properties as seedProperties, qualityIssues as seedIssues } from '../src/data/mockData.js'
 import { accessRequestSeed, consentSeed, exchangePolicies, fieldGroups, roleAccessProfiles } from '../src/data/accessPolicy.js'
 import { notificationsForActor } from '../src/data/notifications.js'
+import { sellerCaseSeed, sellerDistributionConsentSeed, sellerPartySeed, sellerRelationshipSeed, sellerRepresentationSeed } from '../src/data/sellerData.js'
 import { assertTransition, initialStatusFor, projectPropertyForActor, validateListingInput } from './domain/listingLifecycle.js'
 
 const terminalStatuses = new Set(['Closed', 'Withdrawn', 'Expired'])
@@ -197,6 +198,79 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
       purpose TEXT NOT NULL,
       occurred_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS parties (
+      id TEXT PRIMARY KEY,
+      party_type TEXT NOT NULL,
+      display_name TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS property_party_relationships (
+      id TEXT PRIMARY KEY,
+      property_id TEXT NOT NULL REFERENCES properties(id),
+      party_id TEXT NOT NULL REFERENCES parties(id),
+      relationship_type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      ownership_share REAL,
+      evidence_reference TEXT,
+      effective_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_property_party_scope ON property_party_relationships(party_id, property_id);
+    CREATE TABLE IF NOT EXISTS representations (
+      id TEXT PRIMARY KEY,
+      root_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      supersedes_id TEXT,
+      property_id TEXT NOT NULL REFERENCES properties(id),
+      party_id TEXT NOT NULL REFERENCES parties(id),
+      agent_name TEXT NOT NULL,
+      brokerage TEXT NOT NULL,
+      transaction_scope TEXT NOT NULL,
+      exclusivity TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      evidence_reference TEXT,
+      action TEXT NOT NULL,
+      status TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_representation_version ON representations(root_id, version);
+    CREATE INDEX IF NOT EXISTS idx_representation_property ON representations(property_id, party_id, root_id, version);
+    CREATE TABLE IF NOT EXISTS distribution_consents (
+      id TEXT PRIMARY KEY,
+      root_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      supersedes_id TEXT,
+      property_id TEXT NOT NULL REFERENCES properties(id),
+      party_id TEXT NOT NULL REFERENCES parties(id),
+      preview_version TEXT NOT NULL,
+      field_scope TEXT NOT NULL,
+      channels TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      starts_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      action TEXT NOT NULL,
+      status TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      reconciliation_required INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_distribution_consent_version ON distribution_consents(root_id, version);
+    CREATE INDEX IF NOT EXISTS idx_distribution_consent_property ON distribution_consents(property_id, party_id, root_id, version);
+    CREATE TABLE IF NOT EXISTS seller_cases (
+      id TEXT PRIMARY KEY,
+      property_id TEXT NOT NULL REFERENCES properties(id),
+      party_id TEXT NOT NULL REFERENCES parties(id),
+      case_type TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      evidence_reference TEXT,
+      brokerage_scope TEXT,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      decided_by TEXT,
+      decision_reason TEXT,
+      decided_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_seller_case_scope ON seller_cases(party_id, brokerage_scope, status);
   `)
 
   function ensureColumn(table, column, definition) {
@@ -224,6 +298,21 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
       const requestInsert = db.prepare(`INSERT OR IGNORE INTO access_requests
         (id, requester, requester_role, organization, resource_id, field_group, purpose, duration, status, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      const partyInsert = db.prepare('INSERT OR IGNORE INTO parties (id, party_type, display_name) VALUES (?, ?, ?)')
+      const relationshipInsert = db.prepare(`INSERT OR IGNORE INTO property_party_relationships
+        (id, property_id, party_id, relationship_type, status, ownership_share, evidence_reference, effective_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      const representationInsert = db.prepare(`INSERT OR IGNORE INTO representations
+        (id, root_id, version, supersedes_id, property_id, party_id, agent_name, brokerage, transaction_scope, exclusivity,
+         starts_at, expires_at, evidence_reference, action, status, reason, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      const distributionConsentInsert = db.prepare(`INSERT OR IGNORE INTO distribution_consents
+        (id, root_id, version, supersedes_id, property_id, party_id, preview_version, field_scope, channels, purpose,
+         starts_at, expires_at, action, status, reason, reconciliation_required, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      const sellerCaseInsert = db.prepare(`INSERT OR IGNORE INTO seller_cases
+        (id, property_id, party_id, case_type, reason, evidence_reference, brokerage_scope, status, created_at, decided_by, decision_reason, decided_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 
       db.exec('BEGIN')
       try {
@@ -244,6 +333,11 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
         for (const issue of seedIssues) issueInsert.run(issue.code, issue.title, issue.record, issue.type, issue.owner, issue.due, issue.level, issue.status)
         for (const consent of consentSeed) consentInsert.run(consent.id, consent.subject, consent.grantee, consent.purpose, consent.fields, consent.expiresAt, consent.status)
         for (const request of accessRequestSeed) requestInsert.run(request.id, request.requester, request.requesterRole, request.organization, request.resourceId, request.fieldGroup, request.purpose, request.duration, request.status, request.createdAt)
+        for (const party of sellerPartySeed) partyInsert.run(party.id, party.type, party.displayName)
+        for (const relationship of sellerRelationshipSeed) relationshipInsert.run(relationship.id, relationship.propertyId, relationship.partyId, relationship.relationshipType, relationship.status, relationship.ownershipShare, relationship.evidenceReference, relationship.effectiveAt)
+        for (const representation of sellerRepresentationSeed) representationInsert.run(representation.id, representation.rootId, representation.version, null, representation.propertyId, representation.partyId, representation.agentName, representation.brokerage, representation.transactionScope, representation.exclusivity, representation.startsAt, representation.expiresAt, representation.evidenceReference, representation.action, representation.status, representation.reason, '01/08/2026, 09:00')
+        for (const consent of sellerDistributionConsentSeed) distributionConsentInsert.run(consent.id, consent.rootId, consent.version, null, consent.propertyId, consent.partyId, consent.previewVersion, consent.fieldScope, consent.channels, consent.purpose, consent.startsAt, consent.expiresAt, consent.action, consent.status, consent.reason, 0, '01/08/2026, 09:05')
+        for (const sellerCase of sellerCaseSeed) sellerCaseInsert.run(sellerCase.id, sellerCase.propertyId, sellerCase.partyId, sellerCase.type, sellerCase.reason, sellerCase.evidenceReference, sellerCase.brokerageScope, sellerCase.status, sellerCase.createdAt, sellerCase.decidedBy, sellerCase.decisionReason, sellerCase.decidedAt)
         db.exec('COMMIT')
       } catch (error) {
         db.exec('ROLLBACK')
@@ -348,7 +442,21 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
   }
 
   function bootstrap(actor) {
-    let properties = propertyRows().map((row) => hydrateProperty(row))
+    let rows = propertyRows()
+    const sellerRelationships = actor.role === 'seller'
+      ? db.prepare(`SELECT id, property_id AS propertyId, relationship_type AS relationshipType, status,
+          ownership_share AS ownershipShare, evidence_reference AS evidenceReference, effective_at AS effectiveAt
+        FROM property_party_relationships WHERE party_id = ? ORDER BY id`).all(actor.partyId)
+      : []
+    if (actor.role === 'seller') {
+      const propertyIds = new Set(sellerRelationships.map((relationship) => relationship.propertyId))
+      rows = rows.filter((row) => propertyIds.has(row.id))
+    }
+    let properties = rows.map((row) => {
+      const property = hydrateProperty(row)
+      if (actor.role === 'seller') property.sellerRelationship = sellerRelationships.find((relationship) => relationship.propertyId === row.id)
+      return property
+    })
     if (actor.role === 'buyer') properties = properties.filter((property) => property.currentListing?.status === 'Active')
     properties = properties.map((property) => projectPropertyForActor(property, actor))
     const issues = ['broker', 'regulator', 'steward'].includes(actor.role)
@@ -372,7 +480,20 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
       error.code = 'PROPERTY_NOT_FOUND'
       throw error
     }
-    const projected = projectPropertyForActor(hydrateProperty(row, { includeIntelligence: true }), actor)
+    const property = hydrateProperty(row, { includeIntelligence: true })
+    if (actor.role === 'seller') {
+      const relationship = db.prepare(`SELECT id, property_id AS propertyId, relationship_type AS relationshipType, status,
+          ownership_share AS ownershipShare, evidence_reference AS evidenceReference, effective_at AS effectiveAt
+        FROM property_party_relationships WHERE party_id = ? AND property_id = ?`).get(actor.partyId, propertyId)
+      if (!relationship) {
+        const error = new Error('Property không thuộc quan hệ sở hữu hoặc claim của bạn.')
+        error.status = 403
+        error.code = 'PROPERTY_SCOPE_FORBIDDEN'
+        throw error
+      }
+      property.sellerRelationship = relationship
+    }
+    const projected = projectPropertyForActor(property, actor)
     const restrictedGroups = []
     if (projected.currentListing?.privateRemarks) restrictedGroups.push('Private remarks')
     if (projected.audit?.length) restrictedGroups.push('Audit trail')
@@ -383,6 +504,309 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
         VALUES (?, ?, ?, ?, ?, ?, ?)`).run(actor.name, actor.roleLabel, actor.organization, propertyId, restrictedGroups.join(', '), roleAccessProfiles[actor.role]?.purpose ?? 'MLS workspace', nowDisplay())
     }
     return projected
+  }
+
+  function assertSellerPropertyScope(actor, propertyId) {
+    if (actor.role !== 'seller') {
+      const error = new Error('Chỉ Seller được dùng workflow authority này.')
+      error.status = 403
+      error.code = 'ROLE_FORBIDDEN'
+      throw error
+    }
+    const relationship = db.prepare('SELECT 1 FROM property_party_relationships WHERE party_id = ? AND property_id = ?').get(actor.partyId, propertyId)
+    if (!relationship) {
+      const error = new Error('Property không thuộc quan hệ sở hữu hoặc claim của bạn.')
+      error.status = 403
+      error.code = 'PROPERTY_SCOPE_FORBIDDEN'
+      throw error
+    }
+  }
+
+  function createOwnershipClaim(actor, input) {
+    if (actor.role !== 'seller') {
+      const error = new Error('Chỉ Seller được tạo Ownership Claim.')
+      error.status = 403
+      error.code = 'ROLE_FORBIDDEN'
+      throw error
+    }
+    const property = db.prepare('SELECT id FROM properties WHERE id = ?').get(input.propertyId)
+    if (!property) {
+      const error = new Error('Không tìm thấy Property candidate.')
+      error.status = 404
+      error.code = 'PROPERTY_NOT_FOUND'
+      throw error
+    }
+    const existing = db.prepare('SELECT id FROM property_party_relationships WHERE property_id = ? AND party_id = ?').get(input.propertyId, actor.partyId)
+    if (existing) {
+      const error = new Error('Property đã có quan hệ hoặc Ownership Claim trong workspace của bạn.')
+      error.status = 409
+      error.code = 'OWNERSHIP_CLAIM_CONFLICT'
+      throw error
+    }
+    const ownershipShare = Number(input.ownershipShare)
+    if (!['Chủ sở hữu', 'Đồng sở hữu', 'Người được ủy quyền'].includes(input.relationshipType) || ownershipShare <= 0 || ownershipShare > 100 || !String(input.evidenceReference ?? '').trim() || String(input.reason ?? '').trim().length < 20) {
+      const error = new Error('Ownership Claim cần quan hệ, tỷ lệ hợp lệ, evidence và lý do ít nhất 20 ký tự.')
+      error.status = 422
+      error.code = 'OWNERSHIP_CLAIM_INVALID'
+      throw error
+    }
+    const next = db.prepare("SELECT COUNT(*) AS count FROM property_party_relationships WHERE id LIKE 'REL-CLAIM-%'").get().count + 1
+    const id = `REL-CLAIM-${String(next).padStart(3, '0')}`
+    const occurredAt = nowDisplay()
+    db.exec('BEGIN')
+    try {
+      db.prepare(`INSERT INTO property_party_relationships
+        (id, property_id, party_id, relationship_type, status, ownership_share, evidence_reference, effective_at)
+        VALUES (?, ?, ?, 'Ownership Claim', 'Chờ xác minh', ?, ?, ?)`).run(id, input.propertyId, actor.partyId, ownershipShare, input.evidenceReference.trim(), occurredAt)
+      db.prepare('INSERT INTO audit_events (property_id, listing_id, action, actor, role, reason, occurred_at) VALUES (?, NULL, ?, ?, ?, ?, ?)')
+        .run(input.propertyId, `Tạo Ownership Claim: ${input.relationshipType}`, actor.name, actor.roleLabel, input.reason.trim(), occurredAt)
+      db.exec('COMMIT')
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+    return {
+      id,
+      propertyId: input.propertyId,
+      relationshipType: 'Ownership Claim',
+      claimedRelationship: input.relationshipType,
+      status: 'Chờ xác minh',
+      ownershipShare,
+      evidenceReference: input.evidenceReference.trim(),
+      effectiveAt: occurredAt,
+    }
+  }
+
+  function mapRepresentation(row) {
+    return {
+      id: row.id,
+      rootId: row.root_id,
+      version: row.version,
+      supersedesId: row.supersedes_id,
+      propertyId: row.property_id,
+      agentName: row.agent_name,
+      brokerage: row.brokerage,
+      transactionScope: row.transaction_scope,
+      exclusivity: row.exclusivity,
+      startsAt: row.starts_at,
+      expiresAt: row.expires_at,
+      evidenceReference: row.evidence_reference,
+      action: row.action,
+      status: row.status,
+      reason: row.reason,
+      createdAt: row.created_at,
+    }
+  }
+
+  function representations(actor, propertyId) {
+    assertSellerPropertyScope(actor, propertyId)
+    return db.prepare('SELECT * FROM representations WHERE property_id = ? AND party_id = ? ORDER BY root_id, version')
+      .all(propertyId, actor.partyId)
+      .map(mapRepresentation)
+  }
+
+  function changeRepresentation(actor, propertyId, input) {
+    assertSellerPropertyScope(actor, propertyId)
+    if (input.action !== 'revoke' || !input.representationId || !/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveAt ?? '') || String(input.reason ?? '').trim().length < 12) {
+      const error = new Error('Thu hồi Representation cần bản ghi gốc, ngày hiệu lực và lý do ít nhất 12 ký tự.')
+      error.status = 422
+      error.code = 'REPRESENTATION_COMMAND_INVALID'
+      throw error
+    }
+    const previous = db.prepare('SELECT * FROM representations WHERE id = ? AND property_id = ? AND party_id = ?').get(input.representationId, propertyId, actor.partyId)
+    if (!previous) {
+      const error = new Error('Không tìm thấy Representation trong phạm vi Seller.')
+      error.status = 404
+      error.code = 'REPRESENTATION_NOT_FOUND'
+      throw error
+    }
+    const latest = db.prepare('SELECT * FROM representations WHERE root_id = ? ORDER BY version DESC LIMIT 1').get(previous.root_id)
+    const version = latest.version + 1
+    const id = `${latest.root_id}-V${version}`
+    const occurredAt = nowDisplay()
+    db.exec('BEGIN')
+    try {
+      db.prepare(`INSERT INTO representations
+        (id, root_id, version, supersedes_id, property_id, party_id, agent_name, brokerage, transaction_scope, exclusivity,
+         starts_at, expires_at, evidence_reference, action, status, reason, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'revoke', 'Đã thu hồi', ?, ?)`).run(
+          id, latest.root_id, version, latest.id, propertyId, actor.partyId, latest.agent_name, latest.brokerage,
+          latest.transaction_scope, latest.exclusivity, latest.starts_at, input.effectiveAt, latest.evidence_reference,
+          input.reason.trim(), occurredAt,
+        )
+      db.prepare('INSERT INTO audit_events (property_id, listing_id, action, actor, role, reason, occurred_at) VALUES (?, NULL, ?, ?, ?, ?, ?)')
+        .run(propertyId, 'Thu hồi Representation', actor.name, actor.roleLabel, input.reason.trim(), occurredAt)
+      db.exec('COMMIT')
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+    return mapRepresentation(db.prepare('SELECT * FROM representations WHERE id = ?').get(id))
+  }
+
+  function mapDistributionConsent(row) {
+    return {
+      id: row.id,
+      rootId: row.root_id,
+      version: row.version,
+      supersedesId: row.supersedes_id,
+      propertyId: row.property_id,
+      previewVersion: row.preview_version,
+      fieldScope: row.field_scope,
+      channels: row.channels,
+      purpose: row.purpose,
+      startsAt: row.starts_at,
+      expiresAt: row.expires_at,
+      action: row.action,
+      status: row.status,
+      reason: row.reason,
+      reconciliationRequired: Boolean(row.reconciliation_required),
+      createdAt: row.created_at,
+    }
+  }
+
+  function distributionConsents(actor, propertyId) {
+    assertSellerPropertyScope(actor, propertyId)
+    return db.prepare('SELECT * FROM distribution_consents WHERE property_id = ? AND party_id = ? ORDER BY root_id, version')
+      .all(propertyId, actor.partyId)
+      .map(mapDistributionConsent)
+  }
+
+  function changeDistributionConsent(actor, propertyId, input) {
+    assertSellerPropertyScope(actor, propertyId)
+    if (input.action !== 'revoke' || !input.consentId || !/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveAt ?? '') || String(input.reason ?? '').trim().length < 12) {
+      const error = new Error('Thu hồi consent cần bản ghi gốc, ngày hiệu lực và lý do ít nhất 12 ký tự.')
+      error.status = 422
+      error.code = 'DISTRIBUTION_CONSENT_COMMAND_INVALID'
+      throw error
+    }
+    const previous = db.prepare('SELECT * FROM distribution_consents WHERE id = ? AND property_id = ? AND party_id = ?').get(input.consentId, propertyId, actor.partyId)
+    if (!previous) {
+      const error = new Error('Không tìm thấy distribution consent trong phạm vi Seller.')
+      error.status = 404
+      error.code = 'DISTRIBUTION_CONSENT_NOT_FOUND'
+      throw error
+    }
+    const latest = db.prepare('SELECT * FROM distribution_consents WHERE root_id = ? ORDER BY version DESC LIMIT 1').get(previous.root_id)
+    const version = latest.version + 1
+    const id = `${latest.root_id}-V${version}`
+    const occurredAt = nowDisplay()
+    db.exec('BEGIN')
+    try {
+      db.prepare(`INSERT INTO distribution_consents
+        (id, root_id, version, supersedes_id, property_id, party_id, preview_version, field_scope, channels, purpose,
+         starts_at, expires_at, action, status, reason, reconciliation_required, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'revoke', 'Đã thu hồi', ?, 1, ?)`).run(
+          id, latest.root_id, version, latest.id, propertyId, actor.partyId, latest.preview_version, latest.field_scope,
+          latest.channels, latest.purpose, latest.starts_at, input.effectiveAt, input.reason.trim(), occurredAt,
+        )
+      db.prepare('INSERT INTO audit_events (property_id, listing_id, action, actor, role, reason, occurred_at) VALUES (?, NULL, ?, ?, ?, ?, ?)')
+        .run(propertyId, 'Thu hồi distribution consent', actor.name, actor.roleLabel, input.reason.trim(), occurredAt)
+      db.exec('COMMIT')
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+    return mapDistributionConsent(db.prepare('SELECT * FROM distribution_consents WHERE id = ?').get(id))
+  }
+
+  function mapSellerCase(row) {
+    return {
+      id: row.id,
+      propertyId: row.property_id,
+      type: row.case_type,
+      reason: row.reason,
+      evidenceReference: row.evidence_reference,
+      brokerageScope: row.brokerage_scope,
+      status: row.status,
+      createdAt: row.created_at,
+      decidedBy: row.decided_by,
+      decisionReason: row.decision_reason,
+      decidedAt: row.decided_at,
+    }
+  }
+
+  function sellerCases(actor) {
+    let rows
+    if (actor.role === 'seller') rows = db.prepare('SELECT * FROM seller_cases WHERE party_id = ? ORDER BY id DESC').all(actor.partyId)
+    else if (actor.role === 'broker') rows = db.prepare('SELECT * FROM seller_cases WHERE brokerage_scope = ? ORDER BY id DESC').all(actor.organization)
+    else if (actor.role === 'steward') rows = db.prepare('SELECT * FROM seller_cases ORDER BY id DESC').all()
+    else {
+      const error = new Error('Vai trò hiện tại không có phạm vi Seller case.')
+      error.status = 403
+      error.code = 'ROLE_FORBIDDEN'
+      throw error
+    }
+    return rows.map(mapSellerCase)
+  }
+
+  function nextSellerCaseId() {
+    const row = db.prepare("SELECT id FROM seller_cases WHERE id LIKE 'SC-2026-%' ORDER BY id DESC LIMIT 1").get()
+    const next = row ? Number(row.id.split('-').at(-1)) + 1 : 1
+    return `SC-2026-${String(next).padStart(3, '0')}`
+  }
+
+  function createSellerCase(actor, input) {
+    assertSellerPropertyScope(actor, input.propertyId)
+    const allowedTypes = ['Sửa dữ liệu', 'Tạm dừng phân phối', 'Rút Listing', 'Tranh chấp quyền đại diện']
+    if (!allowedTypes.includes(input.type) || String(input.reason ?? '').trim().length < 20) {
+      const error = new Error('Seller case cần loại hợp lệ và lý do ít nhất 20 ký tự.')
+      error.status = 422
+      error.code = 'SELLER_CASE_INVALID'
+      throw error
+    }
+    const currentListing = db.prepare('SELECT id, brokerage FROM listings WHERE property_id = ? AND is_current = 1').get(input.propertyId)
+    const id = nextSellerCaseId()
+    const occurredAt = nowDisplay()
+    db.exec('BEGIN')
+    try {
+      db.prepare(`INSERT INTO seller_cases
+        (id, property_id, party_id, case_type, reason, evidence_reference, brokerage_scope, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Mới', ?)`).run(id, input.propertyId, actor.partyId, input.type, input.reason.trim(), String(input.evidenceReference ?? '').trim() || null, currentListing?.brokerage ?? null, occurredAt)
+      db.prepare('INSERT INTO audit_events (property_id, listing_id, action, actor, role, reason, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(input.propertyId, currentListing?.id ?? null, `Tạo Seller case: ${input.type}`, actor.name, actor.roleLabel, input.reason.trim(), occurredAt)
+      db.exec('COMMIT')
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+    return mapSellerCase(db.prepare('SELECT * FROM seller_cases WHERE id = ?').get(id))
+  }
+
+  function decideSellerCase(actor, caseId, input) {
+    const sellerCase = db.prepare('SELECT * FROM seller_cases WHERE id = ?').get(caseId)
+    if (!sellerCase) {
+      const error = new Error('Không tìm thấy Seller case.')
+      error.status = 404
+      error.code = 'SELLER_CASE_NOT_FOUND'
+      throw error
+    }
+    const inScope = actor.role === 'steward' || (actor.role === 'broker' && sellerCase.brokerage_scope === actor.organization)
+    if (!inScope) {
+      const error = new Error('Seller case nằm ngoài phạm vi review hiện tại.')
+      error.status = 403
+      error.code = 'SELLER_CASE_SCOPE_FORBIDDEN'
+      throw error
+    }
+    if (!['Đã tiếp nhận', 'Từ chối', 'Đã xử lý'].includes(input.status) || String(input.reason ?? '').trim().length < 12) {
+      const error = new Error('Quyết định Seller case cần trạng thái hợp lệ và lý do ít nhất 12 ký tự.')
+      error.status = 422
+      error.code = 'SELLER_CASE_DECISION_INVALID'
+      throw error
+    }
+    const occurredAt = nowDisplay()
+    db.exec('BEGIN')
+    try {
+      db.prepare('UPDATE seller_cases SET status = ?, decided_by = ?, decision_reason = ?, decided_at = ? WHERE id = ?')
+        .run(input.status, actor.name, input.reason.trim(), occurredAt, caseId)
+      db.prepare('INSERT INTO audit_events (property_id, listing_id, action, actor, role, reason, occurred_at) VALUES (?, NULL, ?, ?, ?, ?, ?)')
+        .run(sellerCase.property_id, `Seller case ${input.status}`, actor.name, actor.roleLabel, input.reason.trim(), occurredAt)
+      db.exec('COMMIT')
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+    return mapSellerCase(db.prepare('SELECT * FROM seller_cases WHERE id = ?').get(caseId))
   }
 
   function mapAccessRequest(row) {
@@ -574,5 +998,5 @@ export function createMlsStore({ dbPath = 'var/housenow-mls.sqlite' } = {}) {
   }
 
   seed()
-  return { bootstrap, publicProperties, propertyDetail, accessSnapshot, notifications, createAccessRequest, decideAccessRequest, createListing, transitionListing, close: () => db.close() }
+  return { bootstrap, publicProperties, propertyDetail, createOwnershipClaim, representations, changeRepresentation, distributionConsents, changeDistributionConsent, sellerCases, createSellerCase, decideSellerCase, accessSnapshot, notifications, createAccessRequest, decideAccessRequest, createListing, transitionListing, close: () => db.close() }
 }

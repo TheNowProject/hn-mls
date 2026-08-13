@@ -28,6 +28,7 @@ export const notificationPagesByRole = {
   bank: ['finance', 'access'],
   regulator: ['oversight', 'quality', 'access'],
   buyer: ['shortlist', 'discover', 'access'],
+  seller: ['properties', 'authority', 'seller-cases', 'access'],
   steward: ['quality', 'access'],
 }
 
@@ -67,6 +68,12 @@ const notificationBuilders = {
     ['price-drop', 'Một căn đã lưu vừa giảm giá', `${market.project} · giảm 4,5%`, 'discover', 'Thay đổi giá', 'positive'],
     ['showing-confirmed', 'Lịch xem đã được xác nhận', `${market.project} · 18:00 hôm nay`, 'shortlist', 'Lịch xem', 'positive'],
     ['consent-used', 'Consent vừa được sử dụng', `Ngân hàng Đại Việt · mục đích pre-qualification`, 'access', 'Quyền riêng tư', 'warning'],
+  ],
+  seller: (market) => [
+    ['claim-update', 'Ownership Claim vừa được cập nhật', `${market.secondaryProject} · chờ đối chiếu bằng chứng`, 'properties', 'Quyền sở hữu', 'info'],
+    ['representation-expiry', 'Quyền đại diện sắp hết hạn', `${market.project} · còn 14 ngày`, 'authority', 'Đại diện', 'warning'],
+    ['listing-price', 'Giá Listing vừa được cập nhật', `${market.project} · thay đổi 18 phút trước`, 'properties', 'Listing của tôi', 'positive'],
+    ['case-update', 'Yêu cầu sửa dữ liệu có phản hồi mới', `${market.agentListing} · Brokerage đã tiếp nhận`, 'seller-cases', 'Yêu cầu', 'info'],
   ],
   steward: (market) => [
     ['duplicate-cluster', 'Có Property candidate nghi trùng', `${market.label} · 6 candidate cần review`, 'quality', 'Định danh', 'warning'],

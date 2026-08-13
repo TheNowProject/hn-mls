@@ -611,7 +611,7 @@
       <span class="eyebrow">Housenow MLS · Tài liệu nhập môn</span>
       <h1>MLS là gì, và vì sao Việt Nam cần nó?</h1>
       <p class="lead">
-        Một hướng dẫn dành cho người chưa biết gì về MLS: từ khác biệt giữa một tin quảng cáo và một listing có trách nhiệm, đến lý do Housenow muốn kết nối môi giới, sàn, chủ đầu tư, ngân hàng, cơ quan quản lý và người mua trên cùng một hạ tầng dữ liệu.
+        Một hướng dẫn dành cho người chưa biết gì về MLS: từ khác biệt giữa một tin quảng cáo và một listing có trách nhiệm, đến cách Housenow kết nối môi giới, sàn, chủ đầu tư, người mua, người bán/chủ sở hữu và ngân hàng trên cùng một hạ tầng dữ liệu.
       </p>
       <div class="hero-meta">
         <span class="pill">Đối tượng: người mới</span>
@@ -659,10 +659,10 @@
           <a href="#ba-brokerage">Sàn môi giới</a>
           <a href="#ba-developer">Chủ đầu tư</a>
           <a href="#ba-bank">Ngân hàng</a>
-          <a href="#ba-regulator">Cơ quan quản lý</a>
           <a href="#ba-buyer">Người mua</a>
-          <a href="#ba-admin">Housenow Admin</a>
           <a href="#ba-seller">Chủ sở hữu</a>
+          <a href="#ba-admin">Housenow Admin</a>
+          <a href="#ba-regulator">Cơ quan quản lý (future)</a>
           <a href="#ba-rules">Business rules</a>
           <a href="#ba-mvp">MVP traceability</a>
         </nav>
@@ -899,10 +899,10 @@
             <p><strong>Nhận:</strong> dữ liệu đầu vào tốt hơn cho mortgage matching, sơ tuyển và định giá tài sản bảo đảm.</p>
           </div>
           <div class="card">
-            <div class="icon">⚖️</div>
-            <h3>Cơ quan quản lý</h3>
-            <p><strong>Cần:</strong> dữ liệu đúng, đủ, sạch, sống; nguồn cung, giao dịch, tổ chức và môi giới có thể truy vết.</p>
-            <p><strong>Nhận:</strong> báo cáo tốt hơn, cảnh báo bất thường và kênh yêu cầu chỉnh sửa dữ liệu.</p>
+            <div class="icon">🔑</div>
+            <h3>Người bán / Chủ sở hữu</h3>
+            <p><strong>Cần:</strong> biết tài sản nào đang được chào bán, ai có quyền đại diện, dữ liệu nào được công khai và consent còn hiệu lực đến đâu.</p>
+            <p><strong>Nhận:</strong> kiểm soát representation/distribution, theo dõi Listing và gửi correction/dispute request mà không phá audit history.</p>
           </div>
           <div class="card">
             <div class="icon">🏠</div>
@@ -913,7 +913,7 @@
         </div>
 
         <div class="callout">
-          <strong>Hiệu ứng mạng:</strong> mỗi actor đóng góp một phần dữ liệu và nhận lại một sản phẩm tốt hơn. CĐT cung cấp inventory; môi giới cập nhật listing; broker kiểm soát; Nhà nước cung cấp định danh/pháp lý theo quyền; ngân hàng thêm lớp tài chính; người mua tạo tín hiệu nhu cầu.
+          <strong>Hiệu ứng mạng:</strong> mỗi actor đóng góp một phần dữ liệu và nhận lại một sản phẩm tốt hơn. CĐT cung cấp inventory; người bán cấp authority/consent; môi giới cập nhật listing; broker kiểm soát; ngân hàng thêm lớp tài chính; người mua tạo tín hiệu nhu cầu. Nguồn nhà nước và cơ quan quản lý chỉ kết nối theo quyền, purpose và contract cụ thể.
         </div>
       </section>
 
@@ -1290,10 +1290,10 @@
                 <tr><td>Sàn môi giới</td><td>Giám sát agent, listing, compliance và vận hành</td><td>Có quyền kiểm soát trong phạm vi tổ chức</td></tr>
                 <tr><td>Chủ đầu tư</td><td>Cung cấp dự án, unit inventory, giá và chính sách</td><td>Quỹ căn không bị xuyên tạc hoặc bán trùng</td></tr>
                 <tr><td>Ngân hàng</td><td>Cung cấp tài chính và dùng dữ liệu theo consent</td><td>Dữ liệu đúng mục đích, có nguồn và đủ tin cậy</td></tr>
-                <tr><td>Cơ quan quản lý</td><td>Định chuẩn, giám sát và khai thác theo thẩm quyền</td><td>Dữ liệu truy vết được, quyền truy cập được kiểm soát</td></tr>
                 <tr><td>Người mua</td><td>Tìm, đánh giá, lưu, xem và tiến tới giao dịch</td><td>Listing còn hiệu lực và người tư vấn có danh tính</td></tr>
+                <tr><td>Chủ sở hữu/Người bán</td><td>Claim/link tài sản, cấp quyền đại diện và consent, theo dõi Listing, yêu cầu correction/dispute</td><td>Biết ai đang làm gì với tài sản và dữ liệu của mình; thay đổi không xóa lịch sử</td></tr>
                 <tr><td>Housenow Admin/Data Steward</td><td>Vận hành trust, quality, identity và complaint</td><td>Có rule, bằng chứng và quyền can thiệp có audit</td></tr>
-                <tr><td>Chủ sở hữu/Người bán</td><td>Cấp quyền đại diện và consent phân phối</td><td>Biết ai đang làm gì với tài sản và dữ liệu của mình</td></tr>
+                <tr><td>Cơ quan quản lý (future)</td><td>Giám sát theo jurisdiction và statutory purpose khi có workflow được phê duyệt</td><td>Aggregate mặc định; record-level access có authority và audit</td></tr>
               </tbody>
             </table>
           </div>
@@ -1456,8 +1456,9 @@
         </section>
 
         <section id="ba-regulator">
-          <span class="section-kicker">BA-06 · Actor</span>
-          <h2>Cơ quan quản lý</h2>
+          <span class="section-kicker">BA-FUTURE · Actor giám sát hoãn triển khai</span>
+          <h2>Cơ quan quản lý — future scope</h2>
+          <p>Không thuộc target sáu actor của release hiện tại. Giữ lại research và use case để tái sử dụng khi HouseNow có jurisdiction, statutory purpose, suppression rule và data-access contract cụ thể.</p>
           <div class="actor-summary">
             <div><strong>Mục tiêu</strong>Giám sát theo thẩm quyền dựa trên dữ liệu đúng, đủ, sạch, sống.</div>
             <div><strong>Pain hiện tại</strong>Báo cáo chậm, dữ liệu phân mảnh, khó truy nguồn và so sánh.</div>
@@ -1524,18 +1525,33 @@
         </section>
 
         <section id="ba-seller">
-          <span class="section-kicker">BA-09 · Actor hỗ trợ</span>
+          <span class="section-kicker">BA-06 · Actor chính</span>
           <h2>Chủ sở hữu / Người bán</h2>
-          <p>Actor này có thể chưa có tài khoản đầy đủ ở MVP, nhưng phải tồn tại trong domain và flow consent.</p>
+          <p>Seller là actor chính của target scope. Có thể dùng tài khoản trực tiếp hoặc Agent-assisted evidence tùy quyết định pháp lý, nhưng mọi authority, consent, request và outcome phải tồn tại như record có version/audit.</p>
+          <div class="actor-summary">
+            <div><strong>Mục tiêu</strong>Kiểm soát ai được đại diện, dữ liệu nào được phân phối và Listing của tài sản mình đang ở đâu.</div>
+            <div><strong>Pain hiện tại</strong>Khó biết tin nào đang chạy, ai đăng, consent còn hiệu lực không và yêu cầu gỡ/sửa đã được xử lý chưa.</div>
+            <div><strong>Success</strong>Authority rõ, consent granular, milestone minh bạch, dispute có SLA mà không lộ dữ liệu buyer/CRM.</div>
+          </div>
           <div class="table-wrap"><table>
             <thead><tr><th>ID</th><th>Pri.</th><th>User story</th><th>Acceptance tóm tắt</th></tr></thead>
             <tbody>
-              <tr><td class="story-id">SEL-01</td><td><span class="priority p0">P0</span></td><td>Là chủ sở hữu, tôi muốn xác nhận ai được đại diện và trong thời hạn nào.</td><td>Identity/authority evidence, scope, effective/expiry và signature/acknowledgement.</td></tr>
-              <tr><td class="story-id">SEL-02</td><td><span class="priority p0">P0</span></td><td>Tôi muốn chọn listing có được hiển thị công khai và phân phối ra kênh nào.</td><td>Consent rõ, granular và có thể thay đổi theo điều kiện hợp đồng.</td></tr>
-              <tr><td class="story-id">SEL-03</td><td><span class="priority p1">P1</span></td><td>Tôi muốn biết lịch xem và phản hồi tổng hợp.</td><td>Không lộ dữ liệu buyer ngoài consent; event có listing/agent/time.</td></tr>
-              <tr><td class="story-id">SEL-04</td><td><span class="priority p1">P1</span></td><td>Tôi muốn yêu cầu sửa thông tin hoặc chấm dứt representation theo quy trình.</td><td>Không tự xóa listing; request chuyển broker/admin và giữ audit.</td></tr>
+              <tr><td class="story-id">SEL-01</td><td><span class="priority p0">P0</span></td><td>Là chủ sở hữu, tôi muốn tìm và claim/link Property của mình.</td><td>Claim có Party, quan hệ, Property candidate, evidence, trạng thái và audit; không tự biến thành verified ownership.</td></tr>
+              <tr><td class="story-id">SEL-02</td><td><span class="priority p0">P0</span></td><td>Tôi muốn xác nhận, từ chối, gia hạn hoặc thu hồi quyền đại diện.</td><td>Agent/Sàn, transaction, exclusivity, scope, effective/expiry, evidence/version và revocation effect rõ ràng.</td></tr>
+              <tr><td class="story-id">SEL-03</td><td><span class="priority p0">P0</span></td><td>Tôi muốn chọn dữ liệu và kênh được phép phân phối.</td><td>Public preview, channel/recipient, purpose, expiry; consent granular, revocable và effective-dated.</td></tr>
+              <tr><td class="story-id">SEL-04</td><td><span class="priority p0">P0</span></td><td>Tôi muốn theo dõi Listing và milestone giao dịch của tài sản mình.</td><td>Hiện giá/status/distribution và milestone được phép; không lộ buyer identity, CRM, private remarks hay underwriting.</td></tr>
+              <tr><td class="story-id">SEL-05</td><td><span class="priority p0">P0</span></td><td>Tôi muốn yêu cầu sửa dữ liệu, pause distribution hoặc withdraw Listing.</td><td>Tạo case có reason/evidence/SLA; không sửa canonical data hay transition trực tiếp từ Seller UI.</td></tr>
+              <tr><td class="story-id">SEL-06</td><td><span class="priority p1">P1</span></td><td>Tôi muốn xem lịch sử authority, consent và kết quả request.</td><td>Event immutable, có effective time và outcome; chỉ own-scope projection.</td></tr>
+              <tr><td class="story-id">SEL-07</td><td><span class="priority p1">P1</span></td><td>Tôi muốn quản lý đồng sở hữu hoặc người được ủy quyền.</td><td>Party/share/authority riêng; policy chặn grant/revoke nếu thiếu threshold đồng thuận.</td></tr>
+              <tr><td class="story-id">SEL-08</td><td><span class="priority p1">P1</span></td><td>Tôi muốn nhận cảnh báo representation/consent sắp hết hạn và Listing đổi trạng thái/giá.</td><td>Notification đúng người, đúng scope, không chứa restricted data ngoài relationship.</td></tr>
+              <tr><td class="story-id">SEL-09</td><td><span class="priority p2">P2</span></td><td>Tôi muốn xem lịch xem và phản hồi tổng hợp.</td><td>Chỉ số đã ẩn danh/tổng hợp; không lộ dữ liệu buyer ngoài consent.</td></tr>
             </tbody>
           </table></div>
+          <details><summary>UC-SEL-01 · Claim/link Property</summary><div><strong>Precondition:</strong> Seller có identity context tối thiểu. <strong>Luồng:</strong> tìm bằng Property ID/address/Project-Unit hoặc mở invitation → chọn candidate → khai báo quan hệ và evidence → tạo Ownership Claim Pending → Steward/verification workflow đối chiếu → Verified/Partially Verified/Rejected/Disputed. <strong>Edge cases:</strong> không có match, nhiều match, nhiều claimant, đồng sở hữu, evidence hết hạn. Canonical Property không bị sửa từ claim form.</div></details>
+          <details><summary>UC-SEL-02 · Grant/renew/revoke representation</summary><div>Seller mở Property đã đủ authority → xem Agent/Sàn, loại giao dịch, exclusivity, scope/kênh và thời hạn → accept/reject/request correction → lưu agreement version/evidence → notify các bên. Renewal tạo version/effective period mới. Revocation chặn hành động tương lai dựa trên quyền cũ và mở review cho Listing đang Active; không xóa Listing hay history.</div></details>
+          <details><summary>UC-SEL-03 · Quản lý distribution consent</summary><div>Seller xem public-field/media preview → chọn channel hoặc recipient class, purpose và expiry → confirm → activation kiểm tra consent tại effective time. Khi revoke, hệ thống tạo event và reconciliation cho từng downstream channel; lỗi gỡ khỏi kênh phải hiện owner, retry và SLA.</div></details>
+          <details><summary>UC-SEL-04 · Theo dõi Listing</summary><div>Seller dashboard chỉ lấy Listing gắn own verified/claimed relationship → hiển thị responsible Agent/Sàn, public preview, giá/status, distribution state, representation/consent expiry và milestone được phép → ghi nhận restricted read khi cần. Không trả buyer contact, internal feedback, private remarks, CRM, finance detail hoặc full audit.</div></details>
+          <details><summary>UC-SEL-05 · Correction/pause/withdraw request</summary><div>Seller chọn Listing/field → nhập action, reason và evidence → tạo case → Agent/Sàn review theo SLA; Steward tham gia nếu liên quan identity/source/duplicate → authorized actor mới thực hiện correction hoặc lifecycle transition → Seller nhận outcome. Safety/authority dispute có thể vào policy-defined hold nhưng Seller request không tự mutate Listing.</div></details>
         </section>
 
         <section id="ba-rules">
@@ -1570,14 +1586,16 @@
             <thead><tr><th>Epic</th><th>Stories P0</th><th>Màn hình/flow cần có</th><th>Demo outcome</th></tr></thead>
             <tbody>
               <tr><td>Identity & Search</td><td>AGT-01, AGT-02, ADM-01</td><td>Global Search, Results, Property 360, duplicate review</td><td>Tìm đúng tài sản và thấy nhiều listing lịch sử.</td></tr>
-              <tr><td>Representation & Listing</td><td>AGT-03–05, SEL-01–02</td><td>Create Wizard, conflict state, consent preview</td><td>Tạo listing có quyền và bị chặn khi xung đột.</td></tr>
+              <tr><td>Seller Property & Authority</td><td>SEL-01–02</td><td>Owned Property, Claim Review, Representation Detail/Version</td><td>Liên kết đúng tài sản và xác nhận quyền đại diện có evidence/effective period.</td></tr>
+              <tr><td>Representation & Listing</td><td>AGT-03–05, SEL-02–03</td><td>Create Wizard, conflict state, public/channel consent preview</td><td>Tạo listing có quyền và bị chặn khi authority/consent xung đột.</td></tr>
+              <tr><td>Seller Oversight & Dispute</td><td>SEL-04–05</td><td>Seller Dashboard, Listing Milestones, Correction/Pause/Withdraw Case</td><td>Seller theo dõi và gửi request; không trực tiếp sửa status hay thấy restricted data.</td></tr>
               <tr><td>Approval & Compliance</td><td>BRK-02, BRK-04–05, ADM-02–04</td><td>Approval Queue, Quality Issue, Audit Diff</td><td>Sàn duyệt và xử vấn đề có bằng chứng.</td></tr>
               <tr><td>Lifecycle & Closing</td><td>AGT-06</td><td>Change Status, Close Listing</td><td>Active → Pending → Closed và cập nhật downstream.</td></tr>
               <tr><td>Buyer Collaboration</td><td>AGT-07, BUY-01–04</td><td>Public Detail, Shortlist, Compare, Schedule Showing</td><td>Buyer tìm, lưu và đặt lịch mà không thấy private data.</td></tr>
               <tr><td>CMA</td><td>AGT-08</td><td>CMA Setup, Comparables, Analysis, Report Preview</td><td>Agent chọn comparable và tạo report có nguồn.</td></tr>
               <tr><td>Project Inventory</td><td>DEV-01–04</td><td>Project Structure, Inventory Grid, Import Preview, Distribution</td><td>CĐT quản lý unit và sàn được phép phân phối.</td></tr>
               <tr><td>Finance</td><td>BNK-01–03</td><td>Loan Estimate, Product Match placeholder</td><td>Buyer xem estimate; không lộ hồ sơ cá nhân.</td></tr>
-              <tr><td>Regulatory View</td><td>REG-01–03</td><td>Aggregate Dashboard, Data Request workflow</td><td>Cơ quan thấy tổng hợp và gửi yêu cầu sửa đúng phạm vi.</td></tr>
+              <tr><td>Regulatory View (future)</td><td>REG-01–03</td><td>Deferred Aggregate Dashboard, Data Request workflow</td><td>Chỉ kích hoạt khi authority/purpose/suppression policy được phê duyệt.</td></tr>
             </tbody>
           </table></div>
 

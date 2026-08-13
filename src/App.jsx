@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
   FluentProvider,
@@ -44,6 +44,7 @@ import { activityFeedsByMarket, properties as initialProperties, qualityIssues, 
 import { actorExperiencesByMarket } from './data/actorViews.js'
 import { localAccessSnapshot } from './data/accessPolicy.js'
 import { notificationsForActor } from './data/notifications.js'
+import { localSellerPropertyProjection } from './data/sellerData.js'
 import { mlsApi } from './lib/apiClient.js'
 import {
   ActorTable as ExplorationActorTable,
@@ -55,6 +56,7 @@ import {
   FlowDialog,
   OrganizationWorkspace,
 } from './components/ExplorationWorkspaces.jsx'
+import { SellerWorkspace } from './components/SellerWorkspace.jsx'
 
 const navItems = {
   overview: { id: 'overview', label: 'Tổng quan', icon: SquaresFour },
@@ -70,6 +72,9 @@ const navItems = {
   finance: { id: 'finance', label: 'Finance fit', icon: ChartLineUp },
   oversight: { id: 'oversight', label: 'Giám sát thị trường', icon: ShieldCheck },
   shortlist: { id: 'shortlist', label: 'Shortlist', icon: CalendarCheck },
+  properties: { id: 'properties', label: 'BĐS của tôi', icon: HouseLine },
+  authority: { id: 'authority', label: 'Đại diện & phân phối', icon: ShieldCheck },
+  'seller-cases': { id: 'seller-cases', label: 'Yêu cầu', icon: FileMagnifyingGlass },
 }
 
 const navigationByRole = {
@@ -79,6 +84,7 @@ const navigationByRole = {
   bank: ['overview', 'finance', 'discover', 'access'],
   regulator: ['overview', 'oversight', 'quality', 'discover', 'access'],
   buyer: ['overview', 'discover', 'shortlist', 'access'],
+  seller: ['overview', 'properties', 'authority', 'seller-cases', 'access'],
   steward: ['overview', 'quality', 'discover', 'organization', 'access'],
 }
 
@@ -96,6 +102,9 @@ const pageMeta = {
   finance: ['Finance fit', 'Đánh giá ngữ cảnh tài chính trong đúng purpose và consent.'],
   oversight: ['Giám sát thị trường', 'Theo dõi tín hiệu tổng hợp; drill-down luôn cần authority và audit.'],
   shortlist: ['Shortlist', 'So sánh nhà đã lưu, lịch xem và thay đổi giá từ public projection.'],
+  properties: ['BĐS của tôi', 'Theo dõi Property liên kết, Ownership Claim và Listing milestone được phép.'],
+  authority: ['Đại diện & phân phối', 'Quản lý Representation và consent theo version, phạm vi và thời hạn.'],
+  'seller-cases': ['Yêu cầu', 'Gửi correction, pause, withdrawal hoặc dispute case mà không sửa Listing trực tiếp.'],
 }
 
 const statusTone = {
@@ -213,6 +222,7 @@ function App() {
         setConnectionState('offline')
         setConnectionError(error.message)
         setAccessSnapshot(localAccessSnapshot(roleId))
+        setListings(roleId === 'seller' ? localSellerPropertyProjection(initialProperties) : initialProperties)
       }
     }
     loadWorkspace()
@@ -275,10 +285,10 @@ function App() {
     setMobileDetailOpen(true)
   }
 
-  const notify = (message) => {
+  const notify = useCallback((message) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 2600)
-  }
+  }, [])
 
   const openFlow = (nextFlow) => setFlow(() => nextFlow)
 
@@ -350,6 +360,14 @@ function App() {
       setAccessSnapshot((current) => ({ ...current, requests: current.requests.map((request) => request.id === requestId ? { ...request, status: input.status, decidedBy: role.name, decisionReason: input.reason, decidedAt: 'Vừa xong' } : request) }))
       notify(`Đã lưu quyết định ${input.status} trong phiên khám phá.`)
     }
+  }
+
+  const createOwnershipClaim = async (input) => {
+    const payload = await mlsApi.createOwnershipClaim(input)
+    const refreshed = await mlsApi.bootstrap()
+    setListings(refreshed.properties)
+    setSelectedId(payload.claim.propertyId)
+    notify('Ownership Claim đã được tạo ở trạng thái Chờ xác minh.')
   }
 
   const [title, subtitle] = pageMeta[page]
@@ -449,6 +467,7 @@ function App() {
             {page === 'organization' && <OrganizationWorkspace onOpenFlow={openFlow} />}
             {page === 'access' && <AccessWorkspace roleId={roleId} snapshot={accessSnapshot} onRequestAccess={requestAccess} onDecision={decideAccessRequest} />}
             {page === 'apps' && <AppsWorkspace onNavigate={navigate} onOpenFlow={openFlow} />}
+            {['properties', 'authority', 'seller-cases'].includes(page) && <SellerWorkspace view={page} properties={listings} marketId={marketId} onClaim={createOwnershipClaim} notify={notify} />}
           </main>
         </div>
 
@@ -462,7 +481,7 @@ function App() {
 }
 
 function ActorOverview({ role, experience, onNavigate, onOpenFlow }) {
-  const primaryPage = { developer: 'projects', bank: 'finance', regulator: 'oversight', buyer: 'shortlist' }[role.id]
+  const primaryPage = { developer: 'projects', bank: 'finance', regulator: 'oversight', buyer: 'shortlist', seller: 'properties' }[role.id]
   return <div className="actor-overview">
     <section className="actor-hero">
       <div><span className="section-kicker">{experience.kicker}</span><h2>{experience.title}</h2><p>{experience.description}</p></div>
@@ -592,6 +611,7 @@ function DetailPanel({ property, roleId, mobileOpen, onClose, onCreate, onTransi
     bank: ['Consent-based projection', 'Chỉ dữ liệu cần cho purpose tài chính'],
     regulator: ['Authority projection', 'Audit được lưu; private remarks bị ẩn'],
     buyer: ['Public projection', 'Chỉ Active Listing và public fields'],
+    seller: ['Own-scope projection', 'Chỉ Property liên kết; CRM, buyer, private remarks và full audit bị ẩn'],
     steward: ['Steward projection', 'Nguồn, audit và quality evidence đầy đủ'],
   }[roleId]
   const canCreate = ['agent', 'broker', 'steward'].includes(roleId)
