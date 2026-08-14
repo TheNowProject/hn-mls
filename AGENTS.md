@@ -2,12 +2,12 @@
 
 ## Project grounding
 
-- Read `README.md` for repository orientation, `CONTEXT.md` for canonical MLS terminology, and `MASTER_PLAN.md` plus the relevant `docs/` specifications before making product, domain, schema, API, or workflow decisions.
+- Read `context/README.md` first and follow its task route to the smallest relevant context set. Do not load the whole knowledge tree by default.
 - Treat `reference/mls/documents/research/mls-texas/BA-report.md` as the primary analyzed research reference and `reference/mls/documents/research/mls-texas/visual-analysis.md`, transcript, and frames as supporting evidence.
 - Treat `reference/mls/` as an immutable snapshot of the legacy research repository. Make current product and implementation changes at the repository root instead of editing the snapshot.
 - Preserve the evidence labels `FACT`, `SOURCE CLAIM`, `INFERENCE`, `PROPOSAL`, and `OPEN QUESTION`. Do not silently promote a source claim or Texas-specific observation into a Vietnam requirement.
-- Do not use `Property`, `Parcel`, `Project`, `Unit`, `Listing`, `Closing Record`, `Party`, `Membership`, `Agent`, and `Brokerage` interchangeably. Update `CONTEXT.md` when a term is resolved.
-- Treat `output/brand-kit/vmls-hybrid-living-registry.png` as the canonical visual direction for VMLS. Brand, UI, presentation, and generated visual work must follow its Living Registry concept, typography, color system, and data-provenance motifs; the other files in `output/brand-kit/` are exploratory alternatives, not competing directions.
+- Do not use `Property`, `Parcel`, `Project`, `Unit`, `Listing`, `Closing Record`, `Party`, `Membership`, `Agent`, and `Brokerage` interchangeably. Update `context/domain/language.md` when a term is resolved.
+- Treat `context/brand/README.md` and `context/brand/assets/vmls-living-registry.png` as the canonical visual direction for VMLS.
 - Keep source videos, temporary extraction artifacts, credentials, and generated scratch data under `tmp/`; this directory is intentionally ignored by Git.
 
 ## Instruction loading

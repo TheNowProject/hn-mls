@@ -1,91 +1,23 @@
 # HouseNow MLS
 
-Prototype MLS chạy được dành cho thị trường Việt Nam, xây dựng bằng React với sáu actor thị trường cùng các góc nhìn vận hành/mở rộng. Team và founder có thể dùng bản local để khám phá trọn các luồng từ tìm Property, quản lý Listing, quyền chủ sở hữu, khách hàng, lịch xem, CMA đến quality review và audit trên dữ liệu mô phỏng tại TP. Hồ Chí Minh và Hà Nội.
+HouseNow MLS is an executable Vietnam-focused Multiple Listing Service prototype. It models six market actors and demonstrates governed workflows for Property identity, Listing lifecycle, representation, consent, source provenance, field-level access, and audit history.
 
-Nếu bạn mới tìm hiểu MLS hoặc mới tham gia dự án, hãy bắt đầu với [HouseNow MLS Primer](./docs/research/housenow-mls-primer.md): tài liệu giải thích bằng một ví dụ xuyên suốt MLS là gì, khác portal đăng tin ra sao, bối cảnh Việt Nam, ứng dụng thực tế và demo hiện tại đang kiểm chứng điều gì.
+Start with the [repository context router](./context/README.md). New contributors can then read the [HouseNow MLS primer](./context/research/primer.md) and [current product state](./context/product/current-state.md).
 
-Đây là repository canonical cho B2G VMLS demo và toàn bộ phát triển HouseNow MLS. Research workspace cũ được bảo toàn nguyên trạng tại [`reference/mls`](./reference/mls), bao gồm evidence và lịch sử nguồn liên quan.
+## Canonical market actors
 
-## Repo này giải quyết điều gì?
+1. Real-estate Agent (`Môi giới BĐS`)
+2. Brokerage (`Sàn môi giới`)
+3. Developer (`Chủ đầu tư`)
+4. Buyer (`Người mua`)
+5. Owner/Seller (`Người bán / Chủ sở hữu`)
+6. Bank (`Ngân hàng`)
 
-HouseNow MLS thử nghiệm một nền tảng dữ liệu bất động sản dùng chung, trong đó:
+Data Steward, Organization Admin, and System Admin are operational roles, not additional market actors. Regulator remains deferred oversight scope until a lawful workflow is approved.
 
-- `Property` là định danh tài sản ổn định; `Listing` là một lần chào bán hoặc cho thuê có vòng đời riêng.
-- Dữ liệu được phân quyền theo actor, tổ chức, mục đích truy cập và mức độ nhạy cảm.
-- Giá, trạng thái, nguồn và lịch sử giao dịch được lưu theo sự kiện, không ghi đè quá khứ.
-- Mọi thay đổi quan trọng đều có lý do và audit trail.
+## Run the prototype
 
-## Tôi đã research như thế nào?
-
-Research bắt đầu từ một MLS đang vận hành tại Texas, sử dụng BA report, transcript, 24 frame chọn lọc và 26 contact sheet trong [`reference/mls`](./reference/mls). Quy trình gồm:
-
-1. Quan sát search, listing detail, listing input, status lifecycle, portal và Cloud CMA.
-2. Phân loại bằng chứng thành `FACT`, `SOURCE CLAIM`, `INFERENCE`, `PROPOSAL` và `OPEN QUESTION`.
-3. Giữ các nguyên tắc MLS có thể tái sử dụng, nhưng không sao chép chính sách Texas sang Việt Nam.
-4. Xây domain model, permission matrix, business rules và acceptance criteria cho HouseNow.
-5. Chuyển đặc tả thành một vertical slice có thể chạy và kiểm thử.
-
-Đọc thêm: [kết quả discovery](./docs/research/phase-1-discovery.md), [context từ bốn conversation](./HN-VMLS-ActorContext/README.md), [đánh giá khả năng thích ứng từ 357 và HouseNow](./HN-VMLS-ActorContext/system-adaptation/README.md), [product requirements](./docs/product/product-requirements-baseline.md) và [domain language](./CONTEXT.md).
-
-## Làm việc với agent
-
-Đọc [`AGENTS.md`](./AGENTS.md) trước khi giao việc. Repository dùng cấu trúc role-based tại [`.agents`](./.agents): `WORKER.md` cho implementation và release, `PM.md` cho Linear/specification, `QA.md` cho verification. Các role file sẽ route agent tới skill phù hợp; `CONTEXT.md`, `MASTER_PLAN.md` và `docs/` là baseline hiện hành, còn `reference/mls` là research snapshot không chỉnh sửa.
-
-## Sáu actor chính
-
-| Actor | Use case chính trong MLS |
-|---|---|
-| **Môi giới BĐS** | Tìm Property, xem Property 360, tạo/quản lý Listing, quản lý khách hàng, đặt lịch xem và tạo CMA. |
-| **Sàn môi giới** | Review hồ sơ, đổi trạng thái, quản lý inventory của sàn, xử lý quality queue, thành viên và entitlement. |
-| **Chủ đầu tư dự án BĐS** | Khám phá Project/Unit inventory, availability, giá, trạng thái pháp lý và assignment phân phối. |
-| **Người mua** | Tìm Listing đã xác minh, xem lịch sử giá, quản lý shortlist, đặt lịch xem và báo sai dữ liệu. |
-| **Người bán / Chủ sở hữu** | Liên kết BĐS của mình, quản lý quyền đại diện và consent phân phối, theo dõi Listing, yêu cầu sửa hoặc thu hồi theo quy trình. |
-| **Ngân hàng** | Khám phá finance-fit theo purpose/consent và ghi nhận bước xử lý của từng hồ sơ. |
-
-`Data Steward` là vai trò vận hành bổ sung: xử lý trùng Property, xung đột nguồn, định danh, provenance, taxonomy và quality issue. Đây không phải System Admin.
-
-Target scope đã được chốt theo thứ tự trên. `Người bán / Chủ sở hữu` đã có vertical slice đầu tiên cho BĐS liên kết, Ownership Claim, Representation, consent và case; `Cơ quan quản lý` và `Data Steward` vẫn được giữ ở cuối danh sách dưới nhóm mở rộng/vận hành. Tiến độ chi tiết nằm tại [Phase 6.4](./docs/product/phase-6-4-owner-seller-build-plan.md).
-
-## Hiện tại đang ở giai đoạn nào?
-
-Repo đang ở **Phase 6 — exploration-ready local prototype**:
-
-- Phase 0–2: hoàn tất draft product alignment, discovery và domain specification.
-- Phase 3–4: triển khai prototype sáu actor và khóa working scope cho vertical slice.
-- Phase 5: có React frontend, HTTP API, SQLite persistence, backend authorization và audit trail.
-- Phase 6: luồng lõi, Property Intelligence và các workspace khám phá đã chạy end-to-end trên local.
-
-Luồng hiện có:
-
-```text
-Tìm Property → xem giá/lịch sử/nguồn → tạo Listing → validation
-→ sàn review → Active → Pending → Closed → Closing Record + Audit
-```
-
-Property Intelligence bao gồm price events, original/current price, DOM/CDOM, relist, lịch sử Listing, closing records, source events và CMA candidate có human review.
-
-Các flow khám phá đã có điểm kết thúc rõ ràng:
-
-- Search với filter nâng cao, sort, list/map và Property 360 theo từng actor.
-- Contacts với nhu cầu, shortlist, ghi chú, tạo khách hàng và xác nhận lịch xem.
-- CMA với subject Property, include/exclude comparable, rationale và báo cáo khoảng giá.
-- Quality Queue với filter, assignment, evidence, kết luận và cập nhật hàng đợi.
-- Organization với thành viên, entitlement review và lời mời theo role/scope.
-- Quyền & chia sẻ với actor-to-actor projection, field matrix, consent, Access Request có thời hạn và sensitive-read audit.
-- Notification Center theo từng actor và data space; mỗi thông báo chỉ dẫn tới workspace actor được phép truy cập.
-- Seller workspace với own-property projection, Ownership Claim, Representation/consent version và correction/pause/withdrawal case.
-- Project, Finance, Oversight và Shortlist với record detail và next step.
-- App Hub nối MLS Core, CMA Studio, Showing Desk và Distribution Monitor.
-
-Listing lifecycle, Access Request, quyết định quyền, backend authorization và audit được lưu qua SQLite. Các thao tác khám phá ngoài core như lịch xem, client note, lời mời và CMA draft hiện được giữ trong phiên trình duyệt để phục vụ review UX.
-
-Prototype có 26 Property mô phỏng tại hai data space: 12 ở TP. Hồ Chí Minh và 14 ở Hà Nội. Đây chưa phải pilot/production: authentication, consent, dữ liệu địa chính, tích hợp đối tác và chính sách pháp lý vẫn cần được xác nhận.
-
-Trạng thái chi tiết: [PHASE_STATUS.md](./docs/PHASE_STATUS.md). Phase 6.3 đã có [build plan System Admin](./docs/product/phase-6-3-system-admin-build-plan.md): tách control plane khỏi quyền đọc dữ liệu và dùng Break-glass Access cho trường hợp khẩn cấp.
-
-## Chạy prototype
-
-Yêu cầu Node.js 22 trở lên.
+Requires Node.js 22 or newer.
 
 ```bash
 npm install
@@ -101,16 +33,17 @@ npm test
 npm run build
 ```
 
-Gợi ý khám phá: đổi `Góc nhìn` ở header để chuyển giữa sáu actor; đổi `Không gian dữ liệu` ở sidebar để so sánh TP. Hồ Chí Minh và Hà Nội.
+Use the role selector to explore actor-specific projections and switch data spaces to compare synthetic Ho Chi Minh City (`TP. Hồ Chí Minh`) and Hanoi (`Hà Nội`) records.
 
-## Kiến trúc ngắn gọn
+## Repository map
 
 ```text
-src/        React UI và actor-specific workspaces
-server/     HTTP API, auth, lifecycle policy và SQLite adapter
-test/       Domain, API integration và backup tests
-docs/       Product, domain, decision và technical specifications
-reference/  Research snapshot và bằng chứng gốc
+context/    Canonical knowledge, specifications, decisions, research, and QA context
+src/        React interface and actor workspaces
+server/     HTTP API, authorization, lifecycle policy, audit, and SQLite persistence
+test/       Domain, API integration, and backup tests
+reference/  Immutable legacy research snapshot
+tmp/        Ignored local media, archives, credentials, and scratch artifacts
 ```
 
-Tài liệu điều hướng tổng thể nằm tại [MASTER_PLAN.md](./MASTER_PLAN.md); API local nằm tại [docs/technical/api.md](./docs/technical/api.md).
+Read [`AGENTS.md`](./AGENTS.md) before assigning repository work to an agent. The current product baseline and reading routes live under [`context/`](./context/); `reference/mls/` remains an immutable evidence snapshot.

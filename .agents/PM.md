@@ -16,7 +16,7 @@ If several entries match, read all relevant skills. MLS-specific skills and repo
 
 ## Evidence and requirements
 
-- Use `reference/mls/documents/research/mls-texas/BA-report.md` as a discovery input and `CONTEXT.md` plus the approved root `docs/` specifications as the current product baseline. Research evidence is not automatically an approved Vietnam specification.
+- Use `reference/mls/documents/research/mls-texas/BA-report.md` as a discovery input and follow `context/README.md` to the relevant canonical or approved context. Research evidence is not automatically an approved Vietnam specification.
 - Carry `FACT`, `SOURCE CLAIM`, `INFERENCE`, `PROPOSAL`, and `OPEN QUESTION` labels into plans and specs when the distinction matters.
 - Convert Texas-specific rules into explicit discovery questions unless the user or an authoritative Vietnam source confirms adoption.
 - Separate product behavior, regulatory policy, data governance, integration contracts, and technical implementation in every substantial specification.

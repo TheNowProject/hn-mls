@@ -1,4 +1,4 @@
-# CONTEXT.md Format
+# context/domain/language.md Format
 
 ## Structure
 
@@ -29,32 +29,26 @@ _Avoid_: Client, buyer, account
 - **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 
-## Single vs multi-context repos
+## Repository knowledge layout
 
-**Single context (most repos):** One `CONTEXT.md` at the repo root.
+This repository uses `context/README.md` as its router and `context/domain/language.md` as its single canonical domain glossary. When several domain areas need grouping, add headings or additional files under `context/domain/`; do not create context trees inside source modules.
 
-**Multiple contexts:** A `CONTEXT-MAP.md` at the repo root lists the contexts, where they live, and how they relate to each other:
+The router lists the maintained knowledge areas and their relationships:
 
 ```md
 # Context Map
 
-## Contexts
+## Domain context
 
-- [Ordering](./src/ordering/CONTEXT.md) — receives and tracks customer orders
-- [Billing](./src/billing/CONTEXT.md) — generates invoices and processes payments
-- [Fulfillment](./src/fulfillment/CONTEXT.md) — manages warehouse picking and shipping
+- `context/domain/language.md` — canonical terminology
+- `context/domain/business-rules.md` — working domain rules
+- `context/decisions/` — accepted, hard-to-reverse choices
 
 ## Relationships
 
-- **Ordering → Fulfillment**: Ordering emits `OrderPlaced` events; Fulfillment consumes them to start picking
-- **Fulfillment → Billing**: Fulfillment emits `ShipmentDispatched` events; Billing consumes them to generate invoices
-- **Ordering ↔ Billing**: Shared types for `CustomerId` and `Money`
+- **Product → Domain**: product specifications use canonical domain terms
+- **Decisions → Product**: accepted decisions constrain working plans
+- **Research → Product**: research informs but does not override product context
 ```
 
-The skill infers which structure applies:
-
-- If `CONTEXT-MAP.md` exists, read it to find contexts
-- If only a root `CONTEXT.md` exists, single context
-- If neither exists, create a root `CONTEXT.md` lazily when the first term is resolved
-
-When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.
+Read `context/README.md` first. Create `context/domain/language.md` lazily only in repositories that do not already have a context router or documented knowledge convention.

@@ -9,8 +9,8 @@ description: Apply MLS repository evidence, domain, data-governance, privacy, li
 
 Before designing or implementing MLS behavior:
 
-1. Read the relevant terms in `CONTEXT.md`.
-2. Read the relevant current specification under `docs/` and record any unresolved product or policy decision instead of inferring it from the prototype.
+1. Read `context/README.md`, then the relevant terms in `context/domain/language.md`.
+2. Read the routed current specification under `context/` and record any unresolved product or policy decision instead of inferring it from the prototype.
 3. When research evidence is relevant, read the matching section of `reference/mls/documents/research/mls-texas/BA-report.md`.
 4. Use the visual analysis, transcript timestamps, keyframes, or contact sheets under `reference/mls/documents/research/mls-texas/` when the claim needs primary evidence.
 5. Preserve the evidence level:
