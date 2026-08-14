@@ -2,6 +2,17 @@
 
 Housenow MLS standardizes the language used to describe durable real-estate identities, market offerings, participating parties, and traceable data. Terms marked as unresolved in specifications do not become approved policy merely by appearing in this glossary.
 
+## Brand and visual direction
+
+The canonical VMLS brand reference is [`output/brand-kit/vmls-hybrid-living-registry.png`](./output/brand-kit/vmls-hybrid-living-registry.png). Treat it as the source of truth for brand, UI, presentation, and generated visual work. The selected direction presents VMLS as a **Living Registry**: civic-grade market infrastructure that gives each asset a durable identity and connects source, verification, authorization, and audit history into a legible lifecycle.
+
+Preserve these visual anchors when extending the product:
+
+- Use `Be Vietnam Pro ExtraBold` for display typography, `IBM Plex Sans` for interface and body copy, and `IBM Plex Mono` for identifiers, timestamps, and technical metadata.
+- Use Registry Green `#0D5142`, Archive Ivory `#F3EFE5`, Ledger Ink `#17211D`, and Paper White `#FCFBF7` as the core palette. Use Mint Trace `#6BCBB1` for lifecycle/provenance, Coral Signal `#F06445` for primary actions, Patina `#6D8E82` for secondary/border treatment, and Amber `#C88A2C` for warnings.
+- Favor evidence-led registry imagery: property identity, map or cadastral traces, provenance paths, verification marks, permissions, and append-oriented timelines. Keep the tone trustworthy, precise, calm, and recognizably Vietnamese rather than resembling a generic property portal.
+- Treat the remaining images in `output/brand-kit/` as exploration history. They may inform comparison, but they do not override the hybrid Living Registry direction.
+
 ## Asset identity
 
 **Property**:

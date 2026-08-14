@@ -7,6 +7,7 @@
 - Treat `reference/mls/` as an immutable snapshot of the legacy research repository. Make current product and implementation changes at the repository root instead of editing the snapshot.
 - Preserve the evidence labels `FACT`, `SOURCE CLAIM`, `INFERENCE`, `PROPOSAL`, and `OPEN QUESTION`. Do not silently promote a source claim or Texas-specific observation into a Vietnam requirement.
 - Do not use `Property`, `Parcel`, `Project`, `Unit`, `Listing`, `Closing Record`, `Party`, `Membership`, `Agent`, and `Brokerage` interchangeably. Update `CONTEXT.md` when a term is resolved.
+- Treat `output/brand-kit/vmls-hybrid-living-registry.png` as the canonical visual direction for VMLS. Brand, UI, presentation, and generated visual work must follow its Living Registry concept, typography, color system, and data-provenance motifs; the other files in `output/brand-kit/` are exploratory alternatives, not competing directions.
 - Keep source videos, temporary extraction artifacts, credentials, and generated scratch data under `tmp/`; this directory is intentionally ignored by Git.
 
 ## Instruction loading
