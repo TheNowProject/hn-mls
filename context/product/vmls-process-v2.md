@@ -1,5 +1,7 @@
 # VMLS transaction flow v2
 
+> **Superseded for UI review:** use [VMLS transaction screens v3](./vmls-process-v3.md) for the standardized header/sidebar shell, list screens, and navigation relationship map. This v2 document is preserved for comparison.
+
 > Evidence status: **PROPOSAL** — revised from stakeholder comments. This is not yet an approved legal, tax, integration, or production workflow.
 >
 > Naming note: **HNRE in the supplied flow is treated as VMLS**. `NPID` identifies the Property, `PLID` identifies the Listing, and `PTID` identifies the Transaction; they remain separate lifecycle objects.
