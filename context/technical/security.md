@@ -1,40 +1,32 @@
 ---
-title: Security controls and current limitations
+title: Static demo security boundary
 status: current
 authority: supporting
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-15
 ---
 
-# Security controls and current limitations
+# Static demo security boundary
 
-Date: 2026-08-13
+The current artifact is a public, static pre-MVP demonstration. Its client-side role views and journey guards communicate product intent; they are not security controls.
 
-## Controls implemented in the local slice
+## Implemented demo safeguards
 
-- API authentication is required for internal bootstrap and mutations.
-- Role checks protect listing lifecycle transitions.
-- Resource scope limits agents to their assigned listings and brokers to their brokerage.
-- Public responses expose only Active inventory and remove restricted remarks and audit data.
-- Listing validation is enforced by the domain layer, not only by the browser.
-- Status changes and listing creation append audit events inside the same SQLite transaction.
-- Request bodies are size-limited and API errors have stable codes.
-- Actor-specific Property Intelligence is projected by the backend rather than hidden only in the client.
-- Access Requests and approval decisions are persisted with purpose, field group and duration.
-- Reads that return Restricted fields append a separate sensitive-access audit event.
+- **FACT:** Bundled records are synthetic or masked and contain no intended real customer credentials or personal contact details.
+- **FACT:** The client has no authentication flow, bearer tokens, server API, database, analytics, or live authority/integration connection.
+- **FACT:** Progress is serialized under a versioned browser `localStorage` contract; invalid or obsolete payloads reset to configured sample state.
+- **FACT:** External references are local assets. The 357 screenshot is dated and attributed, and no government page is embedded at runtime.
+- **FACT:** VNeID, VPCC, tax, VPĐKĐĐ, Developer Portal, 357, and HouseNow behavior is labelled `Mô phỏng đề xuất` where it could be mistaken for live connectivity or official authority.
 
-## Deliberate local-development shortcuts
+## Limitations
 
-- Demo bearer tokens are identities, not real authentication.
-- There is no password, MFA, SSO, session expiry or account recovery.
-- SQLite is a single-node local database with no high-availability setup.
-- CORS is configured for the local Vite origin only.
-- Rate limiting, abuse detection, encryption key management and centralized observability are not implemented.
-- Legal retention, consent, representation verification and dispute workflows still require owner decisions.
-- Membership, Entitlement activation and Consent records are modeled for exploration but are not yet connected to a production identity/policy engine.
-- Cadastral, banking, developer and distribution integrations are not connected.
-- Contacts, showing requests, CMA drafts, invitations, actor next steps and prototype issue resolution are session-local UI state; they are not durable records yet.
-- Interactive map positions are synthetic visual coordinates and must not be interpreted as cadastral or precise geospatial data.
+- Browser state is user-editable, clearable, and device-local. It is not trusted persistence or an immutable audit ledger.
+- A role switcher is a storytelling projection, not identity, Membership, Entitlement, Consent, or field-level authorization.
+- Reducer transition guards prevent accidental out-of-order demo actions only; they provide no protection against a modified client.
+- Static hosting still requires normal platform controls such as HTTPS, dependency review, security headers, deployment access governance, and incident ownership.
+- The demo has no retention enforcement, encryption/key operations, rate limiting, abuse protection, centralized observability, backup, recovery, or integration reconciliation.
 
 ## Pilot gate
 
-Do not expose this build to real customer or restricted data. Before a pilot, replace demo authentication, complete threat/privacy review, approve data policy and lifecycle authority, add operational monitoring and recovery drills, and test every external integration in a non-production environment.
+Do not load real Public, Industry, Restricted, customer, document, identity, financial, or authority data into this build.
+
+> **PROPOSAL:** Before any pilot with real data, define a separate production architecture and complete threat/privacy review, identity and authorization design, data classification and retention policy, integration sandbox validation, monitoring, recovery, and legal/compliance approval.

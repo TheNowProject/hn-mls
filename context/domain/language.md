@@ -2,12 +2,36 @@
 title: HouseNow MLS domain language
 status: current
 authority: canonical
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-15
 ---
 
 # HouseNow MLS domain language
 
-Housenow MLS standardizes the language used to describe durable real-estate identities, market offerings, participating parties, and traceable data. Terms marked as unresolved in specifications do not become approved policy merely by appearing in this glossary.
+HouseNow MLS standardizes the language used to describe durable real-estate identities, market offerings, participating parties, and traceable data. Terms marked as unresolved in specifications do not become approved policy merely by appearing in this glossary.
+
+## Public demo vocabulary
+
+> **PROPOSAL:** These Vietnamese labels and identifiers are scoped to the static `vmls-process-v2` pre-MVP demo. They make the identity distinctions teachable; they do not establish an official identifier, legal record, production lifecycle, or final Vietnamese domain translation.
+
+**Bất động sản / NPID**:
+The demo-facing label and proposed identifier for the durable Property. It persists independently from each Tin bán or Giao dịch.
+_Avoid_: PLID, PTID, Tin bán, Giao dịch, official government identifier
+
+**Tin bán / PLID**:
+The sale/transfer-only demo rendering of a Listing and its separate proposed identifier. Status `Đã khởi tạo` means the demo record exists; it does not mean Active, approved, or publicly distributed.
+_Avoid_: Bất động sản, NPID, Giao dịch, PTID, every future Listing type
+
+**Giao dịch / PTID**:
+A separate VMLS demo orchestration reference created after the notarization result. It may later map to an official identifier if an approved integration provides one; the demo PTID is not an official code, Closing Record, Property, Listing, or HouseNow billing `Transaction`.
+_Avoid_: NPID, PLID, Closing Record, official transaction identifier
+
+**Mô phỏng đề xuất**:
+The required label for client-side actions or outcomes representing VNeID, VPCC, tax, VPĐKĐĐ, Developer Portal, 357, HouseNow, or another system without a live approved contract.
+_Avoid_: verified integration, official approval, production authority
+
+**Tuyến chuyển quyền / Transfer Route**:
+The demo branch determined from configured dossier evidence: VPĐKĐĐ for the synthetic landed Property or Developer/HĐMB for the supplied apartment case. The user does not select the branch, and neither route is approved policy through implementation.
+_Avoid_: user-selected destination, legal determination, universal Vietnam workflow
 
 ## Asset identity
 
@@ -80,7 +104,7 @@ A person or organization participating as owner, seller, buyer, landlord, tenant
 _Avoid_: User, Agent, Owner mặc định
 
 **Organization**:
-A governed participant boundary such as a brokerage, developer, bank, regulator, or Housenow operations team.
+A governed participant boundary such as a brokerage, developer, bank, regulator, or HouseNow operations team.
 _Avoid_: User group, Party role
 
 **Membership**:
@@ -112,7 +136,7 @@ An operational role that manages Memberships and Entitlements within one Organiz
 _Avoid_: System Admin, Brokerage, full-access user
 
 **System Admin**:
-A Housenow operational role that governs platform identity, Organizations, policy, integrations, and service state without blanket access to business data.
+A HouseNow operational role that governs platform identity, Organizations, policy, integrations, and service state without blanket access to business data.
 _Avoid_: Data Steward, superuser with unrestricted data access
 
 **Data Steward**:

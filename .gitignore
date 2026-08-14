@@ -14,9 +14,12 @@ tmp/
 .env.*
 !.env.example
 .vercel/
+.playwright-cli/
 
-# Local research exports; tracked QA reports remain allowed
+# Local research exports and release evidence remain uncommitted
 output/pdf/
+output/playwright/
+output/qa/vmls-interactive-demo/
 
 # Common generated artifacts
 build/

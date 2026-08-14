@@ -1,13 +1,15 @@
 ---
 title: Phase 4 local MVP scope
-status: draft
+status: superseded
 authority: working
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-15
 ---
 
 # Phase 4 scope lock for the local MVP vertical slice
 
-Status: `WORKING BASELINE, HUMAN SIGN-OFF PENDING`
+> **FACT — SUPERSEDED 2026-08-15:** This document records the replaced Node/SQLite exploration slice. It does not describe the current static VMLS public demo. See [current state](../current-state.md).
+
+Status: `HISTORICAL BASELINE, SUPERSEDED`
 Date: 2026-08-13
 
 ## Decision

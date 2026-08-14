@@ -1,8 +1,10 @@
-# HouseNow MLS
+# VMLS interactive demo
 
-HouseNow MLS is an executable Vietnam-focused Multiple Listing Service prototype. It models six market actors and demonstrates governed workflows for Property identity, Listing lifecycle, representation, consent, source provenance, field-level access, and audit history.
+This repository contains a Vietnamese, static pre-MVP demo of the VMLS Living Registry idea. It is designed to help senior stakeholders understand how VMLS keeps **Bất động sản / NPID**, **Tin bán / PLID**, and **Giao dịch / PTID** distinct while orchestrating a traceable property-transfer journey.
 
-Start with the [repository context router](./context/README.md). New contributors can then read the [HouseNow MLS primer](./context/research/primer.md) and [current product state](./context/product/current-state.md).
+> **PROPOSAL:** The journey follows `vmls-process-v2` for demonstration. It is not an approved legal, tax, identity, notarization, cadastral, developer, or production integration workflow.
+
+Start with the [repository context router](./context/README.md), then read the [current product state](./context/product/current-state.md) and the [v2 process proposal](./context/product/vmls-process-v2.md).
 
 ## Canonical market actors
 
@@ -15,35 +17,52 @@ Start with the [repository context router](./context/README.md). New contributor
 
 Data Steward, Organization Admin, and System Admin are operational roles, not additional market actors. Regulator remains deferred oversight scope until a lawful workflow is approved.
 
-## Run the prototype
+## What the demo contains
+
+- Two independent dossiers: a Sun Grand City Thụy Khuê Residence HĐMB transfer and a synthetic landed-property transfer.
+- A gated common journey from Property matching and Seller confirmation through Listing creation, notarization readiness, PTID creation, tax events, and automatic routing.
+- Two mocked outcomes: Developer/HĐMB transfer and VPĐKĐĐ approval.
+- The six market perspectives listed above.
+- Separate simulated workspaces for VMLS, Văn phòng công chứng, and Văn phòng đăng ký đất đai.
+- A dated 357 reference screenshot and a restrained HouseNow distribution-channel reference; neither implies endorsement or a live integration.
+
+All external integrations and authority actions are labelled `Mô phỏng đề xuất`. The demo uses only bundled, synthetic or masked data.
+
+## Run locally
 
 Requires Node.js 22 or newer.
 
 ```bash
 npm install
-npm run dev:full
+npm run dev
 ```
 
-- Web: `http://127.0.0.1:5180`
-- API: `http://127.0.0.1:5181`
+Open `http://127.0.0.1:5180`.
 
 ```bash
 npm run lint
+npm run typecheck
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
-Use the role selector to explore actor-specific projections and switch data spaces to compare synthetic Ho Chi Minh City (`TP. Hồ Chí Minh`) and Hanoi (`Hà Nội`) records.
+The application is a static Vite/React client. It has no backend, database, authentication, analytics, or live external API. Demo progress is stored in versioned browser `localStorage`; hash routes keep dossier, role, and pilot views directly addressable on static hosting.
 
 ## Repository map
 
 ```text
-context/    Canonical knowledge, specifications, decisions, research, and QA context
-src/        React interface and actor workspaces
-server/     HTTP API, authorization, lifecycle policy, audit, and SQLite persistence
-test/       Domain, API integration, and backup tests
+context/    Canonical knowledge, proposals, research, and quality context
+src/        React interface, configured demo records, and journey state machine
+test/       Demo-data and state-machine unit tests
+e2e/        Browser journey and responsive checks
+public/     Self-hosted public demo assets
 reference/  Immutable legacy research snapshot
-tmp/        Ignored local media, archives, credentials, and scratch artifacts
+output/     Local QA and recording evidence; generated captures remain uncommitted
+tmp/        Ignored source media, credentials, and scratch artifacts
 ```
 
-Read [`AGENTS.md`](./AGENTS.md) before assigning repository work to an agent. The current product baseline and reading routes live under [`context/`](./context/); `reference/mls/` remains an immutable evidence snapshot.
+The committed presenter guide is [context/product/vmls-demo-playbook.md](./context/product/vmls-demo-playbook.md).
+
+Read [`AGENTS.md`](./AGENTS.md) before assigning repository work. Product intent wins only when it is marked accepted, locked, or canonical; implemented demo behavior does not promote a proposal into Vietnam policy.

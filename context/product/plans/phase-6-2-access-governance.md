@@ -1,14 +1,16 @@
 ---
 title: Phase 6.2 access governance
-status: proposal
+status: superseded
 authority: working
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-15
 ---
 
 # Phase 6.2 - Access governance
 
+> **FACT — SUPERSEDED 2026-08-15:** This plan records the removed Node/SQLite workspace exploration. It is retained as historical product evidence and does not describe the current executable runtime. See [current state](../current-state.md).
+
 Date: 2026-08-13
-Status: IMPLEMENTED PROPOSAL - product, legal, banking and data-governance validation remain required.
+Status: HISTORICAL IMPLEMENTED EXPLORATION — superseded by the static public demo.
 
 ## Product decision
 

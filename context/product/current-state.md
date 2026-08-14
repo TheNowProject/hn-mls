@@ -2,59 +2,63 @@
 title: Current product and implementation state
 status: current
 authority: canonical
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-15
 ---
 
 # Current product and implementation state
 
-HouseNow MLS is in Phase 6 as an exploration-ready local prototype. It is suitable for structured founder, product, domain, design, and engineering review. It is not a pilot or production system.
+The current executable artifact is a public-facing, Vietnamese pre-MVP interactive demo of the VMLS Living Registry idea. It is suitable for stakeholder onboarding and pilot-design conversations. It is not a pilot, production system, or statement of approved Vietnam operating policy.
 
-## Phase status
+## Current artifact
 
-| Phase | Current state | Authority and evidence |
+| Area | Current state | Evidence boundary |
 |---|---|---|
-| 0 — Product alignment | Actor scope is locked; buyer, pilot, locality, and several operating-policy decisions remain open | [Alignment](./alignment.md), [open questions](./open-questions.md) |
-| 1 — Discovery | Complete for the available immutable research snapshot | [Discovery](../research/discovery/texas-mls.md) |
-| 2 — Product and domain specification | Working baseline; product, legal, and data-governance approval remains open | [Requirements](./requirements.md), [domain](../domain/) |
-| 3 — UX prototype | Six market perspectives and supporting operational workspaces are navigable | React application under `src/` |
-| 4 — Vertical-slice scope | Working scope is frozen; human sign-off remains open | [Phase 4 scope](./scopes/phase-4.md) |
-| 5 — Technical foundation | Operational for the local slice | Node HTTP API, SQLite, authorization, lifecycle, audit, and tests |
-| 6 — MVP execution | Core Listing flow, Property Intelligence, access governance, and exploration workspaces are operational | [Phase plans](./plans/) |
-| 6.3 — Admin control plane | Accepted design and build-ready plan; not implemented | [Plan](./plans/phase-6-3-system-admin.md), [ADR](../decisions/0002-separate-admin-control-plane.md) |
-| 6.4 — Owner/Seller | First vertical slice operational; grant/renew and broader downstream enforcement remain | [Plan](./plans/phase-6-4-owner-seller.md) |
+| Product narrative | Demonstrates durable Property identity, a separate sale Listing, a separate property-sale Transaction, provenance, authorization signals, and append-oriented history | Product direction is canonical; exact transaction behavior remains a **PROPOSAL** |
+| Journey | Implements the common path and both outcomes described below using the `vmls-process-v2` proposal | No legal, tax, authority, or integration behavior is approved by the demo |
+| Audience | Optimized for senior stakeholder walkthroughs and pilot-design discussion | **PROPOSAL**, pending pilot participants and success measures |
+| Runtime | Static Vite/React client with configured mock data and a reducer/state machine | **FACT** for this repository build |
+| Persistence and navigation | Versioned browser `localStorage` and hash routes for dossier, role, and pilot views | Demo convenience only; not governed persistence or authorization |
+| Deployment target | `vmls.housenow.com.vn` | Target environment; deployment status must be verified separately |
 
-## Implemented local flows
+Historical Phase 5–6 plans and [ADR 0001](../decisions/0001-local-mvp-architecture.md) describe the replaced Node/SQLite exploration slice. They remain useful design history but do not describe the current executable runtime.
+
+## Implemented demo journey
+
+The demo keeps two independent dossiers and never reuses their `NPID`, `PLID`, or `PTID` identities:
+
+- Sun Grand City Thụy Khuê Residence, Unit S2-12A → Developer/HĐMB route.
+- A fully synthetic landed Property → VPĐKĐĐ route.
+
+The gated common path is:
 
 ```text
-Find Property → inspect source/history → create Listing → validate
-→ Brokerage review → Active → Pending → Closed
-→ Closing Record + immutable Audit Event
+Môi giới khớp Bất động sản và yêu cầu xác nhận
+→ Người bán xác nhận đại diện qua bàn giao VNeID mô phỏng
+→ VMLS khởi tạo Tin bán / PLID ở trạng thái “Đã khởi tạo”
+→ ghi nhận Người mua và xác minh sẵn sàng công chứng
+→ VPCC nộp hồ sơ, có thể yêu cầu bổ sung một lần, rồi ghi nhận ký
+→ VMLS tạo tham chiếu Giao dịch / PTID, ghi sự kiện thuế và tự định tuyến
+→ VPĐKĐĐ phê duyệt hoặc Chủ đầu tư tiếp nhận, xác nhận chuyển nhượng và trả HĐMB mới
+→ hồ sơ sống được cập nhật
 ```
 
-The prototype also includes:
+Brokerage (`Sàn môi giới`) and Bank (`Ngân hàng`) receive optional projections over the same records; they are not numbered v2 stages. VMLS, Văn phòng công chứng, and Văn phòng đăng ký đất đai are grouped as simulated system/external workspaces rather than additional market actors.
 
-- Property 360 with price events, original/current price, DOM/CDOM, relist history, Closing Records, sources, and human-reviewed CMA candidates.
-- Contacts, needs, shortlist, notes, showing confirmation, and CMA exploration.
-- Brokerage quality queue, organization membership, and entitlement review.
-- Actor- and data-space-specific projections, consent visibility, Access Requests, decisions, and sensitive-read audit.
-- Owner/Seller own-scope Property relationships, Ownership Claims, Representation/consent versioning, correction/pause/withdrawal cases, and notifications.
-- Project, Finance, Buyer Shortlist, deferred Oversight exploration, and an App Hub linking MLS Core, CMA Studio, Showing Desk, and Distribution Monitor.
+## Data, integration, and security boundary
 
-Core lifecycle, access-request, authorization, and audit mutations persist through SQLite. Several secondary exploration actions remain browser-session state.
-
-## Data and security boundary
-
-- The dataset is synthetic: 26 Properties across Ho Chi Minh City and Hanoi.
-- Authentication uses demo tokens; production identity, account recovery, and organization onboarding are not implemented.
-- Sensitive visibility is demonstrated through backend projections, but production policy, legal review, retention, encryption operations, and external integrations remain approval gates.
-- No current regulator workflow is approved. Data Steward and administrators do not receive blanket business-data access.
+- **FACT:** All demo data is bundled, synthetic or masked. The supplied apartment chronology is normalized to August 2026, and its `69,2 m² thông thủy` and `82,3 m² tim tường` values retain distinct source concepts.
+- **FACT:** There is no server, database, API, authentication, authorization service, analytics, or live third-party integration in the current build.
+- **FACT:** Browser `localStorage` retains only editable demo progress. Reset restores configured sample state; browser state must not be treated as an Audit Event store.
+- **PROPOSAL:** VNeID, VPCC, tax, VPĐKĐĐ, Developer Portal, 357, and HouseNow touchpoints demonstrate a possible orchestration experience only.
+- **PROPOSAL:** PTID is a VMLS demo reference that could later map to an official identifier; it is not presented as one today.
+- **FACT:** The dated 357 homepage capture is attributed external reference material, not evidence of endorsement or connectivity. HouseNow appears only as a demo distribution channel.
 
 ## Open approval gates
 
-1. First product buyer, pilot organizations, daily users, market segment, and locality.
-2. Vietnam Listing lifecycle, representation, cooperation, and approval authority.
-3. Canonical Property/Parcel/Project/Unit identity and source-conflict ownership.
-4. Public, Industry, Restricted, purpose, consent, retention, and oversight policy.
-5. Production identity, integration contracts, operational SLA, and legal/compliance review.
+1. **OPEN QUESTION:** Which pilot buyer, locality, segment, organizations, daily users, and measurable risk should the first pilot validate?
+2. **OPEN QUESTION:** Which Vietnam Listing, representation, notarization, tax, transfer, and completion rules are approved?
+3. **OPEN QUESTION:** Which organization has authority over canonical Property/Parcel/Project/Unit identity and source conflicts?
+4. **OPEN QUESTION:** Which Public, Industry, Restricted, purpose, consent, retention, and oversight policies apply?
+5. **OPEN QUESTION:** Which identity providers, official identifiers, integration contracts, operational SLAs, security controls, and legal reviews are required for a pilot?
 
-Product intent wins only when marked accepted, locked, or canonical. A prototype behavior that differs from such intent is an implementation gap. Drafts and proposals remain non-authoritative even when partially implemented.
+Implemented demo behavior remains non-authoritative whenever it differs from an accepted, locked, or canonical decision.
