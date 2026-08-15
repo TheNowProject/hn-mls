@@ -1,171 +1,241 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  DEMO_STAGES,
-  ROLE_PROJECTIONS,
-  STAGES,
+  DEMO_VERSION,
+  STORAGE_KEY,
   demoCases,
   externalRoles,
+  getActionTime,
+  getDemoCase,
   marketRoles,
+  roles,
+  sourceRegistry,
+  workspaceDefinitions,
 } from '../src/demo/demoData.js'
 
-const EVIDENCE_LABELS = new Set([
-  'FACT',
-  'SOURCE CLAIM',
-  'INFERENCE',
-  'PROPOSAL',
-  'OPEN QUESTION',
-])
-
-test('demo exposes exactly the six primary market roles in Vietnamese', () => {
+test('the operational fixture has a v2 storage contract and nine explicit roles', () => {
+  assert.equal(DEMO_VERSION, 'vmls-operations-2026-08-v2')
+  assert.equal(STORAGE_KEY, 'vmls:operations:2026-08:v2')
   assert.deepEqual(
-    marketRoles.map(({ id, label }) => ({ id, label })),
-    [
-      { id: 'agent', label: 'Môi giới' },
-      { id: 'brokerage', label: 'Sàn môi giới' },
-      { id: 'developer', label: 'Chủ đầu tư' },
-      { id: 'buyer', label: 'Người mua' },
-      { id: 'seller', label: 'Người bán' },
-      { id: 'bank', label: 'Ngân hàng' },
-    ],
+    roles.map(({ id }) => id),
+    ['agent', 'brokerage', 'seller', 'buyer', 'bank', 'developer', 'vmls', 'notary', 'landRegistry'],
+  )
+  assert.deepEqual(
+    marketRoles.map(({ id }) => id),
+    ['agent', 'brokerage', 'seller', 'buyer', 'bank', 'developer'],
+  )
+  assert.deepEqual(
+    externalRoles.map(({ id }) => id),
+    ['vmls', 'notary', 'landRegistry'],
   )
 })
 
-test('VMLS and legal authority workspaces remain outside the six market roles', () => {
-  assert.deepEqual(
-    externalRoles.map(({ id, label }) => ({ id, label })),
-    [
-      { id: 'vmls', label: 'VMLS' },
-      { id: 'notary', label: 'Văn phòng công chứng' },
-      { id: 'land_registry', label: 'Văn phòng đăng ký đất đai' },
-    ],
-  )
-
-  const marketIds = new Set(marketRoles.map(({ id }) => id))
-  assert.equal(externalRoles.some(({ id }) => marketIds.has(id)), false)
+test('each role opens a work surface with operational navigation', () => {
+  assert.equal(Object.keys(workspaceDefinitions).length, roles.length)
+  for (const role of roles) {
+    const workspaces = workspaceDefinitions[role.id]
+    assert.ok(Array.isArray(workspaces) && workspaces.length > 0)
+    assert.ok(workspaces.some(({ id }) => id === role.defaultWorkspace))
+    assert.equal(new Set(workspaces.map(({ id }) => id)).size, workspaces.length)
+  }
 })
 
-test('stage vocabulary distinguishes the common path and both transfer outcomes', () => {
-  assert.deepEqual(STAGES, {
-    PROPERTY_MATCH: 'property_match',
-    SELLER_CONFIRMATION: 'seller_confirmation',
-    LISTING_CREATED: 'listing_created',
-    TRANSACTION_READINESS: 'transaction_readiness',
-    NOTARY_DOSSIER: 'notary_dossier',
-    NOTARY_SIGNED: 'notary_signed',
-    ROUTED: 'routed',
-    LAND_REGISTRY_COMPLETE: 'land_registry_complete',
-    DEVELOPER_INTAKE: 'developer_intake',
-    DEVELOPER_CONFIRMED: 'developer_confirmed',
-    CONTRACT_RECEIVED: 'contract_received',
-  })
-})
-
-test('the two dossiers use independent Property, Listing and Transaction identities', () => {
+test('the two dossiers keep NPID, PLID and PTID as independent identities', () => {
   assert.equal(demoCases.length, 2)
+  assert.deepEqual(demoCases.map(({ id }) => id), [
+    'sun-grand-thuy-khue',
+    'phu-thuong-landed-home',
+  ])
 
-  for (const demoCase of demoCases) {
-    assert.match(demoCase.property.id, /^NPID-/)
-    assert.match(demoCase.listing.id, /^PLID-/)
-    assert.match(demoCase.transaction.id, /^PTID-/)
+  for (const dossier of demoCases) {
+    assert.match(dossier.property.id, /^NPID-/)
+    assert.match(dossier.listing.id, /^PLID-/)
+    assert.match(dossier.transaction.id, /^PTID-/)
     assert.equal(new Set([
-      demoCase.property.id,
-      demoCase.listing.id,
-      demoCase.transaction.id,
+      dossier.property.id,
+      dossier.listing.id,
+      dossier.transaction.id,
     ]).size, 3)
+    assert.equal(dossier.expectedRoute, dossier.transfer.route)
   }
 
   assert.equal(new Set(demoCases.map(({ property }) => property.id)).size, 2)
   assert.equal(new Set(demoCases.map(({ listing }) => listing.id)).size, 2)
   assert.equal(new Set(demoCases.map(({ transaction }) => transaction.id)).size, 2)
-  assert.deepEqual(new Set(demoCases.map(({ route }) => route)), new Set(['developer', 'land_registry']))
+  assert.deepEqual(new Set(demoCases.map(({ expectedRoute }) => expectedRoute)), new Set([
+    'developer',
+    'landRegistry',
+  ]))
 })
 
-test('Sun Grand City dossier preserves the supplied identities and both sourced area concepts', () => {
-  const developerCase = demoCases.find(({ route }) => route === 'developer')
+test('Sun Grand City keeps the two sourced area concepts without merging them', () => {
+  const dossier = getDemoCase('sun-grand-thuy-khue')
+  assert.ok(dossier)
+  assert.equal(dossier.property.project, 'Sun Grand City Thụy Khuê Residence')
+  assert.equal(dossier.property.unit, 'S2-12A')
 
-  assert.ok(developerCase)
-  assert.equal(developerCase.project, 'Sun Grand City Thụy Khuê Residence')
-  assert.equal(developerCase.unit, 'S2-12A')
-  assert.equal(developerCase.property.id, 'NPID-HN-09876')
-  assert.equal(developerCase.listing.id, 'PLID-HN-00125')
-  assert.equal(developerCase.transaction.id, 'PTID-HN-00031')
-
-  const usableArea = developerCase.property.areas.find(({ kind }) => kind === 'usable')
-  const grossArea = developerCase.property.areas.find(({ kind }) => kind === 'gross')
-
+  const usable = dossier.property.areas.find(({ kind }) => kind === 'usable')
+  const gross = dossier.property.areas.find(({ kind }) => kind === 'gross')
   assert.deepEqual(
-    { label: usableArea.label, value: usableArea.value, unit: usableArea.unit },
+    { label: usable.label, value: usable.value, unit: usable.unit },
     { label: 'Diện tích thông thủy', value: 69.2, unit: 'm²' },
   )
-  assert.match(usableArea.sourceLabel, /HĐMB|Hợp đồng mua bán/i)
-  assert.equal(usableArea.evidence, 'SOURCE CLAIM')
-
   assert.deepEqual(
-    { label: grossArea.label, value: grossArea.value, unit: grossArea.unit },
+    { label: gross.label, value: gross.value, unit: gross.unit },
     { label: 'Diện tích tim tường', value: 82.3, unit: 'm²' },
   )
-  assert.match(grossArea.sourceLabel, /chủ đầu tư|HĐMB|Hợp đồng mua bán/i)
-  assert.equal(grossArea.evidence, 'SOURCE CLAIM')
+  assert.equal(usable.sourceId, gross.sourceId)
+  assert.ok(dossier.property.sourceRecords.some(({ id }) => id === usable.sourceId))
 })
 
-test('public demo data masks contacts and never carries the supplied full identities', () => {
-  const serialized = JSON.stringify(demoCases)
+test('Phú Thượng uses the normalized land and total floor areas', () => {
+  const dossier = getDemoCase('phu-thuong-landed-home')
+  assert.ok(dossier)
+  assert.deepEqual(
+    dossier.property.areas.map(({ label, value, unit }) => ({ label, value, unit })),
+    [
+      { label: 'Diện tích đất', value: 72, unit: 'm²' },
+      { label: 'Tổng diện tích sàn', value: 216, unit: 'm²' },
+    ],
+  )
+})
 
-  assert.doesNotMatch(serialized, /Trần Thị Minh Anh|Nguyễn Văn An|Nguyễn Hoàng Nam/)
-  assert.doesNotMatch(serialized, /\b0\d{9}\b/)
-  assert.doesNotMatch(serialized, /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)
+test('each dossier has consistent candidates, sources, documents, parties and transfer references', () => {
+  for (const dossier of demoCases) {
+    assert.ok(dossier.property.candidates.length >= 2)
+    assert.ok(dossier.property.candidates.some(({ id }) => id === dossier.property.id))
 
-  for (const demoCase of demoCases) {
-    for (const role of ['seller', 'buyer', 'agent']) {
-      const party = demoCase.parties[role]
-      assert.equal(party.contact.masked, true)
-      assert.match(
-        `${party.contact.phone} ${party.contact.email} ${party.contact.identityRef}`,
-        /[•*]/,
-      )
+    const sourceIds = new Set(dossier.property.sourceRecords.map(({ id }) => id))
+    assert.ok(dossier.property.areas.every(({ sourceId }) => sourceIds.has(sourceId)))
+
+    const documentIds = dossier.notary.documents.map(({ id }) => id)
+    assert.deepEqual(new Set(documentIds), new Set(dossier.notary.requiredDocumentIds))
+    assert.equal(documentIds.length, new Set(documentIds).size)
+
+    assert.ok(dossier.transfer.intakeRef)
+    assert.ok(dossier.transfer.resultRef)
+    for (const party of Object.values(dossier.parties)) {
+      assert.equal(party.masked, true)
+      assert.match(`${party.displayName} ${party.phone} ${party.identityRef}`, /[•]/)
     }
   }
 })
 
-test('every claim carries an allowed evidence label without promoting proposals to facts', () => {
-  const evidence = demoCases.flatMap((demoCase) => [
-    ...demoCase.sourceRecords.map(({ evidence, label, source }) => ({
-      label: evidence,
-      claim: label,
-      source,
-    })),
-    ...demoCase.property.areas.map(({ evidence, label, sourceLabel }) => ({
-      label: evidence,
-      claim: label,
-      source: sourceLabel,
-    })),
-  ])
-
-  assert.ok(evidence.length > 0)
-  assert.equal(evidence.every(({ label }) => EVIDENCE_LABELS.has(label)), true)
-  assert.equal(evidence.some(({ label }) => label === 'PROPOSAL'), true)
-  assert.equal(evidence.some(({ label }) => label === 'SOURCE CLAIM'), true)
-
-  for (const item of evidence) {
-    assert.equal(typeof item.claim, 'string')
-    assert.ok(item.claim.length > 0)
-    assert.equal(typeof item.source, 'string')
-    assert.ok(item.source.length > 0)
+test('each configured August chronology is strictly ordered and finishes before its SLA', () => {
+  const paths = {
+    developer: [
+      'match_property',
+      'request_seller_confirmation',
+      'confirm_representation',
+      'record_buyer',
+      'verify_readiness',
+      'submit_notary_dossier',
+      'record_notary_signing',
+      'developer_intake',
+      'developer_confirm_transfer',
+      'buyer_receive_contract',
+    ],
+    landRegistry: [
+      'match_property',
+      'request_seller_confirmation',
+      'confirm_representation',
+      'record_buyer',
+      'verify_readiness',
+      'submit_notary_dossier',
+      'request_supplement',
+      'provide_supplement',
+      'record_notary_signing',
+      'approve_land_registry',
+    ],
   }
+
+  for (const dossier of demoCases) {
+    const timestamps = paths[dossier.expectedRoute].map((action) => dossier.actionTimes[action])
+    assert.ok(timestamps.every((value) => /^2026-08-/.test(value)))
+    for (let index = 1; index < timestamps.length; index += 1) {
+      assert.ok(Date.parse(timestamps[index]) > Date.parse(timestamps[index - 1]))
+    }
+    assert.ok(Date.parse(dossier.slaDueAt) > Date.parse(timestamps.at(-1)))
+    assert.match(dossier.slaDueAt, /^2026-08-/)
+  }
+
+  assert.equal(
+    getActionTime('sun-grand-thuy-khue', 'record_notary_signing'),
+    '2026-08-22T15:30:00+07:00',
+  )
+  assert.equal(
+    getActionTime('phu-thuong-landed-home', 'record_notary_signing'),
+    '2026-08-26T10:00:00+07:00',
+  )
+  assert.equal(getActionTime('unknown-case', 'record_notary_signing'), null)
 })
 
-test('configured stage actions belong to the same actor projection enforced by the reducer', () => {
-  const configuredActions = DEMO_STAGES.flatMap(({ actions }) => actions)
+test('representation, finance sharing and listing distribution are separate data concepts', () => {
+  const developer = getDemoCase('sun-grand-thuy-khue')
+  const land = getDemoCase('phu-thuong-landed-home')
 
-  for (const action of configuredActions) {
-    assert.equal(typeof action.actorId, 'string')
-    assert.ok(
-      ROLE_PROJECTIONS[action.actorId].allowedActions.includes(action.id),
-      `${action.id} must belong to ${action.actorId}`,
-    )
+  assert.ok(developer)
+  assert.ok(land)
+  assert.equal(developer.representation.id, 'REP-HN-00031')
+  assert.equal(developer.listing.channel.name, 'HouseNow')
+  assert.equal(developer.listing.channel.status, 'Chưa phát hành')
+  assert.equal(developer.readiness.financeSharing.purpose, 'Trao đổi nhu cầu tài chính')
+  assert.equal(land.readiness.financeSharing.purpose, 'Trao đổi nhu cầu tài chính')
+  assert.match(developer.readiness.financeSharing.shareId, /^CS-[A-Z0-9]+$/)
+  assert.match(land.readiness.financeSharing.shareId, /^CS-[A-Z0-9]+$/)
+  assert.notEqual(developer.readiness.financeSharing.shareId, land.readiness.financeSharing.shareId)
+  assert.equal('distributionConsent' in developer.representation, false)
+  assert.equal('financeSharing' in developer.representation, false)
+})
+
+test('the 357 capture is registered as a source, not attached to either dossier', () => {
+  assert.deepEqual(sourceRegistry.map(({ id }) => id), ['source-357'])
+  assert.equal(sourceRegistry[0].connectionStatus, 'Chưa cấu hình')
+  assert.equal(sourceRegistry[0].dataCategory, 'Thông tin nhà ở và thị trường bất động sản')
+  assert.equal(sourceRegistry[0].capturedOn, '15/08/2026')
+  assert.equal(sourceRegistry[0].screenshot, '/assets/demo/357-homepage-2026-08-15.png')
+
+  const dossiers = JSON.stringify(demoCases)
+  assert.doesNotMatch(dossiers, /thongtinbds\.moc\.gov\.vn|357-homepage/)
+})
+
+test('all public identities remain masked', () => {
+  const serialized = JSON.stringify(demoCases)
+  assert.doesNotMatch(serialized, /Trần Thị Minh Anh|Nguyễn Văn An|Nguyễn Hoàng Nam/)
+  assert.doesNotMatch(serialized, /\b0\d{9}\b/)
+  assert.doesNotMatch(serialized, /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)
+})
+
+test('visible operational copy excludes presentation and evidence-label vocabulary', () => {
+  const technicalFields = new Set(['id', 'screenshot', 'icon', 'url', 'actionTimes'])
+  const collectVisibleStrings = (value, field = '') => {
+    if (technicalFields.has(field)) return []
+    if (typeof value === 'string') return [value]
+    if (Array.isArray(value)) return value.flatMap((item) => collectVisibleStrings(item, field))
+    if (!value || typeof value !== 'object') return []
+    return Object.entries(value).flatMap(([key, item]) => collectVisibleStrings(item, key))
   }
+  const visibleCopy = collectVisibleStrings({
+    roles,
+    workspaces: workspaceDefinitions,
+    sources: sourceRegistry,
+    dossiers: demoCases,
+  }).join(' ')
 
-  const actionIds = configuredActions.map(({ id }) => id)
-  assert.equal(new Set(actionIds).size, actionIds.length)
+  for (const term of [
+    'mô phỏng',
+    'demo',
+    'đề xuất',
+    'giả lập',
+    'minh họa',
+    'FACT',
+    'SOURCE CLAIM',
+    'PROPOSAL',
+    'OPEN QUESTION',
+    'hành trình',
+    'bản ghi sống',
+    'pilot',
+  ]) {
+    assert.doesNotMatch(visibleCopy, new RegExp(term, 'iu'))
+  }
 })

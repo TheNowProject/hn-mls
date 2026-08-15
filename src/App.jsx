@@ -4,22 +4,24 @@ import {
   ArrowRight,
   Bank,
   Buildings,
-  Check,
+  CalendarCheck,
+  CaretDown,
   CheckCircle,
-  CirclesThreePlus,
+  Clock,
   ClockCounterClockwise,
   Database,
   FileText,
-  FlowArrow,
+  FolderOpen,
+  Funnel,
   Handshake,
   House,
   IdentificationCard,
+  LinkSimple,
   ListChecks,
-  LockKey,
+  MagnifyingGlass,
   MapPin,
-  Phone,
+  PlugsConnected,
   SealCheck,
-  ShieldCheck,
   Signpost,
   Storefront,
   User,
@@ -28,79 +30,159 @@ import {
   X,
 } from '@phosphor-icons/react'
 import BrandMark from './components/BrandMark.jsx'
+import { ActionButton, Checklist, Field, FieldGrid, StatusPill } from './components/RegistryPrimitives.jsx'
 import {
-  ActionButton,
-  Checklist,
-  EvidenceBadge,
-  Field,
-  FieldGrid,
-  IdentifierCard,
-  ProgressRail,
-  RegistryTimeline,
-  SimulationNotice,
-  StatusPill,
-} from './components/RegistryPrimitives.jsx'
-import {
-  DEMO_STAGES,
-  PILOT_BRIEF,
-  ROLE_PROJECTIONS,
+  STORAGE_KEY,
   demoCases,
-  externalRoles,
-  marketRoles,
+  roles,
+  sourceRegistry,
 } from './demo/demoData.js'
 import {
   ACTION_META,
   ACTIONS,
   allowedActionsFor,
   createInitialState,
+  getCaseStatus,
+  getNextWorkItem,
   journeyReducer,
   projectStateForRole,
   restoreDemoState,
+  serializeDemoState,
 } from './demo/journey.js'
 
-const STORAGE_KEY = 'vmls-demo:2026-08:v1'
-const ALL_ACTORS = [...marketRoles, ...externalRoles]
-const ACTOR_ICONS = {
+const ROLE_ICONS = {
   agent: IdentificationCard,
   brokerage: Storefront,
-  developer: Buildings,
-  buyer: User,
   seller: House,
+  buyer: User,
   bank: Bank,
-  vmls: Database,
   notary: SealCheck,
-  land_registry: MapPin,
+  developer: Buildings,
+  landRegistry: MapPin,
+  vmls: Database,
 }
 
-const STAGE_VIEW = {
-  property_match: 'property-match',
-  seller_confirmation: 'seller-confirmation',
-  listing_created: 'listing-created',
-  transaction_readiness: 'transaction-readiness',
-  notary_dossier: 'notary-signing',
-  notary_signed: 'transaction-routing',
-  routed: 'transfer-result',
-  land_registry_complete: 'transfer-result',
-  developer_intake: 'transfer-result',
-  developer_confirmed: 'transfer-result',
-  contract_received: 'transfer-result',
+const ROLE_LABELS = {
+  agent: 'Môi giới',
+  brokerage: 'Sàn môi giới',
+  seller: 'Người bán',
+  buyer: 'Người mua',
+  bank: 'Ngân hàng',
+  notary: 'Văn phòng công chứng',
+  developer: 'Chủ đầu tư',
+  landRegistry: 'Văn phòng đăng ký đất đai',
+  vmls: 'Vận hành VMLS',
 }
 
-const STAGE_STATUS = {
-  property_match: 'Đang đối chiếu',
-  seller_confirmation: 'Chờ xác nhận',
-  listing_created: 'Tin bán đã khởi tạo',
-  transaction_readiness: 'Chuẩn bị công chứng',
-  notary_dossier: 'VPCC đang xử lý',
-  notary_signed: 'Đã ký công chứng',
-  routed: 'Đã xác định tuyến',
-  land_registry_complete: 'Bản ghi sống đã cập nhật',
-  developer_intake: 'Chủ đầu tư đã tiếp nhận',
-  developer_confirmed: 'Đã xác nhận chuyển nhượng',
-  contract_received: 'Bản ghi sống đã cập nhật',
+const FALLBACK_ROLES = Object.keys(ROLE_LABELS).map((id) => ({ id, label: ROLE_LABELS[id] }))
+const AVAILABLE_ROLES = roles?.length ? roles : FALLBACK_ROLES
+
+const WORKSPACE_TITLES = {
+  agent: 'Công việc cần xử lý',
+  brokerage: 'Điều phối hồ sơ',
+  seller: 'Yêu cầu và tài liệu',
+  buyer: 'Hồ sơ mua',
+  bank: 'Hồ sơ được chia sẻ',
+  notary: 'Hồ sơ công chứng',
+  developer: 'Chuyển nhượng HĐMB',
+  landRegistry: 'Đăng ký biến động',
+  vmls: 'Theo dõi xử lý',
 }
 
-const COMPLETE_STAGES = new Set(['land_registry_complete', 'contract_received'])
+const NAV_ITEMS = {
+  agent: [
+    ['cong-viec', 'Công việc', FolderOpen],
+    ['bat-dong-san', 'Bất động sản', House],
+    ['tin-ban', 'Tin bán', Signpost],
+    ['giao-dich', 'Giao dịch', Handshake],
+  ],
+  brokerage: [
+    ['cong-viec', 'Điều phối hồ sơ', UsersThree],
+    ['bat-dong-san', 'Bất động sản', House],
+    ['tin-ban', 'Tin bán', Signpost],
+  ],
+  seller: [
+    ['cong-viec', 'Yêu cầu và tài liệu', FolderOpen],
+    ['bat-dong-san', 'Bất động sản', House],
+    ['tin-ban', 'Tin bán', Signpost],
+  ],
+  buyer: [
+    ['cong-viec', 'Hồ sơ mua', FolderOpen],
+    ['giao-dich', 'Giao dịch', Handshake],
+  ],
+  bank: [['cong-viec', 'Hồ sơ được chia sẻ', Bank]],
+  notary: [
+    ['cong-viec', 'Công việc', FolderOpen],
+    ['cong-chung', 'Hồ sơ công chứng', SealCheck],
+  ],
+  developer: [
+    ['cong-viec', 'Công việc', FolderOpen],
+    ['chuyen-quyen', 'Chuyển nhượng HĐMB', Buildings],
+  ],
+  landRegistry: [
+    ['cong-viec', 'Công việc', FolderOpen],
+    ['chuyen-quyen', 'Đăng ký biến động', MapPin],
+  ],
+  vmls: [
+    ['cong-viec', 'Theo dõi xử lý', FolderOpen],
+    ['bat-dong-san', 'Bất động sản', House],
+    ['tin-ban', 'Tin bán', Signpost],
+    ['giao-dich', 'Giao dịch', Handshake],
+    ['nguon-du-lieu', 'Kết nối & nguồn dữ liệu', PlugsConnected],
+    ['nhat-ky', 'Nhật ký xử lý', ClockCounterClockwise],
+  ],
+}
+
+const DETAIL_TABS = [
+  ['tong-quan', 'Tổng quan'],
+  ['bat-dong-san', 'Dữ liệu BĐS'],
+  ['quyen-dai-dien', 'Quyền đại diện'],
+  ['tin-ban', 'Tin bán'],
+  ['nguoi-mua', 'Người mua'],
+  ['cong-chung', 'Công chứng'],
+  ['chuyen-quyen', 'Chuyển quyền'],
+  ['lich-su', 'Lịch sử'],
+]
+
+const ACTION_LABELS = {
+  [ACTIONS.MATCH_PROPERTY]: 'Khớp Bất động sản',
+  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Gửi yêu cầu xác nhận',
+  [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận quyền đại diện',
+  [ACTIONS.RECORD_BUYER]: 'Ghi nhận Người mua',
+  [ACTIONS.VERIFY_READINESS]: 'Xác nhận thông tin',
+  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: 'Tiếp nhận hồ sơ',
+  [ACTIONS.REQUEST_SUPPLEMENT]: 'Yêu cầu bổ sung',
+  [ACTIONS.PROVIDE_SUPPLEMENT]: 'Gửi tài liệu bổ sung',
+  [ACTIONS.RECORD_NOTARY_SIGNING]: 'Ghi nhận kết quả ký',
+  [ACTIONS.APPROVE_LAND_REGISTRY]: 'Ghi nhận kết quả đăng ký',
+  [ACTIONS.DEVELOPER_INTAKE]: 'Tiếp nhận hồ sơ chuyển nhượng',
+  [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'Xác nhận chuyển nhượng',
+  [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'Xác nhận đã nhận HĐMB',
+}
+
+const ACTION_ERROR_MESSAGES = {
+  [ACTIONS.MATCH_PROPERTY]: 'Chọn đúng Bất động sản và đủ nguồn dùng để đối chiếu.',
+  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Kiểm tra phạm vi và thời hạn của quyền đại diện.',
+  [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận nội dung và kiểm tra mã xác nhận.',
+  [ACTIONS.RECORD_BUYER]: 'Kiểm tra mã Người mua, giá và ngày dự kiến ký.',
+  [ACTIONS.VERIFY_READINESS]: 'Xác nhận đủ ba nội dung sẵn sàng trước công chứng.',
+  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: 'Mã tiếp nhận và toàn bộ tài liệu bắt buộc phải đầy đủ.',
+  [ACTIONS.REQUEST_SUPPLEMENT]: 'Kiểm tra loại tài liệu, lý do và hạn bổ sung.',
+  [ACTIONS.PROVIDE_SUPPLEMENT]: 'Tài liệu phải đúng yêu cầu và có tên tệp PDF hợp lệ.',
+  [ACTIONS.RECORD_NOTARY_SIGNING]: 'Kiểm tra mã kết quả, thời điểm ký và mã kiểm tra tài liệu.',
+  [ACTIONS.APPROVE_LAND_REGISTRY]: 'Kiểm tra mã kết quả, thời điểm hiệu lực và tham chiếu chủ mới.',
+  [ACTIONS.DEVELOPER_INTAKE]: 'Kiểm tra mã tiếp nhận, thời điểm và số tài liệu.',
+  [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'Kiểm tra mã và thời điểm xác nhận chuyển nhượng.',
+  [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'Kiểm tra biên nhận và xác nhận đã nhận đúng HĐMB mới.',
+}
+
+const FILTERS = [
+  ['all', 'Tất cả'],
+  ['mine', 'Việc của tôi'],
+  ['waiting', 'Đang chờ bên khác'],
+  ['blocked', 'Có vướng mắc'],
+  ['done', 'Đã xong'],
+]
 
 function subscribeToHash(callback) {
   window.addEventListener('hashchange', callback)
@@ -108,793 +190,950 @@ function subscribeToHash(callback) {
 }
 
 function getHash() {
-  return window.location.hash || '#/gioi-thieu'
+  return window.location.hash || '#/vai-tro/agent/cong-viec'
 }
 
 function navigate(path) {
-  if (window.location.hash === path) {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
-    return
-  }
+  if (window.location.hash === path) return
   window.location.hash = path
 }
 
 function parseRoute(hash) {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
-  if (parts[0] === 'ho-so' && parts[1] && parts[2] === 'vai-tro' && parts[3]) {
-    return { page: 'dossier', caseId: parts[1], roleId: parts[3] }
+  if (parts[0] !== 'vai-tro') return { roleId: 'agent', page: 'cong-viec' }
+  const roleId = ROLE_LABELS[parts[1]] ? parts[1] : 'agent'
+  if (parts[2] === 'ho-so' && parts[3]) {
+    return { roleId, page: 'ho-so', caseId: parts[3], tab: parts[4] || 'tong-quan' }
   }
-  if (parts[0] === 'ho-so') return { page: 'queue' }
-  if (parts[0] === 'goc-nhin' && parts[1]) return { page: 'projection', roleId: parts[1] }
-  if (parts[0] === 'pilot') return { page: 'pilot' }
-  return { page: 'intro' }
+  return { roleId, page: parts[2] || 'cong-viec' }
 }
 
-function actorById(actorId) {
-  return ALL_ACTORS.find(({ id }) => id === actorId) ?? ALL_ACTORS[0]
+function rolePath(roleId, page = 'cong-viec') {
+  return `#/vai-tro/${roleId}/${page}`
 }
 
-function firstNextActor(state) {
-  return ALL_ACTORS.find(({ id }) => allowedActionsFor(state, id).length > 0)?.id ?? 'vmls'
+function casePath(roleId, caseId, tab = 'tong-quan') {
+  return `#/vai-tro/${roleId}/ho-so/${caseId}/${tab}`
+}
+
+function caseRouteToken(roleId, demoCase, projected) {
+  return roleId === 'bank' ? projected?.shareId : demoCase?.id
+}
+
+function resolveRouteCaseId(route, caseStates) {
+  if (route.page !== 'ho-so' || route.roleId !== 'bank') return route.caseId
+  return demoCases.find((demoCase) => {
+    const projection = projectStateForRole(caseStates[demoCase.id], 'bank')
+    return projection?.shareId === route.caseId
+  })?.id
+}
+
+function roleById(roleId) {
+  return AVAILABLE_ROLES.find((item) => item.id === roleId)
+    ?? { id: roleId, label: ROLE_LABELS[roleId] ?? roleId }
+}
+
+function formatDate(value, includeTime = true) {
+  if (!value) return 'Chưa có'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    ...(includeTime ? { hour: '2-digit', minute: '2-digit' } : {}),
+  }).format(date)
+}
+
+function formatMoney(value) {
+  if (!Number.isFinite(value)) return 'Chưa có'
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value)
+}
+
+function dateInputValue(value) {
+  return typeof value === 'string' ? value.slice(0, 10) : ''
+}
+
+function dateTimeInputValue(value) {
+  return typeof value === 'string' ? value.slice(0, 16) : ''
+}
+
+function hanoiTimestamp(value) {
+  return `${value}:00+07:00`
+}
+
+function addDays(value, days) {
+  if (!value) return ''
+  const date = new Date(`${dateInputValue(value)}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function hasOwn(value, key) {
+  return Boolean(value) && Object.prototype.hasOwnProperty.call(value, key)
+}
+
+function statusTone(status = '') {
+  const value = (typeof status === 'string' ? status : status?.label ?? '').toLowerCase()
+  if (value.includes('hoàn tất') || value.includes('đã nhận') || value.includes('đã phê duyệt') || value.includes('đã xác nhận')) return 'verified'
+  if (value.includes('bổ sung') || value.includes('lỗi') || value.includes('từ chối')) return 'warning'
+  if (value.includes('chờ') || value.includes('chưa')) return 'pending'
+  return 'neutral'
 }
 
 function initialStates() {
-  const clean = Object.fromEntries(demoCases.map(({ id }) => [id, createInitialState(id)]))
+  const clean = Object.fromEntries(demoCases.map((item) => [item.id, createInitialState(item.id)]))
   try {
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
-    if (stored?.version !== 1 || typeof stored.cases !== 'object') return clean
-    return Object.fromEntries(demoCases.map(({ id }) => {
-      const saved = stored.cases[id]
-      return [id, saved ? restoreDemoState(JSON.stringify(saved), id) : clean[id]]
-    }))
+    const envelope = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
+    if (!envelope?.cases) return clean
+    return Object.fromEntries(demoCases.map((item) => [
+      item.id,
+      envelope.cases[item.id]
+        ? restoreDemoState(JSON.stringify(envelope.cases[item.id]), item.id)
+        : clean[item.id],
+    ]))
   } catch {
     return clean
   }
 }
 
-function progressFor(state) {
-  const progress = {
-    property_match: state.flags.propertyMatched ? 10 : 2,
-    seller_confirmation: state.flags.representationConfirmed ? 22 : 16,
-    listing_created: 32,
-    transaction_readiness: state.flags.readinessVerified ? 46 : 39,
-    notary_dossier: state.supplement.status === 'required' ? 54 : 58,
-    notary_signed: 67,
-    routed: 76,
-    developer_intake: 84,
-    developer_confirmed: 92,
-    contract_received: 100,
-    land_registry_complete: 100,
+function actorWithWork(state) {
+  return Object.keys(ROLE_LABELS).find((roleId) => allowedActionsFor(state, roleId).length > 0) ?? null
+}
+
+function isComplete(state) {
+  const status = getCaseStatus(state).label.toLowerCase()
+  return status.includes('hoàn tất') || status.includes('đã nhận hđmb') || status.includes('đăng ký biến động hoàn tất')
+}
+
+function rowFor(demoCase, state, roleId) {
+  const projected = projectStateForRole(state, roleId)
+  if (!projected) return null
+  const ownActions = allowedActionsFor(state, roleId)
+  const nextWork = projected.nextWorkItem
+  const ownerId = nextWork?.roleId ?? nextWork?.ownerRoleId ?? (ownActions.length ? roleId : null)
+  const supplement = projected.records.notaryDossier?.supplement
+  const blocked = projected.records.notaryDossier?.status === 'Yêu cầu bổ sung'
+    || supplement?.status === 'Chờ người bán'
+  const complete = roleId === 'bank' ? false : isComplete(state)
+  const bucket = complete ? 'done' : blocked ? 'blocked' : ownActions.length ? 'mine' : 'waiting'
+  const updatedAt = roleId === 'bank'
+    ? projected.records.readiness?.financeSharing?.recordedAt
+    : state.auditEvents.at(-1)?.occurredAt
+      ?? state.auditEvents.at(-1)?.at
+      ?? demoCase.property.sourceRecords?.at(-1)?.receivedAt
+  const visibleStatus = projected.status?.label
+    ?? projected.records.readiness?.status
+    ?? projected.records.readiness?.financeSharing?.status
+  return {
+    demoCase,
+    state,
+    projected,
+    bucket,
+    ownActions,
+    ownerId,
+    priority: projected.priority ?? null,
+    dueAt: projected.slaDueAt ?? null,
+    route: projected.records.transfer?.route ?? null,
+    agentLabel: projected.parties?.agent?.displayName ?? null,
+    representationExpiresOn: projected.records.representation?.expiresOn
+      ?? projected.records.representation?.request?.expiresOn
+      ?? null,
+    status: visibleStatus,
+    nextLabel: ownActions.length
+      ? ACTION_LABELS[ownActions[0]] ?? ACTION_META[ownActions[0]]?.label
+      : nextWork?.label ?? (complete ? 'Không còn việc cần xử lý' : roleId === 'bank' ? 'Theo dõi hồ sơ được chia sẻ' : 'Chờ cập nhật'),
+    updatedAt,
   }
-  return progress[state.stage] ?? 0
 }
 
-function stageItemsFor(state) {
-  return DEMO_STAGES.filter((stage) => stage.number || stage.includeInRail).map((stage) => ({
-    id: stage.id,
-    short: stage.id === 'transfer-result'
-      ? state.route === 'developer' ? 'B' : state.route === 'land_registry' ? 'A' : 'A/B'
-      : stage.number,
-    eyebrow: stage.id === 'transfer-result'
-      ? state.route === 'developer' ? 'Tuyến HĐMB' : state.route === 'land_registry' ? 'Tuyến đất đai' : 'Tự động chọn tuyến'
-      : `Bước ${stage.number}`,
-    label: stage.label,
-  }))
-}
-
-function stageViewFor(state) {
-  if (state.stage === 'transaction_readiness' && state.flags.readinessVerified) {
-    return 'notary-dossier'
-  }
-  return STAGE_VIEW[state.stage]
-}
-
-function completedStageIds(state) {
-  const current = stageViewFor(state)
-  const ids = stageItemsFor(state).map(({ id }) => id)
-  const index = ids.indexOf(current)
-  if (current === 'transaction-readiness') {
-    return ids.slice(0, ids.indexOf('notary-dossier'))
-  }
-  return index < 0 ? [] : ids.slice(0, index)
-}
-
-function rolePath(caseId, roleId) {
-  return `#/ho-so/${caseId}/vai-tro/${roleId}`
+function searchableText(row) {
+  const { projected } = row
+  const records = projected.records
+  return [
+    projected.title,
+    projected.dossierId,
+    records.property?.id,
+    records.property?.name,
+    records.property?.type,
+    records.property?.location,
+    records.listing?.id,
+    records.listing?.askingPrice?.displayValue,
+    records.transaction?.id,
+    records.readiness?.status,
+    Number.isFinite(records.readiness?.agreedPrice) ? formatMoney(records.readiness.agreedPrice) : null,
+    records.readiness?.financeSharing?.purpose,
+  ].filter(Boolean).join(' ').toLocaleLowerCase('vi')
 }
 
 function App() {
-  const hash = useSyncExternalStore(subscribeToHash, getHash, () => '#/gioi-thieu')
+  const hash = useSyncExternalStore(subscribeToHash, getHash, () => '#/vai-tro/agent/cong-viec')
   const route = parseRoute(hash)
   const [caseStates, setCaseStates] = useState(initialStates)
+  const [query, setQuery] = useState('')
   const [announcement, setAnnouncement] = useState('')
+  const [toast, setToast] = useState(null)
   const [showReset, setShowReset] = useState(false)
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, cases: caseStates }))
+    const cases = Object.fromEntries(Object.entries(caseStates).map(([caseId, state]) => [
+      caseId,
+      JSON.parse(serializeDemoState(state)),
+    ]))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, cases }))
   }, [caseStates])
 
-  const completedCount = Object.values(caseStates).filter((state) => COMPLETE_STAGES.has(state.stage)).length
-  const hasProgress = Object.values(caseStates).some(({ auditEvents }) => auditEvents.length > 0)
+  useEffect(() => {
+    if (!window.location.hash) navigate('#/vai-tro/agent/cong-viec')
+  }, [])
+
+  useEffect(() => {
+    if (!toast) return undefined
+    const timeout = window.setTimeout(() => setToast(null), 3600)
+    return () => window.clearTimeout(timeout)
+  }, [toast])
 
   function dispatch(caseId, action) {
-    setAnnouncement(`${ACTION_META[action.type].label} — đã ghi vào lịch sử hồ sơ.`)
-    setCaseStates((current) => {
-      const previous = current[caseId]
+    try {
+      const previous = caseStates[caseId]
       const next = journeyReducer(previous, action)
-      if (next === previous) return current
-      return { ...current, [caseId]: next }
-    })
+      if (next === previous) {
+        return false
+      }
+      setCaseStates((current) => ({ ...current, [caseId]: next }))
+      const label = ACTION_LABELS[action.type] ?? 'Đã cập nhật hồ sơ'
+      setAnnouncement(label)
+      setToast({ tone: 'success', message: label })
+      return true
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật hồ sơ.'
+      setAnnouncement(message)
+      setToast({ tone: 'error', message })
+      return false
+    }
   }
 
-  function resetDemo() {
-    const reset = Object.fromEntries(demoCases.map(({ id }) => [id, createInitialState(id)]))
-    setCaseStates(reset)
+  function resetData() {
+    setCaseStates(Object.fromEntries(demoCases.map((item) => [item.id, createInitialState(item.id)])))
     setShowReset(false)
-    setAnnouncement('Đã khôi phục toàn bộ dữ liệu mẫu.')
-    navigate('#/gioi-thieu')
+    setToast({ tone: 'success', message: 'Đã đặt lại 2 hồ sơ.' })
+    navigate('#/vai-tro/agent/cong-viec')
   }
 
-  let content
-  if (route.page === 'intro') {
-    content = <Introduction caseStates={caseStates} hasProgress={hasProgress} />
-  } else if (route.page === 'queue') {
-    content = <CaseQueue caseStates={caseStates} />
-  } else if (route.page === 'dossier') {
-    const demoCase = demoCases.find(({ id }) => id === route.caseId) ?? demoCases[0]
-    const role = actorById(route.roleId)
-    content = (
-      <DossierWorkspace
-        demoCase={demoCase}
-        state={caseStates[demoCase.id]}
-        role={role}
-        onAction={(type) => dispatch(demoCase.id, { type, actor: role.id })}
-      />
-    )
-  } else if (route.page === 'projection') {
-    content = <ProjectionWorkspace role={actorById(route.roleId)} caseStates={caseStates} />
-  } else {
-    content = <PilotBrief completedCount={completedCount} />
-  }
+  const role = roleById(route.roleId)
+  const rows = demoCases.map((item) => rowFor(item, caseStates[item.id], role.id)).filter(Boolean)
+  const activeCaseId = resolveRouteCaseId(route, caseStates)
+  const activeDemoCase = demoCases.find((item) => item.id === activeCaseId)
 
   return (
-    <div className="app-root">
-      <a className="skip-link" href="#noi-dung-chinh">Bỏ qua điều hướng</a>
-      <AppHeader route={route} completedCount={completedCount} onReset={() => setShowReset(true)} />
-      <main id="noi-dung-chinh" tabIndex="-1">{content}</main>
+    <div className="app-root" data-testid="app-shell">
+      <button className="skip-link" type="button" onClick={() => document.getElementById('noi-dung-chinh')?.focus()}>Bỏ qua điều hướng</button>
+      <AppHeader role={role} query={query} onQuery={setQuery} onSearch={() => navigate(rolePath(role.id))} onReset={() => setShowReset(true)} />
+      <div className="app-frame">
+        <Sidebar role={role} activePage={route.page} />
+        <main id="noi-dung-chinh" tabIndex="-1">
+          {route.page === 'ho-so' ? (
+            <DossierPage
+              role={role}
+              demoCase={activeDemoCase}
+              state={caseStates[activeCaseId]}
+              tab={route.tab}
+              onAction={(action) => dispatch(activeCaseId, action)}
+            />
+          ) : route.page === 'cong-viec' ? (
+            <WorkQueue key={role.id} role={role} rows={rows} query={query} />
+          ) : route.page === 'nguon-du-lieu' ? (
+            <SourcesWorkspace />
+          ) : route.page === 'nhat-ky' ? (
+            <AuditWorkspace rows={rows} />
+          ) : (
+            <CollectionWorkspace role={role} page={route.page} rows={rows} query={query} />
+          )}
+        </main>
+      </div>
       <div className="sr-only" aria-live="polite">{announcement}</div>
-      <AppFooter />
-      {showReset ? <ResetDialog onCancel={() => setShowReset(false)} onConfirm={resetDemo} /> : null}
+      {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
+      {showReset ? <ResetDialog onCancel={() => setShowReset(false)} onConfirm={resetData} /> : null}
     </div>
   )
 }
 
-function AppHeader({ route, completedCount, onReset }) {
-  const inDemo = route.page !== 'intro'
+function AppHeader({ role, query, onQuery, onSearch, onReset }) {
+  const Icon = ROLE_ICONS[role.id] ?? User
+  function changeRole(event) {
+    navigate(rolePath(event.target.value))
+  }
   return (
     <header className="app-header">
-      <div className="header-inner">
-        <button className="brand-button" type="button" onClick={() => navigate('#/gioi-thieu')} aria-label="Về trang giới thiệu">
-          <BrandMark compact />
+      <div className="header-brand"><BrandMark compact inverse /><span>Không gian dữ liệu Hà Nội</span></div>
+      <form className="global-search" role="search" aria-label="Tìm trong không gian làm việc" onSubmit={(event) => { event.preventDefault(); onSearch() }}>
+        <MagnifyingGlass aria-hidden="true" />
+        <label className="sr-only" htmlFor="global-search-input">Tìm trong không gian làm việc</label>
+        <input id="global-search-input" value={query} onChange={(event) => onQuery(event.target.value)} placeholder={role.id === 'bank' ? 'Tìm loại Bất động sản, khoảng giá, mục đích' : 'Tìm NPID, PLID, PTID, dự án, khu vực'} data-testid="global-search" />
+      </form>
+      <div className="header-context">
+        <Icon aria-hidden="true" />
+        <label>
+          <span className="sr-only">Vai trò làm việc</span>
+          <select value={role.id} onChange={changeRole} data-testid="role-switcher">
+            {[...new Set(AVAILABLE_ROLES.map((item) => item.group ?? 'Vai trò'))].map((group) => (
+              <optgroup key={group} label={group}>
+                {AVAILABLE_ROLES.filter((item) => (item.group ?? 'Vai trò') === group).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <CaretDown aria-hidden="true" />
+        </label>
+        <button className="reset-button" type="button" onClick={onReset} aria-label="Đặt lại dữ liệu" title="Đặt lại dữ liệu" data-testid="reset-data">
+          <ClockCounterClockwise aria-hidden="true" /><span>Đặt lại dữ liệu</span>
         </button>
-        <nav className="main-nav" aria-label="Điều hướng chính">
-          <button className={route.page === 'queue' || route.page === 'dossier' ? 'is-active' : ''} type="button" onClick={() => navigate('#/ho-so')} data-testid="nav-case-queue">
-            Hai hồ sơ
-            {completedCount ? <span>{completedCount}/2</span> : null}
-          </button>
-          <button className={route.page === 'projection' ? 'is-active' : ''} type="button" onClick={() => navigate('#/goc-nhin/brokerage')}>Góc nhìn vai trò</button>
-          <button className={route.page === 'pilot' ? 'is-active' : ''} type="button" onClick={() => navigate('#/pilot')} data-testid="nav-pilot">Bản thảo pilot</button>
-        </nav>
-        <div className="header-actions">
-          <EvidenceBadge label="MÔ PHỎNG ĐỀ XUẤT" />
-          {inDemo ? (
-            <button className="icon-text-button" type="button" onClick={onReset} data-testid="reset-demo" aria-label="Khôi phục dữ liệu mẫu">
-              <ClockCounterClockwise aria-hidden="true" />
-              <span>Khôi phục dữ liệu mẫu</span>
-            </button>
-          ) : null}
-        </div>
       </div>
     </header>
   )
 }
 
-function Introduction({ caseStates, hasProgress }) {
-  const nextCase = [...demoCases].sort((a, b) => progressFor(caseStates[b.id]) - progressFor(caseStates[a.id]))[0]
-  const nextRole = firstNextActor(caseStates[nextCase.id])
-
+function Sidebar({ role, activePage }) {
+  const items = NAV_ITEMS[role.id] ?? NAV_ITEMS.agent
   return (
-    <div className="intro-page">
-      <section className="hero-section">
-        <div className="cadastral-map" aria-hidden="true"><span /><span /><span /><span /></div>
-        <div className="hero-copy">
-          <p className="eyebrow">Hạ tầng phối hợp cho thị trường bất động sản Việt Nam</p>
-          <h1>Một tài sản. Một định danh.<br /><em>Một hành trình có thể kiểm chứng.</em></h1>
-          <p className="hero-lede">
-            VMLS không làm thay công việc của Môi giới, Văn phòng công chứng hay đơn vị chuyển quyền.
-            VMLS nối đúng hồ sơ, đúng quyền và đúng kết quả thành một bản ghi sống.
-          </p>
-          <div className="hero-actions">
-            <ActionButton testId="start-demo" onClick={() => navigate(hasProgress ? rolePath(nextCase.id, nextRole) : '#/ho-so')}>
-              {hasProgress ? 'Tiếp tục hành trình' : 'Khám phá hai hồ sơ'}
-            </ActionButton>
-            <button className="text-link" type="button" onClick={() => navigate('#/pilot')}>Xem đề bài pilot <ArrowRight aria-hidden="true" /></button>
-          </div>
-          <SimulationNotice>
-            Quy trình v2 và mọi tích hợp bên ngoài trong demo đều là đề xuất để thảo luận, không phải quy trình pháp lý đã phê duyệt.
-          </SimulationNotice>
-        </div>
-        <RegistryPromise />
-      </section>
-
-      <section className="intro-section object-model" aria-labelledby="object-model-title">
-        <div className="section-heading">
-          <p className="eyebrow">Ba danh tính, không nhập làm một</p>
-          <h2 id="object-model-title">Biết chính xác điều gì đang thay đổi</h2>
-          <p>Một Bất động sản có thể tồn tại lâu dài, có nhiều Tin bán qua thời gian và nhiều Giao dịch riêng biệt.</p>
-        </div>
-        <div className="object-flow" role="list">
-          <ObjectDefinition icon={House} code="NPID" title="Bất động sản" copy="Danh tính bền vững của tài sản, thuộc tính và nguồn dữ liệu." />
-          <FlowArrow className="object-arrow" aria-hidden="true" />
-          <ObjectDefinition icon={Signpost} code="PLID" title="Tin bán" copy="Một ý định bán hoặc chuyển nhượng, có quyền đại diện và vòng đời riêng." />
-          <FlowArrow className="object-arrow" aria-hidden="true" />
-          <ObjectDefinition icon={Handshake} code="PTID" title="Giao dịch" copy="Một mã tham chiếu demo nối kết quả công chứng, thuế và chuyển quyền." />
-        </div>
-      </section>
-
-      <section className="intro-section orchestration-section" aria-labelledby="orchestration-title">
-        <div className="orchestration-copy">
-          <p className="eyebrow">Điều phối, không chiếm quyền</p>
-          <h2 id="orchestration-title">Mỗi bên làm đúng phần việc của mình</h2>
-          <p>VMLS giữ liên kết và lịch sử. Người có thẩm quyền vẫn là người tạo ra kết quả nghiệp vụ.</p>
-          <ul className="principle-list">
-            <li><ShieldCheck weight="fill" aria-hidden="true" /> Quyền đại diện phải được Người bán xác nhận.</li>
-            <li><SealCheck weight="fill" aria-hidden="true" /> Kết quả công chứng đến từ VPCC mô phỏng.</li>
-            <li><MapPin weight="fill" aria-hidden="true" /> Kết quả chuyển quyền đến từ đúng tuyến tiếp nhận.</li>
-          </ul>
-        </div>
-        <div className="orchestration-diagram" aria-label="Sơ đồ VMLS kết nối các chủ thể">
-          <span className="orbit orbit-one">Thị trường</span>
-          <span className="orbit orbit-two">Công chứng</span>
-          <span className="orbit orbit-three">Chuyển quyền</span>
-          <div className="registry-core"><BrandMark compact inverse /><small>Sổ đăng ký sống</small></div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function RegistryPromise() {
-  return (
-    <aside className="registry-promise" aria-label="Bản ghi sống minh họa">
-      <div className="promise-header">
-        <span>Sổ đăng ký sống</span>
-        <StatusPill tone="verified" icon={CheckCircle}>Có thể truy vết</StatusPill>
+    <aside className="app-sidebar">
+      <div className="sidebar-context">
+        <small>Không gian làm việc</small>
+        <strong>{role.label}</strong>
+        <span>{WORKSPACE_TITLES[role.id]}</span>
       </div>
-      <div className="promise-property">
-        <span className="property-glyph"><House weight="duotone" aria-hidden="true" /></span>
-        <div><small>Bất động sản</small><strong>NPID-HN-09876</strong><span>S2-12A · Thụy Khuê</span></div>
-      </div>
-      <div className="promise-trace">
-        <div><span>01</span><p><strong>Nguồn</strong><small>Giữ khái niệm và thời điểm</small></p></div>
-        <div><span>02</span><p><strong>Quyền</strong><small>Xác nhận có phạm vi</small></p></div>
-        <div><span>03</span><p><strong>Trạng thái</strong><small>Nối tiếp, không ghi đè</small></p></div>
-      </div>
-      <div className="promise-foot"><CirclesThreePlus aria-hidden="true" /> NPID → PLID → PTID</div>
+      <nav aria-label="Phân hệ nghiệp vụ">
+        {items.map(([id, label, Icon]) => (
+          <button key={id} type="button" className={activePage === id ? 'is-active' : ''} onClick={() => navigate(rolePath(role.id, id))}>
+            <Icon weight={activePage === id ? 'fill' : 'regular'} aria-hidden="true" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+      <div className="sidebar-foot"><span>Địa bàn</span><strong>Hà Nội</strong></div>
     </aside>
   )
 }
 
-function ObjectDefinition({ icon: Icon, code, title, copy }) {
+function WorkQueue({ role, rows, query }) {
+  const [filter, setFilter] = useState('all')
+  const [ownerFilter, setOwnerFilter] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('')
+  const [routeFilter, setRouteFilter] = useState('')
+  const ownerOptions = [...new Set(rows.map((row) => row.ownerId).filter(Boolean))]
+  const priorityOptions = [...new Set(rows.map((row) => row.priority).filter(Boolean))]
+  const routeOptions = [...new Set(rows.map((row) => row.route).filter(Boolean))]
+  const queueFilters = role.id === 'brokerage'
+    ? [['all', 'Tất cả'], ['open', 'Cần theo dõi'], ['blocked', 'Có vướng mắc'], ['done', 'Đã xong']]
+    : role.id === 'bank'
+      ? []
+      : FILTERS
+  const filtered = rows.filter((row) => {
+    const matchesFilter = filter === 'all'
+      ? true
+      : filter === 'open'
+        ? row.bucket !== 'done'
+        : row.bucket === filter
+    const matchesQuery = !query.trim() || searchableText(row).includes(query.trim().toLocaleLowerCase('vi'))
+    return matchesFilter
+      && matchesQuery
+      && (!ownerFilter || row.ownerId === ownerFilter)
+      && (!priorityFilter || row.priority === priorityFilter)
+      && (!routeFilter || row.route === routeFilter)
+  })
+  const counts = Object.fromEntries(queueFilters.map(([id]) => [id, id === 'all' ? rows.length : id === 'open' ? rows.filter((row) => row.bucket !== 'done').length : rows.filter((row) => row.bucket === id).length]))
+
   return (
-    <article className="object-definition" role="listitem">
-      <div className="object-code"><Icon weight="duotone" aria-hidden="true" /><span>{code}</span></div>
-      <h3>{title}</h3>
-      <p>{copy}</p>
-    </article>
+    <section className="page-shell work-queue" aria-labelledby="workspace-title" data-testid="work-queue">
+      <PageHeader title={WORKSPACE_TITLES[role.id]} count={`${filtered.length} hồ sơ`} />
+      <div className="queue-controls queue-controls-meta">
+        <span className="filter-summary"><Funnel aria-hidden="true" /> Dữ liệu cập nhật đến 28/08/2026</span>
+      </div>
+      {queueFilters.length ? <div className="metric-filters" aria-label="Lọc theo trạng thái công việc">
+        {queueFilters.map(([id, label]) => (
+          <button key={id} type="button" className={filter === id ? 'is-active' : ''} onClick={() => setFilter(id)} aria-pressed={filter === id} data-testid={`status-filter-${id}`}>
+            <span>{label}</span><strong>{counts[id]}</strong>
+          </button>
+        ))}
+      </div> : null}
+      {ownerOptions.length || priorityOptions.length || routeOptions.length ? <div className="queue-filters" aria-label="Bộ lọc nghiệp vụ">
+        {ownerOptions.length ? <label><span>Phụ trách</span><select value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}><option value="">Tất cả</option>{ownerOptions.map((id) => <option key={id} value={id}>{ROLE_LABELS[id]}</option>)}</select></label> : null}
+        {priorityOptions.length ? <label><span>Ưu tiên</span><select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option value="">Tất cả</option>{priorityOptions.map((priority) => <option key={priority} value={priority}>{priority}</option>)}</select></label> : null}
+        {routeOptions.length ? <label><span>Tuyến chuyển quyền</span><select value={routeFilter} onChange={(event) => setRouteFilter(event.target.value)}><option value="">Tất cả</option>{routeOptions.map((route) => <option key={route} value={route}>{routeLabel(route)}</option>)}</select></label> : null}
+      </div> : null}
+      {filtered.length ? <WorkTable rows={filtered} role={role} /> : <EmptyState role={role} query={query} />}
+    </section>
   )
 }
 
-function CaseQueue({ caseStates }) {
+function WorkTable({ rows, role }) {
+  if (role.id === 'bank') return <BankWorkTable rows={rows} role={role} />
   return (
-    <div className="page-shell queue-page">
-      <PageIntro eyebrow="Hai hồ sơ độc lập" title="Theo một quy trình, nhìn rõ hai tuyến chuyển quyền" copy="Mỗi hồ sơ bắt đầu lại từ Bất động sản, Tin bán và Giao dịch riêng. Chọn một hồ sơ để làm từng bàn giao vai trò." />
-      <div className="case-grid">
-        {demoCases.map((demoCase, index) => {
-          const state = caseStates[demoCase.id]
-          const nextRole = firstNextActor(state)
-          const complete = COMPLETE_STAGES.has(state.stage)
+    <div className="data-table-wrap">
+      <table className="data-table work-table">
+        <thead><tr><th>Bất động sản</th><th>NPID</th><th>PLID</th><th>PTID</th>{role.id === 'brokerage' ? <th>Môi giới</th> : null}<th>Việc cần làm</th><th>Trạng thái</th><th>Phụ trách</th><th>Ưu tiên</th><th>Hạn xử lý</th>{role.id === 'brokerage' ? <th>Hết hạn đại diện</th> : null}<th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+        <tbody>{rows.map((row) => {
+          const records = row.projected.records
+          const property = records.property
           return (
-            <article className="case-card" key={demoCase.id} data-testid={`case-${demoCase.id}`}>
-              <div className="case-card-top">
-                <span className="case-index">0{index + 1}</span>
-                <StatusPill tone={complete ? 'verified' : 'neutral'} icon={complete ? CheckCircle : undefined}>{STAGE_STATUS[state.stage]}</StatusPill>
-              </div>
-              <p className="case-route">{demoCase.routeLabel}</p>
-              <h2>{demoCase.title}</h2>
-              <p>{demoCase.summary}</p>
-              <div className="case-id-row">
-                <span><small>NPID</small><strong>{demoCase.property.id}</strong></span>
-                <span><small>PLID</small><strong>{state.records.listing?.id ?? 'Chưa cấp'}</strong></span>
-                <span><small>PTID</small><strong>{state.records.transaction?.id ?? 'Chưa cấp'}</strong></span>
-              </div>
-              <div className="progress-meter" aria-label={`Tiến độ ${progressFor(state)}%`}><span style={{ width: `${progressFor(state)}%` }} /></div>
-              <div className="case-card-foot">
-                <span>{demoCase.chronologyLabel}</span>
-                <ActionButton onClick={() => navigate(rolePath(demoCase.id, nextRole))}>
-                  {complete ? 'Xem bản ghi sống' : state.auditEvents.length ? 'Tiếp tục hồ sơ' : 'Bắt đầu hồ sơ'}
-                </ActionButton>
-              </div>
-            </article>
+            <tr key={row.demoCase.id} data-testid={`case-row-${row.demoCase.id}`}>
+              <td data-label="Bất động sản"><strong>{row.projected.title ?? property.name ?? property.type}</strong><small>{property.location ?? property.type}</small></td>
+              <td data-label="NPID">{property.id ? <button className="id-link" type="button" onClick={() => navigate(casePath(role.id, row.demoCase.id, 'bat-dong-san'))}>{property.id}</button> : <span className="empty-value">Không thuộc phạm vi</span>}</td>
+              <td data-label="PLID">{records.listing?.id ? <button className="id-link" type="button" onClick={() => navigate(casePath(role.id, row.demoCase.id, 'tin-ban'))}>{records.listing.id}</button> : <span className="empty-value">Chưa có</span>}</td>
+              <td data-label="PTID">{records.transaction?.id ? <button className="id-link" type="button" onClick={() => navigate(casePath(role.id, row.demoCase.id, 'chuyen-quyen'))}>{records.transaction.id}</button> : <span className="empty-value">Chưa có</span>}</td>
+              {role.id === 'brokerage' ? <td data-label="Môi giới">{row.agentLabel}</td> : null}
+              <td data-label="Việc cần làm"><strong>{row.nextLabel}</strong>{row.bucket === 'blocked' && records.notaryDossier?.supplement?.documentType ? <small className="blocker-copy"><WarningCircle aria-hidden="true" /> {records.notaryDossier.supplement.documentType}</small> : null}</td>
+              <td data-label="Trạng thái"><StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill></td>
+              <td data-label="Phụ trách">{row.ownerId ? ROLE_LABELS[row.ownerId] : row.bucket === 'done' ? 'Không còn việc' : 'Không thuộc phạm vi'}</td>
+              <td data-label="Ưu tiên">{row.priority ? <StatusPill tone={row.priority === 'Cao' ? 'warning' : 'neutral'}>{row.priority}</StatusPill> : <span className="empty-value">Không thuộc phạm vi</span>}</td>
+              <td data-label="Hạn xử lý">{row.dueAt ? formatDate(row.dueAt) : <span className="empty-value">Không thuộc phạm vi</span>}</td>
+              {role.id === 'brokerage' ? <td data-label="Hết hạn đại diện">{formatDate(row.representationExpiresOn, false)}</td> : null}
+              <td data-label="Cập nhật">{formatDate(row.updatedAt)}</td>
+              <td><button className="row-action" type="button" onClick={() => navigate(casePath(role.id, row.demoCase.id))}>Mở hồ sơ <ArrowRight aria-hidden="true" /></button></td>
+            </tr>
           )
-        })}
-      </div>
-      <div className="queue-note">
-        <WarningCircle aria-hidden="true" />
-        <div><strong>Dữ liệu công khai đã được che hoặc giả lập</strong><p>Hai hồ sơ dùng dòng thời gian cố định tháng 08/2026 để bản demo có thể lặp lại và kiểm thử.</p></div>
-      </div>
+        })}</tbody>
+      </table>
     </div>
   )
 }
 
-function PageIntro({ eyebrow, title, copy, children }) {
+function BankWorkTable({ rows, role }) {
   return (
-    <header className="page-intro">
-      <div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{copy}</p></div>
-      {children}
+    <div className="data-table-wrap">
+      <table className="data-table">
+        <thead><tr><th>Loại Bất động sản</th><th>Giá đã thống nhất</th><th>Mốc hồ sơ</th><th>Mục đích chia sẻ</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+        <tbody>{rows.map((row) => {
+          const records = row.projected.records
+          const shareId = caseRouteToken(role.id, row.demoCase, row.projected)
+          return <tr key={shareId} data-testid={`shared-case-row-${shareId}`}><td data-label="Loại Bất động sản"><strong>{records.property.type}</strong></td><td data-label="Giá đã thống nhất">{formatMoney(records.readiness.agreedPrice)}</td><td data-label="Mốc hồ sơ"><StatusPill tone={statusTone(records.readiness.status)}>{records.readiness.status}</StatusPill></td><td data-label="Mục đích">{records.readiness.financeSharing.purpose}</td><td data-label="Cập nhật">{formatDate(row.updatedAt)}</td><td><button className="row-action" type="button" onClick={() => navigate(casePath(role.id, shareId))}>Mở hồ sơ <ArrowRight aria-hidden="true" /></button></td></tr>
+        })}</tbody>
+      </table>
+    </div>
+  )
+}
+
+function EmptyState({ role, query }) {
+  const bank = role.id === 'bank'
+  return (
+    <div className="empty-state">
+      <FolderOpen aria-hidden="true" />
+      <h2>{query ? 'Không tìm thấy hồ sơ' : bank ? 'Chưa có hồ sơ được chia sẻ' : 'Không có hồ sơ ở bộ lọc này'}</h2>
+      <p>{query ? bank ? 'Thử tìm theo loại Bất động sản, giá hoặc mục đích chia sẻ.' : 'Thử tìm bằng NPID, PLID, PTID, dự án hoặc khu vực khác.' : bank ? 'Hồ sơ chỉ xuất hiện khi Người mua cấp quyền chia sẻ còn hiệu lực.' : 'Chọn một trạng thái khác để xem hồ sơ.'}</p>
+    </div>
+  )
+}
+
+function CollectionWorkspace({ role, page, rows, query }) {
+  const config = {
+    'bat-dong-san': { title: 'Bất động sản', icon: House },
+    'tin-ban': { title: 'Tin bán', icon: Signpost },
+    'giao-dich': { title: 'Giao dịch', icon: Handshake },
+    'cong-chung': { title: 'Hồ sơ công chứng', icon: SealCheck },
+    'chuyen-quyen': { title: role.id === 'developer' ? 'Chuyển nhượng HĐMB' : 'Đăng ký biến động', icon: role.id === 'developer' ? Buildings : MapPin },
+  }[page] ?? { title: 'Dữ liệu', icon: Database }
+  const records = rows.filter((row) => {
+    const projectedRecords = row.projected.records
+    if (page === 'tin-ban') return Boolean(projectedRecords.listing)
+    if (page === 'giao-dich') return Boolean(projectedRecords.transaction)
+    if (page === 'cong-chung') return projectedRecords.notaryDossier?.status !== 'Chưa nộp'
+    if (page === 'chuyen-quyen') return Boolean(projectedRecords.transaction)
+    return true
+  }).filter((row) => !query.trim() || searchableText(row).includes(query.trim().toLocaleLowerCase('vi')))
+  const Icon = config.icon
+  return (
+    <section className="page-shell collection-page">
+      <PageHeader title={config.title} count={`${records.length} bản ghi`} icon={Icon} />
+      {records.length ? <CollectionTable page={page} rows={records} role={role} /> : <EmptyState role={role} query={query} />}
+    </section>
+  )
+}
+
+function CollectionTable({ page, rows, role }) {
+  return (
+    <div className="data-table-wrap">
+      <table className="data-table">
+        <thead><tr><th>Mã bản ghi</th><th>Bất động sản</th><th>Loại / tuyến</th><th>Trạng thái</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+        <tbody>{rows.map((row) => {
+          const records = row.projected.records
+          const record = page === 'tin-ban' ? records.listing : page === 'giao-dich' || page === 'chuyen-quyen' ? records.transaction : page === 'cong-chung' ? records.notaryDossier : records.property
+          const tab = page === 'giao-dich' || page === 'chuyen-quyen' ? 'chuyen-quyen' : page
+          const propertyLabel = row.projected.title ?? records.property?.name ?? records.property?.project ?? records.property?.type ?? row.projected.dossierId
+          const typeOrRoute = page === 'chuyen-quyen'
+            ? routeLabel(records.transfer?.route)
+            : records.property?.type ?? records.property?.project ?? records.listing?.transactionType
+          return (
+            <tr key={row.demoCase.id}>
+              <td data-label="Mã bản ghi"><button className="id-link" type="button" onClick={() => navigate(casePath(role.id, row.demoCase.id, tab))}>{record?.id}</button></td>
+              <td data-label="Bất động sản"><strong>{propertyLabel}</strong>{records.property?.id ? <small>{records.property.id}</small> : null}</td>
+              <td data-label="Loại / tuyến">{typeOrRoute ?? <span className="empty-value">Không thuộc phạm vi</span>}</td>
+              <td data-label="Trạng thái"><StatusPill tone={statusTone(record?.status)}>{record?.status}</StatusPill></td>
+              <td data-label="Cập nhật">{formatDate(row.updatedAt)}</td>
+              <td><button className="row-action" type="button" onClick={() => navigate(casePath(role.id, row.demoCase.id, tab))}>Mở bản ghi <ArrowRight aria-hidden="true" /></button></td>
+            </tr>
+          )
+        })}</tbody>
+      </table>
+    </div>
+  )
+}
+
+function PageHeader({ title, count, icon: Icon }) {
+  return (
+    <header className="page-header">
+      <div>{Icon ? <Icon weight="duotone" aria-hidden="true" /> : null}<div><h1 id="workspace-title">{title}</h1><p>{count}</p></div></div>
     </header>
   )
 }
 
-function DossierWorkspace({ demoCase, state, role, onAction }) {
-  const stageId = stageViewFor(state)
-  const stage = DEMO_STAGES.find(({ id }) => id === stageId) ?? DEMO_STAGES[0]
-  const allowed = allowedActionsFor(state, role.id)
-  const nextRole = actorById(firstNextActor(state))
-  const RoleIcon = ACTOR_ICONS[role.id] ?? User
-  const complete = COMPLETE_STAGES.has(state.stage)
-  const stageEyebrow = stage.id === 'transfer-result'
-    ? state.route === 'developer' ? 'Tuyến B · Chủ đầu tư / HĐMB' : 'Tuyến A · Văn phòng đăng ký đất đai'
-    : stage.number ? `Bước ${stage.number}` : 'Không đánh số · chuẩn bị giao dịch'
-
+function DossierPage({ role, demoCase, state, tab, onAction }) {
+  if (!demoCase || !state) return <NotFound role={role} />
+  const projected = projectStateForRole(state, role.id)
+  if (!projected) return <NotFound role={role} restricted />
+  const records = projected.records ?? state.records
+  const routeToken = caseRouteToken(role.id, demoCase, projected)
+  const availableTabs = tabsForRole(role.id)
+  const activeTab = availableTabs.some(([id]) => id === tab) ? tab : availableTabs[0][0]
+  const status = projected.status ?? {
+    label: records.readiness?.status ?? records.readiness?.financeSharing?.status,
+  }
+  const ownerLabel = projected.nextWorkItem?.ownerLabel
+    ?? (allowedActionsFor(state, role.id).length ? role.label : null)
+  const updatedAt = role.id === 'bank'
+    ? records.readiness?.financeSharing?.recordedAt
+    : state.auditEvents.at(-1)?.occurredAt ?? state.auditEvents.at(-1)?.at ?? demoCase.property.sourceRecords?.at(-1)?.receivedAt
   return (
-    <div className="workspace-page">
-      <div className="workspace-topbar">
-        <button type="button" className="back-button" onClick={() => navigate('#/ho-so')}><ArrowLeft aria-hidden="true" /> Hai hồ sơ</button>
-        <div className="workspace-title">
-          <span>{demoCase.routeLabel}</span>
-          <h1>{demoCase.title}</h1>
+    <section className="dossier-page">
+      <header className="dossier-header">
+        <button className="back-link" type="button" onClick={() => navigate(rolePath(role.id))}><ArrowLeft aria-hidden="true" /> Quay lại danh sách</button>
+        <div className="dossier-heading">
+          <div><span>{role.id === 'bank' ? 'Hồ sơ được chia sẻ' : demoCase.dossierId ?? demoCase.id}</span><h1>{role.id === 'bank' ? records.property?.type : projected.title ?? demoCase.title}</h1><p>{role.id === 'bank' ? records.readiness?.financeSharing?.purpose : records.property?.project ?? records.property?.location ?? records.property?.type}</p></div>
+          <dl>
+            <div><dt>Trạng thái</dt><dd><StatusPill tone={statusTone(status)}>{status.label}</StatusPill></dd></div>
+            {role.id === 'bank' ? null : <div><dt>Ưu tiên</dt><dd>{projected.priority}</dd></div>}
+            {role.id === 'bank' ? null : <div><dt>Hạn xử lý</dt><dd>{formatDate(projected.slaDueAt)}</dd></div>}
+            {role.id === 'bank' ? null : <div><dt>Phụ trách</dt><dd>{ownerLabel ?? 'Không còn việc'}</dd></div>}
+            <div><dt>Cập nhật</dt><dd>{formatDate(updatedAt)}</dd></div>
+          </dl>
         </div>
-        <div className="workspace-progress">
-          <span>{progressFor(state)}%</span>
-          <div className="progress-meter"><span style={{ width: `${progressFor(state)}%` }} /></div>
-          <small>{STAGE_STATUS[state.stage]}</small>
-        </div>
-      </div>
-
-      <div className="workspace-layout">
-        <aside className="actor-sidebar"><RoleSwitcher demoCase={demoCase} activeRole={role} /></aside>
-        <div className="workspace-main">
-          {role.supplemental ? (
-            <RoleScopedDossier demoCase={demoCase} state={state} role={role} nextRole={nextRole} />
-          ) : <>
-          <section className="registry-passport" aria-label="Hộ chiếu định danh hồ sơ">
-            <IdentifierCard label="Bất động sản · NPID" value={state.records.property.id} detail="Danh tính bền vững" />
-            <IdentifierCard label="Tin bán · PLID" value={state.records.listing?.id} detail={state.records.listing?.status ?? 'Chỉ cấp sau xác nhận'} tone="mint" empty={!state.records.listing} />
-            <IdentifierCard label="Giao dịch · PTID" value={state.records.transaction?.id} detail={state.records.transaction?.status ?? 'Chỉ cấp sau công chứng'} tone="coral" empty={!state.records.transaction} />
-          </section>
-
-          <div className="workspace-columns">
-            <aside className="progress-sidebar">
-              <ProgressRail items={stageItemsFor(state)} currentId={stageId} completedIds={completedStageIds(state)} />
-              <button className="projection-link" type="button" onClick={() => navigate(`#/goc-nhin/${role.id}`)}>
-                <UsersThree aria-hidden="true" /> Xem toàn bộ góc nhìn {role.label}
-              </button>
-            </aside>
-            <div className="stage-column">
-              <header className="stage-header">
-                <div><p className="eyebrow">{stageEyebrow}</p><h2>{stage.title}</h2><p>{stage.intent}</p></div>
-                <span className="stage-actor"><RoleIcon weight="duotone" aria-hidden="true" /><small>Đang xem với vai trò</small><strong>{role.label}</strong></span>
-              </header>
-              <StageContent demoCase={demoCase} state={state} />
-              {!complete ? <ActionPanel role={role} allowed={allowed} nextRole={nextRole} onAction={onAction} demoCase={demoCase} state={state} /> : <CompletionPanel demoCase={demoCase} state={state} />}
-              <HistoryPanel demoCase={demoCase} state={state} />
-            </div>
-          </div>
-          </>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function RoleScopedDossier({ demoCase, state, role, nextRole }) {
-  const projection = projectStateForRole(state, role.id)
-  const isBank = role.id === 'bank'
-  const records = projection.records
-  const indicators = projection.indicators
-
-  return (
-    <section className="role-scoped-view" data-testid="role-scoped-view" aria-labelledby="role-scope-title">
-      <header className="role-scope-header">
-        <div>
-          <p className="eyebrow">Bản chiếu tối thiểu theo mục đích</p>
-          <h2 id="role-scope-title">Phạm vi hồ sơ dành cho {role.label}</h2>
-          <p>{projection.scope.headline}</p>
-        </div>
-        <StatusPill tone="neutral" icon={LockKey}>Đã giới hạn dữ liệu</StatusPill>
+        {role.id === 'bank' ? null : <RecordRelationBar role={role} demoCase={demoCase} records={records} />}
+        <nav className="detail-tabs" aria-label="Nội dung hồ sơ">
+          {availableTabs.map(([id, label]) => <button key={id} type="button" className={activeTab === id ? 'is-active' : ''} onClick={() => navigate(casePath(role.id, routeToken, id))}>{label}</button>)}
+        </nav>
       </header>
-
-      <div className="content-grid">
-        <article className="panel">
-          <PanelTitle icon={ShieldCheck} eyebrow="Được xem" title="Thông tin phục vụ đúng mục đích" />
-          <Checklist items={projection.scope.cards} />
-          <FieldGrid>
-            {isBank ? <>
-              <Field label="Loại Bất động sản" value={records.property.type} />
-              <Field label="Giá đề nghị" value={records.listing?.askingPrice ?? 'Chưa được chia sẻ'} />
-              <Field label="Đồng ý chia sẻ" value={indicators.consent} />
-              <Field label="Mốc sẵn sàng" value={indicators.readiness} />
-            </> : <>
-              <Field label="Bất động sản" value={records.property.id} mono />
-              <Field label="Tin bán" value={records.listing?.status ?? 'Chưa khởi tạo'} />
-              <Field label="Quyền đại diện" value={indicators.representation} />
-              <Field label="Điểm nghẽn" value={indicators.bottleneck} />
-            </>}
-          </FieldGrid>
-          {isBank ? <p className="panel-note"><LockKey aria-hidden="true" /> {indicators.financeContext}</p> : null}
-        </article>
-        <article className="panel scoped-boundary">
-          <PanelTitle icon={LockKey} eyebrow="Không được mở" title="Ranh giới dữ liệu được thực thi" />
-          <ul>{projection.scope.hidden.map((item) => <li key={item}><LockKey aria-hidden="true" />{item}</li>)}</ul>
-          <SimulationNotice compact>Góc nhìn này không tải chi tiết các bên, hồ sơ công chứng hay nhật ký kỹ thuật. Đây là phép chiếu trên cùng trạng thái lõi, không phải một bản sao hồ sơ.</SimulationNotice>
-        </article>
-      </div>
-
-      <div className="role-scope-actions">
-        <button type="button" className="text-link" onClick={() => navigate(`#/goc-nhin/${role.id}`)}><ArrowLeft aria-hidden="true" /> Xem tổng quan {role.label}</button>
-        <ActionButton onClick={() => navigate(rolePath(demoCase.id, nextRole.id))} testId="handoff-next-role">Chuyển sang {nextRole.label}</ActionButton>
+      <div className="dossier-content">
+        <DossierTab role={role} demoCase={demoCase} state={state} projected={projected} records={records} parties={projected.parties ?? {}} tab={activeTab} onAction={onAction} />
       </div>
     </section>
   )
 }
 
-function RoleSwitcher({ demoCase, activeRole }) {
+function tabsForRole(roleId) {
+  if (roleId === 'bank') return DETAIL_TABS.filter(([id]) => id === 'tong-quan')
+  if (roleId === 'brokerage') return DETAIL_TABS.filter(([id]) => !['nguoi-mua', 'lich-su'].includes(id))
+  if (roleId === 'seller') return DETAIL_TABS.filter(([id]) => id !== 'nguoi-mua')
+  if (roleId === 'buyer') return DETAIL_TABS.filter(([id]) => !['quyen-dai-dien', 'lich-su'].includes(id))
+  if (roleId === 'notary') return DETAIL_TABS.filter(([id]) => ['tong-quan', 'bat-dong-san', 'quyen-dai-dien', 'nguoi-mua', 'cong-chung'].includes(id))
+  if (roleId === 'developer' || roleId === 'landRegistry') return DETAIL_TABS.filter(([id]) => ['tong-quan', 'bat-dong-san', 'cong-chung', 'chuyen-quyen'].includes(id))
+  return DETAIL_TABS
+}
+
+function RecordRelationBar({ role, demoCase, records }) {
+  const links = [
+    ['property', 'NPID', records.property?.id, 'bat-dong-san', House],
+    ['listing', 'PLID', records.listing?.id, 'tin-ban', Signpost],
+    ['transaction', 'PTID', records.transaction?.id, 'chuyen-quyen', Handshake],
+  ].filter(([recordKey]) => hasOwn(records, recordKey))
   return (
-    <nav className="role-switcher" aria-label="Đổi vai trò demo">
-      <div className="role-group"><p>6 chủ thể thị trường</p>{marketRoles.map((role) => <RoleButton key={role.id} role={role} active={activeRole.id === role.id} caseId={demoCase.id} />)}</div>
-      <div className="role-group role-group-systems"><p>Hệ thống & đơn vị mô phỏng</p>{externalRoles.map((role) => <RoleButton key={role.id} role={role} active={activeRole.id === role.id} caseId={demoCase.id} />)}</div>
-    </nav>
-  )
-}
-
-function RoleButton({ role, active, caseId }) {
-  const Icon = ACTOR_ICONS[role.id] ?? User
-  return (
-    <button type="button" className={active ? 'is-active' : ''} onClick={() => navigate(rolePath(caseId, role.id))} data-testid={`role-${role.id}`}>
-      <Icon weight={active ? 'fill' : 'regular'} aria-hidden="true" /><span><strong>{role.label}</strong><small>{role.defaultWorkspace}</small></span>
-    </button>
-  )
-}
-
-function StageContent({ demoCase, state }) {
-  if (state.stage === 'property_match') return <PropertyStage demoCase={demoCase} state={state} />
-  if (state.stage === 'seller_confirmation') return <SellerStage demoCase={demoCase} state={state} />
-  if (state.stage === 'listing_created') return <ListingStage demoCase={demoCase} state={state} />
-  if (state.stage === 'transaction_readiness') {
-    return state.flags.readinessVerified
-      ? <NotarySubmissionStage demoCase={demoCase} />
-      : <ReadinessStage demoCase={demoCase} state={state} />
-  }
-  if (state.stage === 'notary_dossier') return <NotaryStage demoCase={demoCase} state={state} />
-  if (state.stage === 'notary_signed') return <SignedStage demoCase={demoCase} />
-  return <RouteStage demoCase={demoCase} state={state} />
-}
-
-function PropertyStage({ demoCase, state }) {
-  return (
-    <>
-      <div className="content-grid content-grid-wide">
-        <article className="panel primary-panel">
-          <PanelTitle icon={House} eyebrow="Bất động sản đã chọn" title={demoCase.property.name} />
-          <FieldGrid>
-            <Field label="NPID" value={demoCase.property.id} mono />
-            <Field label="Loại" value={demoCase.property.type} />
-            <Field label="Khu vực" value={demoCase.property.location} privacy={demoCase.property.addressVisibility} />
-            <Field label="Dự án / Căn" value={demoCase.project ? `${demoCase.project} · ${demoCase.unit}` : 'Không thuộc dự án'} />
-          </FieldGrid>
-          <div className="area-ledger">
-            {demoCase.property.areas.map((area) => <div key={area.kind}><span>{area.label}</span><strong>{area.value.toLocaleString('vi-VN')} {area.unit}</strong><small>{area.sourceLabel}</small><EvidenceBadge label={area.evidence} /></div>)}
-          </div>
-          <p className="panel-note"><ShieldCheck aria-hidden="true" /> {demoCase.property.identityNote}</p>
-        </article>
-        <article className={`panel match-panel ${state.flags.propertyMatched ? 'is-matched' : ''}`}>
-          <PanelTitle icon={ListChecks} eyebrow="Đối chiếu" title={state.flags.propertyMatched ? 'Đã khớp đúng hồ sơ' : 'Ba lớp bằng chứng'} />
-          <Checklist items={[
-            { label: 'Danh tính NPID và loại tài sản', state: state.flags.propertyMatched ? 'done' : 'pending' },
-            { label: 'Khái niệm diện tích kèm nguồn', state: state.flags.propertyMatched ? 'done' : 'pending' },
-            { label: 'Chủ thể và liên hệ đã che', state: state.flags.propertyMatched ? 'done' : 'pending' },
-          ]} />
-        </article>
-      </div>
-      <Source357Panel open={state.flags.propertyMatched} />
-    </>
-  )
-}
-
-function Source357Panel({ open }) {
-  if (open) {
-    return (
-      <section className="source-panel source-revealed" aria-labelledby="source-357-title">
-        <div className="source-summary"><Database aria-hidden="true" /><span><strong id="source-357-title">Nguồn tham khảo bên ngoài · Cổng thông tin 357</strong><small>Ảnh chụp tham chiếu, không phải dữ liệu của hồ sơ</small></span><StatusPill tone="verified" icon={CheckCircle}>Đã hiển thị sau đối chiếu</StatusPill></div>
-        <Source357Body />
-      </section>
-    )
-  }
-  return (
-    <details className="source-panel">
-      <summary><Database aria-hidden="true" /><span><strong>Nguồn tham khảo bên ngoài · Cổng thông tin 357</strong><small>Ảnh chụp tham chiếu, không phải dữ liệu của hồ sơ</small></span><span className="summary-action">Mở nguồn</span></summary>
-      <Source357Body />
-    </details>
-  )
-}
-
-function Source357Body() {
-  return (
-    <div className="source-body">
-      <img src="/assets/demo/357-homepage-2026-08-15.png" alt="Ảnh chụp trang chính Hệ thống thông tin về nhà ở và thị trường bất động sản của Bộ Xây dựng ngày 15 tháng 8 năm 2026" />
-      <div className="source-caption"><EvidenceBadge label="FACT · ẢNH CHỤP THAM CHIẾU" /><p>Nguồn: Hệ thống thông tin về nhà ở và thị trường BĐS — <a href="https://thongtinbds.moc.gov.vn/" target="_blank" rel="noreferrer">thongtinbds.moc.gov.vn</a> · chụp ngày 15/08/2026.</p><small>Việc hiển thị ảnh không thể hiện kết nối kỹ thuật, dữ liệu hồ sơ, sự bảo chứng hay quan hệ hợp tác chính thức với VMLS.</small></div>
-    </div>
-  )
-}
-
-function SellerStage({ demoCase, state }) {
-  const seller = demoCase.parties.seller
-  return (
-    <div className="content-grid">
-      <article className="panel phone-handoff"><div className="phone-frame"><div className="phone-status"><span>09:41</span><LockKey weight="fill" aria-hidden="true" /></div><div className="phone-app"><span className="neutral-app-icon"><Phone weight="fill" aria-hidden="true" /></span><small>Chuyển tiếp xác nhận</small><h3>Quyền đại diện Tin bán</h3></div><div className="phone-card"><span>Người bán</span><strong>{seller.displayName}</strong><small>{seller.contact.phone}</small></div><div className="phone-card"><span>Bất động sản</span><strong>{demoCase.property.name}</strong><small>{demoCase.property.id}</small></div><div className={`phone-consent ${state.flags.representationConfirmed ? 'is-confirmed' : ''}`}><CheckCircle weight="fill" aria-hidden="true" /><span>{state.flags.representationConfirmed ? 'Đã xác nhận quyền đại diện' : 'Chờ Người bán xác nhận'}</span></div></div></article>
-      <article className="panel">
-        <PanelTitle icon={ShieldCheck} eyebrow="Bàn giao trung lập" title="VNeID chỉ là bề mặt xác nhận mô phỏng" />
-        <p>Người bán nhìn thấy đúng Bất động sản, Môi giới được ủy quyền, phạm vi “bán/chuyển nhượng” và phiên bản nội dung.</p>
-        <Checklist items={['Không đăng nhập VNeID thật', 'Không thu thập dữ liệu định danh thật', { label: 'Sự đồng ý được đóng dấu thời gian', state: state.flags.representationConfirmed ? 'done' : 'pending' }]} />
-        <SimulationNotice compact>Đây là mô phỏng một lần chuyển tiếp. Mô hình tích hợp và thẩm quyền phải được xác nhận trong pilot.</SimulationNotice>
-      </article>
-    </div>
-  )
-}
-
-function ListingStage({ demoCase, state }) {
-  return (
-    <div className="content-grid">
-      <article className="panel listing-stamp-panel"><PanelTitle icon={Signpost} eyebrow="Tin bán riêng biệt" title="PLID đã được cấp" /><div className="listing-stamp"><small>PLID</small><strong>{state.records.listing.id}</strong><StatusPill tone="mint" icon={CheckCircle}>{state.records.listing.status}</StatusPill></div><FieldGrid><Field label="Tham chiếu Bất động sản" value={demoCase.property.id} mono /><Field label="Loại giao dịch" value={demoCase.listing.transactionType} /><Field label="Giá đề nghị mô phỏng" value={demoCase.listing.askingPrice.displayValue} /><Field label="Trạng thái" value="Đã khởi tạo · chưa phải Đang hoạt động" /></FieldGrid></article>
-      <article className="panel channel-panel"><PanelTitle icon={FlowArrow} eyebrow="Phân phối theo đồng ý" title="Một lõi, nhiều điểm chạm" /><div className="channel-row"><img src="/assets/demo/housenow-icon.png" alt="Biểu tượng ứng dụng HouseNow" /><div><strong>HouseNow</strong><span>Kênh tiếp cận thị trường</span></div><StatusPill tone="neutral">Đủ điều kiện nhận Tin bán</StatusPill></div><p>HouseNow chỉ nhận phần dữ liệu cần thiết sau khi quyền đại diện được xác nhận. VMLS vẫn giữ định danh và lịch sử lõi.</p><EvidenceBadge label="PROPOSAL · KÊNH PHÂN PHỐI MÔ PHỎNG" /></article>
-    </div>
-  )
-}
-
-function ReadinessStage({ demoCase, state }) {
-  return (
-    <div className="content-grid">
-      <article className="panel"><PanelTitle icon={UsersThree} eyebrow="Các bên trong hồ sơ" title="Người mua chỉ được nối khi có nhu cầu thật" /><div className="party-list">{['seller', 'buyer', 'agent'].map((partyId) => { const party = demoCase.parties[partyId]; return <div key={partyId}><span>{partyId === 'seller' ? 'Người bán' : partyId === 'buyer' ? 'Người mua' : 'Môi giới'}</span><strong>{party.displayName}</strong><small>{party.contact.phone}</small></div> })}</div></article>
-      <article className="panel"><PanelTitle icon={ListChecks} eyebrow="Không phải bước v2 đánh số" title="Danh mục sẵn sàng công chứng" /><Checklist items={demoCase.readiness.checklist.map((label, index) => ({ label, state: index === 0 ? state.flags.buyerRecorded ? 'done' : 'pending' : state.flags.readinessVerified ? 'done' : 'pending' }))} /><p className="panel-note"><LockKey aria-hidden="true" /> {demoCase.readiness.financeContext}</p></article>
-    </div>
-  )
-}
-
-function NotarySubmissionStage({ demoCase }) {
-  return (
-    <div className="content-grid">
-      <article className="panel">
-        <PanelTitle icon={FileText} eyebrow="Bộ hồ sơ chuẩn bị gửi" title={demoCase.notary.dossierId} />
-        <FieldGrid>
-          <Field label="Văn phòng công chứng" value={demoCase.notary.office} />
-          <Field label="Mã tương quan dự kiến" value={demoCase.notary.correlationId} mono />
-          <Field label="Bất động sản" value={demoCase.property.id} mono />
-          <Field label="Trạng thái" value="Sẵn sàng để VPCC tiếp nhận" />
-        </FieldGrid>
-      </article>
-      <article className="panel">
-        <PanelTitle icon={ListChecks} eyebrow="Ranh giới trách nhiệm" title="VPCC tiếp nhận trong không gian riêng" />
-        <Checklist items={[
-          'Đúng Bất động sản và các bên đã che',
-          'Quyền đại diện có lịch sử xác nhận',
-          'VMLS chỉ nhận trạng thái và mã tương quan cần thiết',
-        ]} />
-        <SimulationNotice compact>Không nộp hồ sơ thật và không kết nối phần mềm công chứng trong bản demo công khai.</SimulationNotice>
-      </article>
-    </div>
-  )
-}
-
-function NotaryStage({ demoCase, state }) {
-  const supplementRequired = state.supplement.status === 'required'
-  return (
-    <div className="content-grid">
-      <article className="panel"><PanelTitle icon={FileText} eyebrow="Hồ sơ nghiệp vụ VPCC" title={demoCase.notary.dossierId} /><FieldGrid><Field label="Đơn vị" value={demoCase.notary.office} /><Field label="Mã tương quan" value={demoCase.notary.correlationId} mono /><Field label="Trạng thái" value={supplementRequired ? 'Yêu cầu bổ sung' : state.supplement.status === 'provided' ? 'Đã bổ sung · đủ điều kiện ký' : 'Đã tiếp nhận'} /><Field label="Phạm vi VMLS nhận" value="Trạng thái, thời điểm, mã tương quan" /></FieldGrid></article>
-      <article className={`panel exception-panel ${supplementRequired ? 'has-exception' : ''}`}><PanelTitle icon={supplementRequired ? WarningCircle : CheckCircle} eyebrow="Ngoại lệ có thể phục hồi" title={supplementRequired ? 'Thiếu một tài liệu' : state.supplement.status === 'provided' ? 'Đã nối tài liệu bổ sung' : 'Hồ sơ đang đủ điều kiện'} />{supplementRequired ? <><p>{demoCase.notary.supplementReason || 'Thiếu tài liệu đối chiếu trong bộ hồ sơ mô phỏng.'}</p><StatusPill tone="warning">Lịch sử tiếp nhận ban đầu vẫn được giữ</StatusPill></> : state.supplement.status === 'provided' ? <Checklist items={[demoCase.notary.supplementDocument || 'Tài liệu bổ sung đã che', 'Lịch sử hồ sơ được nối tiếp']} /> : <Checklist items={['Bất động sản và các bên đã đối chiếu', 'Quyền đại diện có bằng chứng', 'Danh mục công chứng đã sẵn sàng']} />}</article>
-    </div>
-  )
-}
-
-function SignedStage({ demoCase }) {
-  return (
-    <div className="content-grid"><article className="panel result-seal"><SealCheck weight="duotone" aria-hidden="true" /><span>Kết quả từ VPCC mô phỏng</span><h3>Đã ký công chứng</h3><strong>{demoCase.notary.correlationId}</strong></article><article className="panel"><PanelTitle icon={Database} eyebrow="VMLS nhận kết quả" title="Chưa tự nhận là cơ quan công chứng" /><p>VMLS nhận mã tương quan, thời điểm và trạng thái tối thiểu để nối lịch sử. Bước tiếp theo mới tạo PTID tham chiếu và xác định tuyến.</p><SimulationNotice compact>Kết quả nghiệp vụ thuộc VPCC mô phỏng. VMLS chỉ điều phối bản ghi.</SimulationNotice></article></div>
-  )
-}
-
-function RouteStage({ demoCase, state }) {
-  const routeKnown = Boolean(state.route)
-  const routeComplete = COMPLETE_STAGES.has(state.stage)
-  return (
-    <><div className="route-decision"><div className="route-origin"><small>Giao dịch</small><strong>{state.records.transaction?.id ?? 'Chờ PTID'}</strong><span>{state.records.transaction?.status ?? 'Chờ kết quả công chứng'}</span></div><FlowArrow aria-hidden="true" /><div className={`route-destination ${routeKnown ? 'is-selected' : ''}`}><small>{routeKnown ? 'Tuyến được xác định tự động' : 'Đang chờ xác định tuyến'}</small><strong>{routeKnown ? demoCase.routeLabel : 'VPĐKĐĐ hoặc Chủ đầu tư'}</strong><span>{routeKnown ? demoCase.transfer.reason : 'Dựa trên loại hồ sơ và căn cứ chuyển quyền.'}</span></div></div><div className="content-grid"><article className="panel"><PanelTitle icon={FlowArrow} eyebrow="Sự kiện tích hợp" title="Nối tiếp thay vì ghi đè" /><IntegrationList events={state.integrationEvents} /></article><article className="panel"><PanelTitle icon={routeComplete ? CheckCircle : ClockCounterClockwise} eyebrow={demoCase.routeLabel} title={routeComplete ? 'Bản ghi sống đã cập nhật' : STAGE_STATUS[state.stage]} /><FieldGrid><Field label="Đơn vị tiếp nhận" value={demoCase.transfer.ownerLabel} /><Field label="Mã tiếp nhận" value={demoCase.transfer.intakeId} mono /><Field label="Kết quả" value={routeComplete ? demoCase.transfer.finalStatus : state.records.transaction?.status ?? 'Chưa có'} /><Field label="Tham chiếu kết quả" value={routeComplete ? demoCase.transfer.resultReference : 'Chờ đơn vị tiếp nhận'} mono /></FieldGrid></article></div></>
-  )
-}
-
-function IntegrationList({ events }) {
-  if (!events.length) return <p className="empty-copy">Chưa có sự kiện tích hợp. Mỗi sự kiện sẽ có loại, thời điểm và trạng thái mô phỏng.</p>
-  return <ol className="integration-list">{events.map((event) => <li key={event.id}><span><Check weight="bold" aria-hidden="true" /></span><div><strong>{event.label}</strong><small>{event.status} · {event.at}</small></div></li>)}</ol>
-}
-
-function PanelTitle({ icon: Icon, eyebrow, title }) {
-  return <header className="panel-title"><Icon weight="duotone" aria-hidden="true" /><div><span>{eyebrow}</span><h3>{title}</h3></div></header>
-}
-
-function ActionPanel({ role, allowed, nextRole, onAction, demoCase, state }) {
-  const canAct = allowed.length > 0
-  const showRecommendedException = demoCase.notary.supplementRequired && state.stage === 'notary_dossier' && state.supplement.status === 'none'
-  const actionDescription = allowed[0] === ACTIONS.MATCH_PROPERTY && !demoCase.project
-    ? 'Khớp khu vực, loại nhà ở, diện tích đất và bằng chứng nguồn với NPID hiện có.'
-    : ACTION_META[allowed[0]]?.description
-  return (
-    <section className={`action-panel ${canAct ? 'can-act' : ''}`} aria-label="Hành động tiếp theo">
-      <div className="action-copy"><span>{canAct ? 'Quyền thao tác trong vai trò này' : 'Bàn giao tiếp theo'}</span><h3>{canAct ? `${role.label} có thể tiếp tục hồ sơ` : `Cần chuyển sang ${nextRole.label}`}</h3><p>{canAct ? actionDescription : 'Mỗi thao tác chỉ xuất hiện ở đúng không gian làm việc chịu trách nhiệm.'}</p></div>
-      <div className="action-controls">{canAct ? allowed.map((actionType) => <ActionButton key={actionType} secondary={actionType === ACTIONS.REQUEST_SUPPLEMENT} onClick={() => onAction(actionType)} testId={`action-${actionType}`}>{actionType === ACTIONS.REQUEST_SUPPLEMENT && showRecommendedException ? 'Minh họa yêu cầu bổ sung' : ACTION_META[actionType].label}</ActionButton>) : <ActionButton onClick={() => navigate(rolePath(demoCase.id, nextRole.id))} testId="handoff-next-role">Chuyển sang {nextRole.label}</ActionButton>}</div>
-    </section>
-  )
-}
-
-function CompletionPanel({ demoCase, state }) {
-  return (
-    <section className="completion-panel" data-testid="living-record-complete"><span className="completion-icon"><CheckCircle weight="fill" aria-hidden="true" /></span><div><p className="eyebrow">Kết quả · không phải bước đóng giả</p><h3>Bản ghi sống đã được cập nhật</h3><p>{demoCase.transfer.finalStatus}. NPID, PLID và PTID vẫn là ba đối tượng riêng, được nối bằng lịch sử có nguồn.</p></div><div className="completion-actions"><button type="button" onClick={() => navigate('#/ho-so')}>Mở hồ sơ còn lại</button><button type="button" onClick={() => navigate('#/pilot')}>Cùng thiết kế pilot <ArrowRight aria-hidden="true" /></button></div><span className="completion-code">{state.records.property.id} · {state.records.listing.id} · {state.records.transaction.id}</span></section>
-  )
-}
-
-function HistoryPanel({ demoCase, state }) {
-  const events = [...demoCase.initialAuditEvents.map((event) => ({ ...event, label: event.action, actor: event.actorLabel })), ...state.auditEvents.map((event) => ({ ...event, actor: actorById(event.actor).label }))]
-  return <details className="history-panel"><summary><ClockCounterClockwise aria-hidden="true" /><span><strong>Lịch sử hồ sơ nối tiếp</strong><small>{events.length} sự kiện · không xóa sự kiện trước</small></span><span className="summary-action">Xem lịch sử</span></summary><RegistryTimeline events={events} /></details>
-}
-
-function ProjectionWorkspace({ role, caseStates }) {
-  const projection = ROLE_PROJECTIONS[role.id] ?? ROLE_PROJECTIONS.agent
-  const RoleIcon = ACTOR_ICONS[role.id] ?? User
-  return (
-    <div className="page-shell projection-page">
-      <PageIntro eyebrow="Các bản chiếu trên cùng bản ghi" title={`Góc nhìn ${role.label}`} copy={projection.headline}><span className="projection-role-icon"><RoleIcon weight="duotone" aria-hidden="true" /></span></PageIntro>
-      <ProjectionRoleTabs activeRole={role} />
-      <div className="projection-grid"><article className="panel projection-scope"><PanelTitle icon={ShieldCheck} eyebrow="Được xem theo mục đích" title="Phần dữ liệu hữu ích" /><ul>{projection.cards.map((item) => <li key={item}><CheckCircle weight="fill" aria-hidden="true" />{item}</li>)}</ul></article><article className="panel projection-hidden"><PanelTitle icon={LockKey} eyebrow="Tối thiểu hóa dữ liệu" title="Không hiển thị trong góc nhìn này" /><ul>{projection.hidden.map((item) => <li key={item}><LockKey aria-hidden="true" />{item}</li>)}</ul></article></div>
-      <section className="projection-cases" aria-labelledby="projection-cases-title">
-        <div className="section-heading"><p className="eyebrow">Cùng dữ liệu lõi</p><h2 id="projection-cases-title">Hai hồ sơ qua lăng kính {role.label}</h2></div>
-        <div className="projection-case-grid">{demoCases.map((demoCase) => <ProjectionCaseCard key={demoCase.id} demoCase={demoCase} state={caseStates[demoCase.id]} role={role} />)}</div>
-      </section>
-    </div>
-  )
-}
-
-function ProjectionRoleTabs({ activeRole }) {
-  function handleKeyDown(event, index) {
-    const lastIndex = marketRoles.length - 1
-    let nextIndex = null
-    if (event.key === 'ArrowRight') nextIndex = index === lastIndex ? 0 : index + 1
-    if (event.key === 'ArrowLeft') nextIndex = index === 0 ? lastIndex : index - 1
-    if (event.key === 'Home') nextIndex = 0
-    if (event.key === 'End') nextIndex = lastIndex
-    if (nextIndex === null) return
-
-    event.preventDefault()
-    const nextRole = marketRoles[nextIndex]
-    event.currentTarget.parentElement.querySelectorAll('[role="tab"]')[nextIndex]?.focus()
-    navigate(`#/goc-nhin/${nextRole.id}`)
-  }
-
-  return (
-    <div className="projection-switcher" role="tablist" aria-label="Chọn vai trò">
-      {marketRoles.map((item, index) => (
-        <button
-          key={item.id}
-          role="tab"
-          aria-selected={activeRole.id === item.id}
-          tabIndex={activeRole.id === item.id ? 0 : -1}
-          type="button"
-          onClick={() => navigate(`#/goc-nhin/${item.id}`)}
-          onKeyDown={(event) => handleKeyDown(event, index)}
-        >
-          {item.label}{item.supplemental ? <small>Góc nhìn bổ sung</small> : null}
+    <div className="relation-bar" aria-label="Bản ghi liên quan">
+      {links.map(([, label, value, tab, Icon]) => (
+        <button key={label} type="button" disabled={!value} onClick={() => navigate(casePath(role.id, demoCase.id, tab))} data-testid={`object-${label.toLowerCase()}`}>
+          <Icon aria-hidden="true" /><span>{label}</span><strong>{value ?? 'Chưa có'}</strong><ArrowRight aria-hidden="true" />
         </button>
       ))}
     </div>
   )
 }
 
-function ProjectionCaseCard({ demoCase, state, role }) {
-  const projected = projectStateForRole(state, role.id)
-  const isBank = role.id === 'bank'
-  const isBrokerage = role.id === 'brokerage'
-
-  return (
-    <article>
-      <div><StatusPill tone={COMPLETE_STAGES.has(state.stage) ? 'verified' : 'neutral'}>{STAGE_STATUS[state.stage]}</StatusPill><span>{demoCase.routeLabel}</span></div>
-      <h3>{demoCase.shortTitle}</h3>
-      {isBank ? (
-        <dl>
-          <div><dt>Loại Bất động sản</dt><dd>{projected.records.property.type}</dd></div>
-          <div><dt>Giá đề nghị</dt><dd>{projected.records.listing?.askingPrice ?? 'Chưa được chia sẻ'}</dd></div>
-          <div><dt>Đồng ý chia sẻ</dt><dd>{projected.indicators.consent}</dd></div>
-        </dl>
-      ) : isBrokerage ? (
-        <dl>
-          <div><dt>Bất động sản</dt><dd>{projected.records.property.id}</dd></div>
-          <div><dt>Trạng thái Tin bán</dt><dd>{projected.records.listing?.status ?? 'Chưa khởi tạo'}</dd></div>
-          <div><dt>Điểm nghẽn</dt><dd>{projected.indicators.bottleneck}</dd></div>
-        </dl>
-      ) : (
-        <dl>
-          <div><dt>Bất động sản</dt><dd>{projected.records.property.id}</dd></div>
-          <div><dt>Tin bán</dt><dd>{projected.records.listing?.id ?? 'Chưa khởi tạo'}</dd></div>
-          <div><dt>Giao dịch</dt><dd>{projected.records.transaction?.id ?? 'Chưa khởi tạo'}</dd></div>
-        </dl>
-      )}
-      {isBank ? <p className="projection-context"><LockKey aria-hidden="true" /> {projected.indicators.financeContext}</p> : null}
-      {isBrokerage ? <p className="projection-context"><Storefront aria-hidden="true" /> {projected.indicators.bottleneck}</p> : null}
-      <button type="button" onClick={() => navigate(rolePath(demoCase.id, role.id))}>Mở hồ sơ với vai trò này <ArrowRight aria-hidden="true" /></button>
-    </article>
-  )
+function DossierTab({ role, demoCase, state, projected, records, parties, tab, onAction }) {
+  if (role.id === 'bank') return <BankOverview records={records} />
+  if (tab === 'tong-quan') return <OverviewTab role={role} demoCase={demoCase} state={state} records={records} onAction={onAction} />
+  if (tab === 'bat-dong-san') return <PropertyTab property={records.property} />
+  if (tab === 'quyen-dai-dien') return <RepresentationTab parties={parties} record={records.representation} />
+  if (tab === 'tin-ban') return <ListingTab listing={records.listing} />
+  if (tab === 'nguoi-mua') return <BuyerTab readiness={records.readiness} />
+  if (tab === 'cong-chung') return <NotaryTab dossier={records.notaryDossier} />
+  if (tab === 'chuyen-quyen') return <TransferTab transaction={records.transaction} transfer={records.transfer} integrations={projected.integrationEvents ?? []} />
+  return <HistoryTab events={projected.auditEvents ?? []} />
 }
 
-function PilotBrief({ completedCount }) {
+function OverviewTab({ role, demoCase, state, records, onAction }) {
+  const propertyFields = [
+    ['Loại', records.property?.type],
+    ['Khu vực', records.property?.location],
+    ['Dự án', records.property?.project],
+    ['Căn / thửa', records.property?.unit ?? records.property?.parcelRef],
+    ['Trạng thái đối chiếu', records.property?.status],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '')
   return (
-    <div className="pilot-page">
-      <section className="pilot-hero"><div><p className="eyebrow">{PILOT_BRIEF.eyebrow}</p><h1>{PILOT_BRIEF.title}</h1><p>{PILOT_BRIEF.summary}</p></div><span className="pilot-score"><strong>{completedCount}/2</strong><small>hồ sơ demo đã hoàn tất</small></span></section>
-      <div className="pilot-layout"><section className="pilot-questions" aria-labelledby="pilot-questions-title"><p className="eyebrow">5 quyết định cần cùng chốt</p><h2 id="pilot-questions-title">Bắt đầu bằng câu hỏi có chủ sở hữu</h2><ol>{PILOT_BRIEF.questions.map((question, index) => <li key={question}><span>{String(index + 1).padStart(2, '0')}</span><p>{question}</p></li>)}</ol></section><aside className="pilot-output"><PanelTitle icon={Handshake} eyebrow="Đầu ra của buổi làm việc" title="Một pilot đủ nhỏ để học thật" /><Checklist items={PILOT_BRIEF.proposedOutputs} /><a className="pilot-mail" href="mailto:pilot@housenow.com.vn?subject=Cùng%20thiết%20kế%20pilot%20VMLS">Cùng thiết kế pilot VMLS <ArrowRight aria-hidden="true" /></a><small>{PILOT_BRIEF.disclaimer}</small></aside></div>
-      <section className="pilot-principles"><div><strong>01</strong><span>Chọn một tuyến</span><p>Không mở rộng cả thị trường trong vòng đầu.</p></div><div><strong>02</strong><span>Dùng dữ liệu an toàn</span><p>Giả lập hoặc đã che, có chủ sở hữu và mục đích.</p></div><div><strong>03</strong><span>Đo khả năng truy vết</span><p>Biết nguồn, quyền, trạng thái và lý do điều phối.</p></div></section>
+    <div className="overview-layout">
+      <TaskPanel role={role} demoCase={demoCase} state={state} onAction={onAction} />
+      <div className="overview-secondary">
+        <section className="record-panel"><PanelHeading icon={House} title="Bất động sản" meta={records.property?.id} /><FieldGrid>{propertyFields.map(([label, value]) => <Field key={label} label={label} value={value} />)}</FieldGrid></section>
+        <section className="record-panel"><PanelHeading icon={ListChecks} title="Tình trạng hồ sơ" /><div className="status-stack">{records.representation ? <StatusRow label="Quyền đại diện" value={records.representation.status} /> : null}{records.listing ? <StatusRow label="Tin bán" value={records.listing.status ?? 'Đã ghi nhận'} /> : null}{records.readiness ? <StatusRow label="Người mua" value={records.readiness.status} /> : null}{records.notaryDossier ? <StatusRow label="Công chứng" value={records.notaryDossier.status} /> : null}{records.transfer ? <StatusRow label="Chuyển quyền" value={records.transfer.status} /> : null}</div></section>
+      </div>
     </div>
   )
 }
 
-function ResetDialog({ onCancel, onConfirm }) {
-  const dialogRef = useRef(null)
-
-  useEffect(() => {
-    const returnFocus = document.activeElement
-    dialogRef.current?.querySelector('button')?.focus()
-    return () => returnFocus?.isConnected && returnFocus.focus()
-  }, [])
-
-  function handleKeyDown(event) {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      onCancel()
-      return
-    }
-    if (event.key !== 'Tab') return
-
-    const focusable = [...dialogRef.current.querySelectorAll('button:not([disabled]), a[href]')]
-    const first = focusable[0]
-    const last = focusable.at(-1)
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
+function TaskPanel({ role, demoCase, state, onAction }) {
+  const actions = allowedActionsFor(state, role.id)
+  const nextWork = getNextWorkItem(state)
+  if (!actions.length) {
+    const complete = isComplete(state)
+    return (
+      <section className="task-panel no-action" data-testid="task-panel">
+        <PanelHeading icon={complete ? CheckCircle : Clock} title={complete ? 'Không còn việc cần xử lý' : 'Đang chờ cập nhật'} />
+        <FieldGrid><Field label="Trạng thái" value={getCaseStatus(state).label} /><Field label="Bên phụ trách" value={nextWork?.ownerLabel ?? (actorWithWork(state) ? ROLE_LABELS[actorWithWork(state)] : 'Không còn việc')} /><Field label="Việc tiếp theo" value={nextWork?.label ?? (complete ? 'Hồ sơ đã hoàn tất' : 'Chờ hồ sơ trước hoàn thành')} /></FieldGrid>
+      </section>
+    )
   }
-
-  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}><section ref={dialogRef} className="reset-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title" onKeyDown={handleKeyDown}><button className="dialog-close" type="button" onClick={onCancel} aria-label="Đóng"><X aria-hidden="true" /></button><span className="dialog-icon"><ClockCounterClockwise aria-hidden="true" /></span><h2 id="reset-title">Khôi phục dữ liệu mẫu?</h2><p>Mọi tiến độ trong hai hồ sơ trên trình duyệt này sẽ trở về điểm bắt đầu. Hành động không ảnh hưởng dữ liệu bên ngoài.</p><div><ActionButton secondary onClick={onCancel} icon={null}>Giữ tiến độ</ActionButton><ActionButton onClick={onConfirm} testId="confirm-reset">Khôi phục dữ liệu mẫu</ActionButton></div></section></div>
+  return (
+    <section className="task-panel" data-testid="task-panel">
+      <PanelHeading icon={CalendarCheck} title="Việc cần xử lý" meta={role.label} />
+      <ActionForm actionTypes={actions} role={role} demoCase={demoCase} state={state} onAction={onAction} />
+    </section>
+  )
 }
 
-function AppFooter() {
-  return <footer className="app-footer"><BrandMark compact inverse /><p>Bản demo công khai · Dữ liệu giả lập hoặc đã che · Tháng 08/2026</p><button type="button" onClick={() => navigate('#/pilot')}>Cùng thiết kế pilot</button></footer>
+function ActionForm({ actionTypes, role, demoCase, state, onAction }) {
+  const [selectedAction, setSelectedAction] = useState(actionTypes[0])
+  const actionType = actionTypes.includes(selectedAction) ? selectedAction : actionTypes[0]
+  if (actionTypes.length > 1) {
+    return (
+      <div className="action-choice">
+        <div role="tablist" aria-label="Chọn kết quả kiểm tra">
+          {actionTypes.map((type) => <button key={type} role="tab" aria-selected={actionType === type} type="button" onClick={() => setSelectedAction(type)}>{ACTION_LABELS[type]}</button>)}
+        </div>
+        <ActionFields key={`${demoCase.id}-${actionType}`} actionType={actionType} role={role} demoCase={demoCase} state={state} onAction={onAction} />
+      </div>
+    )
+  }
+  return <ActionFields key={`${demoCase.id}-${actionType}`} actionType={actionType} role={role} demoCase={demoCase} state={state} onAction={onAction} />
+}
+
+function ActionFields({ actionType, role, demoCase, state, onAction }) {
+  const candidates = demoCase.property.candidates ?? [{
+    id: demoCase.property.id,
+    title: demoCase.title,
+    location: demoCase.property.location,
+    sourceIds: (demoCase.property.sourceRecords ?? []).map((item) => item.id),
+    matchSignals: ['Đúng dự án hoặc thửa đất', 'Đúng loại Bất động sản', 'Diện tích được giữ theo từng nguồn'],
+  }]
+  const sourceRecords = demoCase.property.sourceRecords ?? []
+  const requiredDocuments = demoCase.notary?.documents ?? []
+  const [form, setForm] = useState(() => defaultActionForm(actionType, demoCase, state, candidates, requiredDocuments))
+  const [formError, setFormError] = useState('')
+  function update(name, value) { setForm((current) => ({ ...current, [name]: value })) }
+  function submit(event) {
+    event.preventDefault()
+    setFormError('')
+    if (actionType === ACTIONS.REQUEST_SELLER_CONFIRMATION && form.expiresOn <= form.startsOn) {
+      setFormError('Ngày hết hạn phải sau ngày hiệu lực.')
+      event.currentTarget.querySelector('[name="expiresOn"]')?.focus()
+      return
+    }
+    const accepted = onAction({ type: actionType, actor: role.id, payload: payloadFor(actionType, form) })
+    if (!accepted) setFormError(ACTION_ERROR_MESSAGES[actionType] ?? 'Kiểm tra lại dữ liệu đã nhập.')
+  }
+
+  const formErrorNode = formError ? <p className="form-error" role="alert"><WarningCircle weight="fill" aria-hidden="true" />{formError}</p> : null
+  const submitControl = (secondary = false) => <>{formErrorNode}<ActionButton type="submit" secondary={secondary} testId={`action-${actionType}`}>{ACTION_LABELS[actionType]}</ActionButton></>
+
+  if (actionType === ACTIONS.MATCH_PROPERTY) {
+    return <form className="task-form" onSubmit={submit}><p className="form-instruction">Chọn một bản ghi sau khi kiểm tra các tín hiệu nhận dạng.</p><div className="candidate-list">{candidates.map((candidate) => <label key={candidate.id} className={form.candidateId === candidate.id ? 'is-selected' : ''}><input type="radio" name="candidate" value={candidate.id} checked={form.candidateId === candidate.id} onChange={() => update('candidateId', candidate.id)} required /><span><strong>{candidate.id}</strong><small>{candidate.label ?? candidate.title ?? candidate.name ?? demoCase.title}</small><small>{candidate.location ?? demoCase.property.location}</small></span><ul>{(candidate.matchSignals ?? []).map((signal) => <li key={signal}>{signal}</li>)}</ul></label>)}</div><fieldset className="document-checks"><legend>Nguồn dùng để đối chiếu</legend>{sourceRecords.map((source) => <label key={source.id}><input type="checkbox" checked={form.sourceIds.includes(source.id)} onChange={(event) => update('sourceIds', event.target.checked ? [...form.sourceIds, source.id] : form.sourceIds.filter((item) => item !== source.id))} /><span>{source.label}</span><small className="mono">{source.id}</small></label>)}</fieldset>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.REQUEST_SELLER_CONFIRMATION) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormSelect label="Phạm vi đại diện" value={form.scope} onChange={(value) => update('scope', value)} options={['Độc quyền', 'Không độc quyền']} /><FormInput label="Ngày hiệu lực" name="startsOn" type="date" value={form.startsOn} onChange={(value) => update('startsOn', value)} /><FormInput label="Ngày hết hạn" name="expiresOn" type="date" value={form.expiresOn} onChange={(value) => update('expiresOn', value)} /></div><div className="form-readonly"><span>Người bán</span><strong>{demoCase.parties?.seller?.displayName}</strong><span>Bất động sản</span><strong className="mono">{state.records.property.id}</strong></div>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.CONFIRM_REPRESENTATION) {
+    return <form className="task-form" onSubmit={submit}><div className="confirmation-summary"><FieldGrid><Field label="Môi giới" value={demoCase.parties?.agent?.displayName} /><Field label="Sàn" value={demoCase.parties?.agent?.organization} /><Field label="Phạm vi" value={state.records.representation.request?.scope} /><Field label="Hiệu lực" value={`${formatDate(state.records.representation.request?.startsOn, false)} — ${formatDate(state.records.representation.request?.expiresOn, false)}`} /></FieldGrid></div><FormInput label="Mã xác nhận" name="confirmationRef" value={form.confirmationRef} onChange={(value) => update('confirmationRef', value)} /><label className="checkbox-field"><input type="checkbox" checked={form.accepted} onChange={(event) => update('accepted', event.target.checked)} required /><span>Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn.</span></label>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.RECORD_BUYER) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã Người mua" value={form.buyerRef} onChange={(value) => update('buyerRef', value)} /><FormInput label="Giá đã thống nhất (VND)" type="number" min="1" value={form.agreedPrice} onChange={(value) => update('agreedPrice', value)} /><FormInput label="Ngày dự kiến ký" type="date" value={form.expectedSigningOn} onChange={(value) => update('expectedSigningOn', value)} /></div>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.VERIFY_READINESS) {
+    const checklist = [['identityReviewed', 'Thông tin định danh của tôi'], ['paymentPlanReviewed', 'Phương án thanh toán'], ['documentsReviewed', 'Danh mục tài liệu được chia sẻ']]
+    return <form className="task-form" onSubmit={submit}><fieldset className="readiness-checks"><legend>Nội dung Người mua xác nhận</legend>{checklist.map(([key, label]) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(event) => update(key, event.target.checked)} required /><span>{label}</span></label>)}</fieldset><label className="checkbox-field optional"><input type="checkbox" checked={form.bankConsent} onChange={(event) => update('bankConsent', event.target.checked)} /><span>Chia sẻ giá, Bất động sản và lịch dự kiến với Ngân hàng</span></label>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.SUBMIT_NOTARY_DOSSIER) {
+    return <form className="task-form" onSubmit={submit}><FormInput label="Mã tiếp nhận" value={form.submissionRef} onChange={(value) => update('submissionRef', value)} /><fieldset className="document-checks"><legend>Thành phần hồ sơ</legend>{requiredDocuments.map((document) => { const id = typeof document === 'string' ? document : document.id; const label = typeof document === 'string' ? document : document.label; return <label key={id}><input type="checkbox" checked={form.documentIds.includes(id)} onChange={(event) => update('documentIds', event.target.checked ? [...form.documentIds, id] : form.documentIds.filter((item) => item !== id))} /><span>{label}</span></label> })}</fieldset>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.REQUEST_SUPPLEMENT) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormSelect label="Loại tài liệu" value={form.documentType} onChange={(value) => update('documentType', value)} options={[demoCase.notary.supplement.documentType]} /><FormSelect label="Lý do" value={form.reasonCode} onChange={(value) => update('reasonCode', value)} options={[demoCase.notary.supplement.reasonCode]} labels={['Thiếu xác nhận tình trạng hôn nhân']} /><FormInput label="Hạn bổ sung" type="date" value={form.dueOn} onChange={(value) => update('dueOn', value)} /></div>{submitControl(true)}</form>
+  }
+
+  if (actionType === ACTIONS.PROVIDE_SUPPLEMENT) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã tài liệu" value={form.documentId} onChange={(value) => update('documentId', value)} /><FormInput label="Loại tài liệu" value={form.documentType} onChange={(value) => update('documentType', value)} /><FormInput label="Tên tệp PDF" value={form.fileName} onChange={(value) => update('fileName', value)} pattern=".+\.pdf$" /></div>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.RECORD_NOTARY_SIGNING) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã kết quả công chứng" value={form.resultRef} onChange={(value) => update('resultRef', value)} /><FormInput label="Thời điểm ký" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.signedAt} onChange={(value) => update('signedAt', value)} /><FormInput label="Mã kiểm tra tài liệu" value={form.documentDigest} onChange={(value) => update('documentDigest', value)} minLength="12" pattern="[0-9a-fA-F]{12,}" /></div>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.APPROVE_LAND_REGISTRY) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã kết quả" value={form.resultRef} onChange={(value) => update('resultRef', value)} /><FormInput label="Thời điểm hiệu lực" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.approvedAt} onChange={(value) => update('approvedAt', value)} /><FormInput label="Tham chiếu chủ mới" value={form.newOwnerRef} onChange={(value) => update('newOwnerRef', value)} /></div>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.DEVELOPER_INTAKE) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã tiếp nhận Chủ đầu tư" value={form.intakeRef} onChange={(value) => update('intakeRef', value)} /><FormInput label="Thời điểm tiếp nhận" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.receivedAt} onChange={(value) => update('receivedAt', value)} /><FormInput label="Số tài liệu" type="number" min={Math.max(1, requiredDocuments.length)} value={form.documentCount} onChange={(value) => update('documentCount', value)} /></div>{submitControl()}</form>
+  }
+
+  if (actionType === ACTIONS.DEVELOPER_CONFIRM_TRANSFER) {
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã xác nhận chuyển nhượng" value={form.confirmationRef} onChange={(value) => update('confirmationRef', value)} /><FormInput label="Thời điểm xác nhận" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.confirmedAt} onChange={(value) => update('confirmedAt', value)} /></div><p className="result-preview"><FileText aria-hidden="true" /> HĐMB mới: <strong className="mono">{demoCase.transfer?.resultRef ?? 'HDMB-MOI-S2-12A/2026'}</strong></p>{submitControl()}</form>
+  }
+
+  return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã biên nhận" value={form.receiptRef} onChange={(value) => update('receiptRef', value)} /><FormInput label="Thời điểm nhận" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.receivedAt} onChange={(value) => update('receivedAt', value)} /></div><label className="checkbox-field"><input type="checkbox" checked={form.acknowledged} onChange={(event) => update('acknowledged', event.target.checked)} required /><span>Tôi xác nhận đã nhận đúng HĐMB mới.</span></label>{submitControl()}</form>
+}
+
+function defaultActionForm(type, demoCase, state, candidates, documents) {
+  const actionTimes = demoCase.actionTimes ?? {}
+  const representationStart = dateInputValue(actionTimes[ACTIONS.REQUEST_SELLER_CONFIRMATION])
+  const confirmationDate = dateInputValue(actionTimes[ACTIONS.CONFIRM_REPRESENTATION]).replaceAll('-', '')
+  const defaults = {
+    [ACTIONS.MATCH_PROPERTY]: { candidateId: candidates[0]?.id ?? '', sourceIds: demoCase.property.sourceRecords?.map((item) => item.id) ?? [] },
+    [ACTIONS.REQUEST_SELLER_CONFIRMATION]: { scope: 'Độc quyền', startsOn: representationStart, expiresOn: addDays(representationStart, 30) },
+    [ACTIONS.CONFIRM_REPRESENTATION]: { accepted: false, confirmationRef: `XN-${demoCase.representation.id}-${confirmationDate}` },
+    [ACTIONS.RECORD_BUYER]: { buyerRef: demoCase.parties?.buyer?.reference ?? `BUYER-${demoCase.id}`, agreedPrice: demoCase.listing?.askingPrice?.value ?? 1, expectedSigningOn: dateInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]) },
+    [ACTIONS.VERIFY_READINESS]: { confirmed: true, identityReviewed: false, paymentPlanReviewed: false, documentsReviewed: false, bankConsent: demoCase.id === 'sun-grand-thuy-khue' },
+    [ACTIONS.SUBMIT_NOTARY_DOSSIER]: { submissionRef: demoCase.notary?.id, documentIds: documents.map((item) => typeof item === 'string' ? item : item.id) },
+    [ACTIONS.REQUEST_SUPPLEMENT]: { reasonCode: demoCase.notary?.supplement?.reasonCode ?? 'missing-document', documentType: demoCase.notary?.supplement?.documentType ?? 'Tài liệu bổ sung', dueOn: dateInputValue(actionTimes[ACTIONS.PROVIDE_SUPPLEMENT]) },
+    [ACTIONS.PROVIDE_SUPPLEMENT]: { documentId: 'TLBS-HN-00044', documentType: state.records.notaryDossier.supplement?.documentType ?? 'Xác nhận tình trạng hôn nhân', fileName: 'xac-nhan-tinh-trang-hon-nhan.pdf' },
+    [ACTIONS.RECORD_NOTARY_SIGNING]: { resultRef: demoCase.notary?.resultRef ?? `KQCC-${demoCase.id}`, signedAt: dateTimeInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]), documentDigest: demoCase.id === 'sun-grand-thuy-khue' ? 'a9048b2e113f' : 'c1729d8f482e' },
+    [ACTIONS.APPROVE_LAND_REGISTRY]: { resultRef: 'KQ-ĐKBĐ-260828-044', approvedAt: dateTimeInputValue(actionTimes[ACTIONS.APPROVE_LAND_REGISTRY]), newOwnerRef: demoCase.parties?.buyer?.reference ?? 'PARTY-BUYER-044' },
+    [ACTIONS.DEVELOPER_INTAKE]: { intakeRef: demoCase.transfer?.intakeRef ?? 'TNCĐT-S2-12A-2026', receivedAt: dateTimeInputValue(actionTimes[ACTIONS.DEVELOPER_INTAKE]), documentCount: Math.max(4, demoCase.notary?.requiredDocumentIds?.length ?? 4) },
+    [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: { confirmationRef: `XN-${demoCase.transfer?.intakeRef ?? 'CDT-S2-12A'}`, confirmedAt: dateTimeInputValue(actionTimes[ACTIONS.DEVELOPER_CONFIRM_TRANSFER]) },
+    [ACTIONS.BUYER_RECEIVE_CONTRACT]: { receiptRef: demoCase.transfer?.resultRef ?? 'HDMB-MOI-S2-12A/2026', receivedAt: dateTimeInputValue(actionTimes[ACTIONS.BUYER_RECEIVE_CONTRACT]), acknowledged: false },
+  }
+  return defaults[type] ?? {}
+}
+
+function payloadFor(type, form) {
+  if (type === ACTIONS.MATCH_PROPERTY) {
+    return { candidateId: form.candidateId, sourceIds: form.sourceIds ?? [] }
+  }
+  if (type === ACTIONS.RECORD_BUYER) return { buyerRef: form.buyerRef, agreedPrice: Number(form.agreedPrice), expectedSigningOn: form.expectedSigningOn }
+  if (type === ACTIONS.VERIFY_READINESS) return { confirmed: true, checklist: { identityReviewed: form.identityReviewed, paymentPlanReviewed: form.paymentPlanReviewed, documentsReviewed: form.documentsReviewed }, bankConsent: form.bankConsent }
+  if (type === ACTIONS.SUBMIT_NOTARY_DOSSIER) return { submissionRef: form.submissionRef, documentIds: form.documentIds ?? [] }
+  if (type === ACTIONS.RECORD_NOTARY_SIGNING) return { ...form, signedAt: hanoiTimestamp(form.signedAt) }
+  if (type === ACTIONS.APPROVE_LAND_REGISTRY) return { ...form, approvedAt: hanoiTimestamp(form.approvedAt) }
+  if (type === ACTIONS.DEVELOPER_INTAKE) return { ...form, documentCount: Number(form.documentCount), receivedAt: hanoiTimestamp(form.receivedAt) }
+  if (type === ACTIONS.DEVELOPER_CONFIRM_TRANSFER) return { ...form, confirmedAt: hanoiTimestamp(form.confirmedAt) }
+  if (type === ACTIONS.BUYER_RECEIVE_CONTRACT) return { ...form, receivedAt: hanoiTimestamp(form.receivedAt) }
+  return form
+}
+
+function FormInput({ label, value, onChange, type = 'text', ...props }) {
+  return <label className="form-field"><span>{label}</span><input type={type} value={value ?? ''} onChange={(event) => onChange(event.target.value)} required {...props} /></label>
+}
+
+function FormSelect({ label, value, onChange, options, labels = options }) {
+  return <label className="form-field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} required>{options.map((option, index) => <option key={option} value={option}>{labels[index]}</option>)}</select></label>
+}
+
+function PropertyTab({ property }) {
+  const areas = property.areas ?? []
+  const sources = property.sources ?? property.sourceRecords ?? []
+  const identificationFields = [
+    ['Tên Bất động sản', property.name],
+    ['Loại', property.type],
+    ['Khu vực', property.location],
+    ['Dự án', hasOwn(property, 'project') ? property.project ?? 'Không thuộc dự án' : undefined],
+    ['Căn / thửa', property.unit ?? property.parcelRef],
+    ['Trạng thái đối chiếu', property.status],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '')
+  return (
+    <div className="two-column-grid">
+      <section className="record-panel"><PanelHeading icon={House} title="Thông tin nhận dạng" meta={property.id} /><FieldGrid>{identificationFields.map(([label, value]) => <Field key={label} label={label} value={value} />)}</FieldGrid></section>
+      {areas.length ? <section className="record-panel"><PanelHeading icon={ListChecks} title="Diện tích theo nguồn" /><div className="fact-table">{areas.map((area) => <div key={area.kind ?? area.label}><span>{area.label}</span><strong>{area.displayValue ?? `${String(area.value).replace('.', ',')} ${area.unit}`}</strong><small>{area.sourceLabel ?? area.sourceId}</small></div>)}</div></section> : null}
+      {sources.length ? <section className="record-panel full-span"><PanelHeading icon={LinkSimple} title="Nguồn của bản ghi" /><table className="compact-table"><thead><tr><th>Mã nguồn</th><th>Loại tài liệu</th><th>Ngày ghi nhận</th><th>Trạng thái</th></tr></thead><tbody>{sources.map((source) => <tr key={source.id}><td className="mono">{source.id}</td><td>{source.label ?? source.type}</td><td>{formatDate(source.receivedAt ?? source.effectiveAt ?? source.issuedOn, false)}</td><td><StatusPill tone={statusTone(source.status ?? 'Đã ghi nhận')}>{source.status ?? 'Đã ghi nhận'}</StatusPill></td></tr>)}</tbody></table></section> : null}
+    </div>
+  )
+}
+
+function RepresentationTab({ parties, record }) {
+  const identityFields = [
+    ['Người bán', parties.seller?.displayName],
+    ['Môi giới', parties.agent?.displayName],
+    ['Sàn', parties.agent?.organization],
+    ['Kênh xác nhận', record.confirmationChannel],
+    ['Trạng thái', record.status],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '')
+  const hasScope = hasOwn(record, 'scope') || hasOwn(record, 'request')
+  const hasStart = hasOwn(record, 'startsOn') || hasOwn(record.request, 'startsOn')
+  const hasExpiry = hasOwn(record, 'expiresOn') || hasOwn(record.request, 'expiresOn')
+  const hasConfirmation = hasOwn(record, 'confirmationRef') || hasOwn(record, 'confirmation')
+  const detailFields = [
+    hasScope ? ['Phạm vi', record.scope ?? record.request?.scope, false] : null,
+    hasStart ? ['Ngày bắt đầu', formatDate(record.startsOn ?? record.request?.startsOn, false), false] : null,
+    hasExpiry ? ['Ngày hết hạn', formatDate(record.expiresOn ?? record.request?.expiresOn, false), false] : null,
+    hasConfirmation ? ['Mã xác nhận', record.confirmationRef ?? record.confirmation?.reference, true] : null,
+  ].filter(Boolean)
+  return (
+    <div className="two-column-grid">
+      <section className="record-panel"><PanelHeading icon={IdentificationCard} title="Quyền đại diện" meta={record.id} /><FieldGrid>{identityFields.map(([label, value]) => <Field key={label} label={label} value={value} />)}</FieldGrid></section>
+      {detailFields.length ? <section className="record-panel"><PanelHeading icon={CalendarCheck} title="Phạm vi và hiệu lực" /><FieldGrid>{detailFields.map(([label, value, mono]) => <Field key={label} label={label} value={value} mono={mono} />)}</FieldGrid></section> : null}
+    </div>
+  )
+}
+
+function BankOverview({ records }) {
+  return (
+    <div className="two-column-grid">
+      <section className="record-panel"><PanelHeading icon={Bank} title="Thông tin được chia sẻ" /><FieldGrid><Field label="Loại Bất động sản" value={records.property?.type} /><Field label="Giá đã thống nhất" value={formatMoney(records.readiness?.agreedPrice)} /><Field label="Mốc hồ sơ" value={records.readiness?.status} /></FieldGrid></section>
+      <section className="record-panel"><PanelHeading icon={ListChecks} title="Phạm vi sử dụng" /><FieldGrid><Field label="Trạng thái chia sẻ" value={records.readiness?.financeSharing?.status} /><Field label="Mục đích" value={records.readiness?.financeSharing?.purpose} /><Field label="Trường dữ liệu" value={records.readiness?.financeSharing?.visibleFields?.join(', ')} /></FieldGrid></section>
+    </div>
+  )
+}
+
+function ListingTab({ listing }) {
+  if (!listing) return <RecordEmpty icon={Signpost} title="Chưa có Tin bán" copy="Tin bán được tạo sau khi Người bán xác nhận quyền đại diện." />
+  const channels = listing.channels ?? []
+  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={Signpost} title="Tin bán" meta={listing.id} /><FieldGrid><Field label="Bất động sản" value={listing.propertyId ?? listing.npid} mono /><Field label="Loại giao dịch" value={listing.transactionType} /><Field label="Giá" value={listing.askingPrice?.displayValue ?? formatMoney(listing.askingPrice)} /><Field label="Trạng thái" value={listing.status} /><Field label="Ngày khởi tạo" value={formatDate(listing.createdAt)} /></FieldGrid></section><section className="record-panel full-span"><PanelHeading icon={PlugsConnected} title="Kênh phân phối" /><table className="compact-table channel-table"><thead><tr><th>Kênh</th><th>Phạm vi dữ liệu</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody>{channels.map((channel) => <tr key={channel.id ?? channel.name} data-testid={channel.id === 'housenow' ? 'distribution-housenow' : undefined}><td><span className="channel-name">{channel.icon ? <img src={channel.icon} alt="" /> : null}<strong>{channel.name}</strong></span></td><td>{channel.fieldScope ?? channel.scope}</td><td><StatusPill tone={statusTone(channel.status)}>{channel.status}</StatusPill></td><td>{formatDate(channel.updatedAt)}</td></tr>)}</tbody></table></section></div>
+}
+
+function BuyerTab({ readiness }) {
+  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={User} title="Người mua" meta={readiness.buyer?.reference} /><FieldGrid><Field label="Tham chiếu" value={readiness.buyer?.reference} mono /><Field label="Giá đã thống nhất" value={formatMoney(readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(readiness.expectedSigningOn, false)} /><Field label="Trạng thái" value={readiness.status} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={ListChecks} title="Nội dung đã kiểm tra" /><Checklist items={Object.entries(readiness.checklist ?? {}).map(([key, value]) => ({ id: key, label: { identityReviewed: 'Thông tin định danh', paymentPlanReviewed: 'Phương án thanh toán', documentsReviewed: 'Danh mục tài liệu' }[key] ?? key, state: value ? 'done' : 'pending' }))} /></section>{hasOwn(readiness, 'financeSharing') ? <section className="record-panel full-span"><PanelHeading icon={Bank} title="Chia sẻ với Ngân hàng" /><FieldGrid><Field label="Trạng thái" value={readiness.financeSharing?.status} /><Field label="Mục đích" value={readiness.financeSharing?.purpose} /><Field label="Trường dữ liệu" value={readiness.financeSharing?.visibleFields?.join(', ')} /></FieldGrid></section> : null}</div>
+}
+
+function NotaryTab({ dossier }) {
+  const docs = dossier.documents ?? []
+  const dossierFields = [
+    hasOwn(dossier, 'office') ? ['Văn phòng', dossier.office, false] : null,
+    hasOwn(dossier, 'submission') ? ['Mã tiếp nhận', dossier.submission?.reference, true] : null,
+    ['Trạng thái', dossier.status, false],
+    hasOwn(dossier, 'signedResult') ? ['Kết quả ký', dossier.signedResult?.reference, true] : null,
+  ].filter(Boolean)
+  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={SealCheck} title="Hồ sơ công chứng" meta={dossier.id} /><FieldGrid>{dossierFields.map(([label, value, mono]) => <Field key={label} label={label} value={value} mono={mono} />)}</FieldGrid></section>{docs.length ? <section className="record-panel"><PanelHeading icon={FileText} title="Thành phần hồ sơ" /><Checklist items={docs.map((document) => typeof document === 'string' ? document : ({ id: document.id, label: document.label, state: document.status === 'Thiếu' ? 'warning' : document.status === 'Chưa nộp' ? 'pending' : 'done', stateLabel: document.status }))} /></section> : null}{dossier.supplement ? <section className="record-panel full-span issue-panel"><PanelHeading icon={WarningCircle} title="Yêu cầu bổ sung" meta={dossier.supplement.status} /><FieldGrid><Field label="Loại tài liệu" value={dossier.supplement.documentType} /><Field label="Lý do" value={dossier.supplement.reasonLabel ?? dossier.supplement.reasonCode} /><Field label="Người cung cấp" value="Người bán" /><Field label="Hạn bổ sung" value={formatDate(dossier.supplement.dueOn, false)} /><Field label="Tệp đã gửi" value={dossier.supplement.document?.fileName} /></FieldGrid></section> : null}</div>
+}
+
+function TransferTab({ transaction, transfer, integrations }) {
+  if (!transaction) return <RecordEmpty icon={Handshake} title="Chưa có Giao dịch" copy="Giao dịch được tạo khi hệ thống nhận kết quả ký hợp lệ từ hồ sơ công chứng." />
+  const routeFields = transfer.route === 'developer'
+    ? [
+        ['Mã tiếp nhận', transfer.intakeRef ?? transfer.intake?.reference],
+        ['Mã xác nhận', transfer.confirmationRef ?? transfer.confirmation?.reference],
+        ['HĐMB mới', transfer.contractReference ?? transfer.resultRef],
+        ['Mã biên nhận', transfer.receiptRef ?? transfer.receipt?.reference],
+      ]
+    : [
+        ['Mã kết quả đăng ký', transfer.resultRef ?? transfer.result?.reference],
+        ['Thời điểm hiệu lực', formatDate(transfer.resultAt ?? transfer.result?.approvedAt)],
+        ['Tham chiếu chủ mới', transfer.newOwnerRef],
+      ]
+  return (
+    <div className="two-column-grid">
+      <section className="record-panel"><PanelHeading icon={Handshake} title="Giao dịch" meta={transaction.id} /><FieldGrid><Field label="NPID" value={transaction.propertyId ?? transaction.npid} mono /><Field label="PLID" value={transaction.listingId ?? transaction.plid} mono /><Field label="Hồ sơ công chứng" value={transaction.notaryDossierId} mono /><Field label="Trạng thái" value={transaction.status} /></FieldGrid></section>
+      <section className="record-panel"><PanelHeading icon={routeIcon(transfer.route)} title="Xử lý chuyển quyền" meta={routeLabel(transfer.route)} /><FieldGrid><Field label="Căn cứ định tuyến" value={transfer.basisLabel ?? transfer.basis} /><Field label="Trạng thái" value={transfer.status} />{routeFields.map(([label, value]) => <Field key={label} label={label} value={value} mono />)}</FieldGrid></section>
+      {integrations.length ? <section className="record-panel full-span"><PanelHeading icon={PlugsConnected} title="Sự kiện xử lý" /><IntegrationTable events={integrations} /></section> : null}
+    </div>
+  )
+}
+
+function HistoryTab({ events }) {
+  const showReferences = events.some((event) => event.targetId || event.correlationId)
+  return <section className="record-panel"><PanelHeading icon={ClockCounterClockwise} title="Lịch sử thay đổi" meta={`${events.length} sự kiện`} />{events.length ? <table className="compact-table audit-table"><thead><tr><th>Thời điểm</th><th>Chủ thể</th><th>Thao tác</th>{showReferences ? <th>Đối tượng</th> : null}<th>Thay đổi trạng thái</th>{showReferences ? <th>Mã tương quan</th> : null}</tr></thead><tbody>{[...events].reverse().map((event) => <tr key={event.id}><td>{formatDate(event.occurredAt ?? event.at)}</td><td>{ROLE_LABELS[event.actorRoleId ?? event.actor] ?? event.actorLabel ?? event.actor}</td><td>{event.label ?? event.action}</td>{showReferences ? <td className="mono">{event.targetId}</td> : null}<td>{event.beforeStatus && event.afterStatus ? `${event.beforeStatus} → ${event.afterStatus}` : event.reason ?? event.summary}</td>{showReferences ? <td className="mono">{event.correlationId}</td> : null}</tr>)}</tbody></table> : <p className="empty-copy">Chưa có thay đổi nào.</p>}</section>
+}
+
+function IntegrationTable({ events = [] }) {
+  if (!events.length) return <p className="empty-copy">Chưa có sự kiện xử lý.</p>
+  return <table className="compact-table"><thead><tr><th>Thời điểm</th><th>Hệ thống</th><th>Đối tượng</th><th>Loại sự kiện</th><th>Trạng thái</th><th>Mã tương quan</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{formatDate(event.occurredAt ?? event.at)}</td><td>{event.system ?? event.source}</td><td className="mono">{event.targetId ?? event.target}</td><td>{event.label ?? event.type}</td><td><StatusPill tone={statusTone(event.status)}>{event.status}</StatusPill></td><td className="mono">{event.correlationId}</td></tr>)}</tbody></table>
+}
+
+function SourcesWorkspace() {
+  const [preview, setPreview] = useState(null)
+  const sources = sourceRegistry?.length ? sourceRegistry : [{ id: 'source-357', name: 'Hệ thống thông tin về nhà ở và thị trường BĐS', owner: 'Bộ Xây dựng', url: 'https://thongtinbds.moc.gov.vn/', dataCategory: 'Thông tin nhà ở và thị trường bất động sản', connectionStatus: 'Chưa cấu hình', capturedOn: '15/08/2026', screenshot: '/assets/demo/357-homepage-2026-08-15.png' }]
+  return (
+    <section className="page-shell sources-page">
+      <PageHeader title="Kết nối & nguồn dữ liệu" count={`${sources.length} nguồn`} icon={PlugsConnected} />
+      <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nguồn</th><th>Loại dữ liệu</th><th>Địa chỉ</th><th>Trạng thái kết nối</th><th>Ảnh chụp</th><th><span className="sr-only">Hành động</span></th></tr></thead><tbody>{sources.map((source) => <tr key={source.id} data-testid={source.id === 'source-357' ? 'source-357' : undefined}><td data-label="Nguồn"><strong>{source.name}</strong><small>{source.owner} · <span className="mono">{source.id}</span></small></td><td data-label="Loại dữ liệu">{source.dataCategory}<small>{source.recordCoverage}</small></td><td data-label="Địa chỉ"><a href={source.url} target="_blank" rel="noreferrer">{source.url} <LinkSimple aria-hidden="true" /></a></td><td data-label="Trạng thái"><StatusPill tone={statusTone(source.connectionStatus ?? source.status)}>{source.connectionStatus ?? source.status}</StatusPill></td><td data-label="Ảnh chụp">{source.capturedOn ?? 'Chưa có'}</td><td>{source.screenshot ? <button className="row-action" type="button" onClick={() => setPreview(source)}>Xem ảnh trang chủ</button> : <span className="empty-value">Không có ảnh</span>}</td></tr>)}</tbody></table></div>
+      {preview ? <SourcePreview source={preview} onClose={() => setPreview(null)} /> : null}
+    </section>
+  )
+}
+
+function SourcePreview({ source, onClose }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const returnFocus = document.activeElement
+    ref.current?.querySelector('button')?.focus()
+    return () => returnFocus?.isConnected && returnFocus.focus()
+  }, [])
+  function handleKeyDown(event) {
+    if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
+    if (event.key !== 'Tab') return
+    const controls = [...ref.current.querySelectorAll('button:not([disabled]), a[href]')]
+    if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus() }
+    if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus() }
+  }
+  return <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><aside className="source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title" tabIndex="-1" ref={ref} onKeyDown={handleKeyDown} data-testid="source-preview"><header><div><small>Ảnh chụp {source.capturedOn}</small><h2 id="source-title">{source.name}</h2></div><button type="button" onClick={onClose} aria-label="Đóng"><X aria-hidden="true" /></button></header><img src={source.screenshot} alt={`Trang chủ ${source.name} chụp ngày ${source.capturedOn}`} /><dl><div><dt>Địa chỉ</dt><dd><a href={source.url} target="_blank" rel="noreferrer">{source.url}</a></dd></div><div><dt>Trạng thái kết nối</dt><dd>{source.connectionStatus ?? source.status}</dd></div></dl></aside></div>
+}
+
+function AuditWorkspace({ rows }) {
+  const events = rows.flatMap((row) => row.state.auditEvents.map((event) => ({ ...event, propertyId: row.state.records.property.id }))).sort((a, b) => String(b.occurredAt ?? b.at).localeCompare(String(a.occurredAt ?? a.at)))
+  return <section className="page-shell"><PageHeader title="Nhật ký xử lý" count={`${events.length} sự kiện`} icon={ClockCounterClockwise} /><section className="record-panel">{events.length ? <table className="compact-table audit-table"><thead><tr><th>Thời điểm</th><th>NPID</th><th>Chủ thể</th><th>Thao tác</th><th>Đối tượng</th><th>Mã tương quan</th></tr></thead><tbody>{events.map((event) => <tr key={`${event.propertyId}-${event.id}`}><td>{formatDate(event.occurredAt ?? event.at)}</td><td className="mono">{event.propertyId}</td><td>{ROLE_LABELS[event.actorRoleId ?? event.actor] ?? event.actorLabel}</td><td>{event.label ?? event.action}</td><td className="mono">{event.targetId}</td><td className="mono">{event.correlationId}</td></tr>)}</tbody></table> : <p className="empty-copy">Chưa có sự kiện xử lý.</p>}</section></section>
+}
+
+function PanelHeading({ icon: Icon, title, meta }) {
+  return <header className="panel-heading"><span><Icon weight="duotone" aria-hidden="true" /></span><div><h2>{title}</h2>{meta ? <small>{meta}</small> : null}</div></header>
+}
+
+function StatusRow({ label, value }) {
+  return <div><span>{label}</span><StatusPill tone={statusTone(value)}>{value}</StatusPill></div>
+}
+
+function RecordEmpty({ icon: Icon, title, copy }) {
+  return <div className="record-empty"><Icon aria-hidden="true" /><h2>{title}</h2><p>{copy}</p></div>
+}
+
+function routeLabel(route) {
+  if (route === 'developer') return 'Chủ đầu tư / HĐMB'
+  if (route === 'landRegistry') return 'Văn phòng đăng ký đất đai'
+  return 'Chưa xác định'
+}
+
+function routeIcon(route) {
+  return route === 'developer' ? Buildings : route === 'landRegistry' ? MapPin : Handshake
+}
+
+function NotFound({ role, restricted = false }) {
+  return <div className="page-shell"><div className="empty-state"><FolderOpen aria-hidden="true" /><h1>{restricted ? 'Hồ sơ không thuộc phạm vi được chia sẻ' : 'Không tìm thấy hồ sơ'}</h1><p>{restricted ? 'Danh sách của vai trò này chỉ hiển thị các hồ sơ có quyền chia sẻ còn hiệu lực.' : 'Bản ghi có thể đã đổi mã hoặc không còn trong danh sách.'}</p><ActionButton onClick={() => navigate(rolePath(role.id))}>Quay lại danh sách</ActionButton></div></div>
+}
+
+function Toast({ tone, message, onClose }) {
+  return <div className={`toast toast-${tone}`} role={tone === 'error' ? 'alert' : 'status'}><span>{tone === 'error' ? <WarningCircle weight="fill" /> : <CheckCircle weight="fill" />}</span><strong>{message}</strong><button type="button" onClick={onClose} aria-label="Đóng thông báo"><X aria-hidden="true" /></button></div>
+}
+
+function ResetDialog({ onCancel, onConfirm }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const returnFocus = document.activeElement
+    ref.current?.querySelector('button')?.focus()
+    return () => returnFocus?.isConnected && returnFocus.focus()
+  }, [])
+  function onKeyDown(event) {
+    if (event.key === 'Escape') { event.preventDefault(); onCancel(); return }
+    if (event.key !== 'Tab') return
+    const controls = [...ref.current.querySelectorAll('button:not([disabled])')]
+    if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus() }
+    if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus() }
+  }
+  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}><section className="reset-dialog" ref={ref} role="dialog" aria-modal="true" aria-labelledby="reset-title" onKeyDown={onKeyDown}><button className="dialog-close" type="button" onClick={onCancel} aria-label="Đóng"><X aria-hidden="true" /></button><ClockCounterClockwise className="dialog-icon" aria-hidden="true" /><h2 id="reset-title">Đặt lại 2 hồ sơ?</h2><p>Các thay đổi đã lưu trong trình duyệt sẽ trở về trạng thái ban đầu.</p><div><ActionButton secondary icon={null} onClick={onCancel}>Hủy</ActionButton><ActionButton danger icon={null} onClick={onConfirm} testId="confirm-reset">Đặt lại dữ liệu</ActionButton></div></section></div>
 }
 
 export default App

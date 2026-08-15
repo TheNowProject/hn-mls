@@ -20,6 +20,7 @@ tmp/
 output/pdf/
 output/playwright/
 output/qa/vmls-interactive-demo/
+output/qa/vmls-data-product-redesign/
 
 # Common generated artifacts
 build/

@@ -1,5 +1,5 @@
 ---
-title: Kịch bản trình diễn VMLS công khai
+title: Kịch bản vận hành VMLS
 status: proposal
 authority: working
 last_reviewed: 2026-08-15
@@ -11,173 +11,164 @@ evidence_labels:
   - OPEN QUESTION
 ---
 
-# Kịch bản trình diễn VMLS công khai
+# Kịch bản vận hành VMLS
 
-## Mục tiêu buổi trình diễn
+## Mục đích
 
-Trong 15 phút, người xem cần có thể:
+Kịch bản này kiểm tra và trình diễn VMLS như một sản phẩm dữ liệu phục vụ vận hành. Người thao tác làm việc từ hàng đợi và trang chi tiết, nhập các trường nghiệp vụ mà từng vai trò cần, rồi kiểm tra đối tượng và sự kiện được cập nhật.
 
-1. Phân biệt **Bất động sản / NPID**, **Tin bán / PLID** và **Giao dịch / PTID** là ba đối tượng có danh tính và lịch sử riêng.
-2. Mô tả VMLS là lớp điều phối và sổ đăng ký sống, không thay thế thẩm quyền của Văn phòng công chứng, Văn phòng đăng ký đất đai, Chủ đầu tư hoặc cơ quan thuế.
-3. Nhận ra hai tuyến chuyển quyền được xác định từ hồ sơ: tuyến **Chủ đầu tư / HĐMB** và tuyến **Văn phòng đăng ký đất đai**.
-4. Chuyển từ phản hồi về màn hình sang một cuộc thảo luận cụ thể về pilot VMLS.
+Phiên chạy đạt yêu cầu khi người xem có thể tự xác định từ giao diện:
 
-`PROPOSAL`: Toàn bộ hành trình `vmls-process-v2`, quy tắc điều phối và bề mặt tích hợp trong demo là phương án để thảo luận. Đây không phải quy trình pháp lý, vận hành hoặc hợp đồng tích hợp đã được phê duyệt.
+1. bản ghi nào đang được xử lý;
+2. vai trò nào chịu trách nhiệm cho công việc tiếp theo;
+3. hành động yêu cầu dữ liệu gì;
+4. vì sao `NPID`, `PLID` và `PTID` là ba đối tượng riêng nhưng có liên kết;
+5. vì sao hồ sơ đi tuyến VPĐKĐĐ hoặc Chủ đầu tư;
+6. kết quả bên ngoài và sự kiện audit nào đã được nối thêm.
 
-## Chuẩn bị trước khi trình diễn
+`PROPOSAL`: Các lệnh và sự kiện tích hợp trong phiên chạy thực thi hợp đồng đề xuất của `vmls-process-v2`. Chúng không xác lập quy trình pháp lý, thuế, định danh, công chứng, đăng ký đất đai, Chủ đầu tư hoặc hợp đồng tích hợp đã được phê duyệt.
 
-- Mở bản triển khai bằng cửa sổ riêng ở tỷ lệ thu phóng 100%; ưu tiên khung 1440 × 900 hoặc video 1920 × 1080.
-- Kiểm tra hai hồ sơ xuất hiện độc lập: `S2-12A · Thụy Khuê` và `Nhà ở · Phú Thượng`.
-- Kiểm tra ảnh 357 tại `/assets/demo/357-homepage-2026-08-15.png` và biểu tượng HouseNow tại `/assets/demo/housenow-icon.png` hiển thị rõ.
-- Chọn **Khôi phục dữ liệu mẫu** trước buổi trình diễn; xác nhận cả hai hồ sơ trở về bước đầu.
-- Kiểm tra nút **Tiếp tục** đưa người xem tới hành động hợp lệ tiếp theo, không bỏ qua điều kiện trước.
-- Giữ con trỏ ngoài nội dung chính khi đổi vai để người xem chú ý vào thay đổi của góc nhìn theo vai, không vào thao tác trình diễn.
+## Kiểm tra trước khi chạy
 
-Các trạng thái gốc cần xác nhận:
+- Mở đúng release candidate ở mức zoom 100%; ưu tiên 1440 × 900 hoặc 1920 × 1080.
+- Xác nhận màn hình đầu tiên là hàng đợi `Công việc cần xử lý` của Môi giới. Không có trang giới thiệu hoặc trang trình bày trước hàng đợi.
+- Chọn `Đặt lại dữ liệu`, xác nhận hộp thoại và kiểm tra cả hai dòng trở về `Chờ đối chiếu`.
+- Kiểm tra tìm kiếm nhận tên hồ sơ, dự án/khu vực, `NPID`, `PLID` hoặc `PTID`.
+- Kiểm tra hai hồ sơ cấu hình sẵn xuất hiện độc lập.
+- Kiểm tra `/assets/demo/housenow-icon.png` và `/assets/demo/357-homepage-2026-08-15.png` tải từ local asset.
+- Với phiên QA hoặc quay video, mở console ở một cửa sổ riêng.
 
-| Đối tượng | Hồ sơ S2-12A | Hồ sơ Phú Thượng |
-|---|---|---|
-| Bất động sản | `NPID-HN-09876` | `NPID-HN-10421` |
-| Tin bán | `PLID-HN-00125` · `Chưa khởi tạo` | `PLID-HN-00208` · `Chưa khởi tạo` |
-| Giao dịch | `PTID-HN-00031` · `Chưa khởi tạo` | `PTID-HN-00044` · `Chưa khởi tạo` |
-| Tuyến dự kiến từ hồ sơ | Chủ đầu tư / HĐMB | Văn phòng đăng ký đất đai |
+### Trạng thái ban đầu
 
-## Tuyến trình diễn chính — 15 phút
+| Hồ sơ | NPID | PLID sau xác nhận | PTID sau kết quả ký | Căn cứ chuyển quyền | Tuyến mong đợi |
+|---|---|---|---|---|---|
+| Căn hộ S2-12A · Thụy Khuê | `NPID-HN-09876` | `PLID-HN-00125` | `PTID-HN-00031` | Hợp đồng mua bán với Chủ đầu tư | Chủ đầu tư / HĐMB |
+| Nhà ở · Phú Thượng | `NPID-HN-10421` | `PLID-HN-00208` | `PTID-HN-00044` | Giấy chứng nhận quyền sử dụng đất | Văn phòng đăng ký đất đai |
 
-Tên nút trong cột **Hành động chính xác** phải khớp giao diện. Không nhấp hành động kế tiếp nếu trạng thái mong đợi chưa xuất hiện.
+Sau khi đặt lại, PLID và PTID có thể tồn tại trong cấu hình nhưng không được xuất hiện như bản ghi đã tạo trong hàng đợi hoặc thanh liên kết đối tượng.
 
-| Thời gian | Hồ sơ / vai đang chọn | Hành động chính xác | Trạng thái mong đợi và lời dẫn |
+## Phiên vận hành chuẩn — 15 phút
+
+Dùng bộ chọn vai trò/không gian làm việc đang hiển thị. Mở hồ sơ từ hàng đợi của vai trò tương ứng, không dùng liên kết “vai trò tiếp theo”. Giữ các giá trị đã điền sẵn trong form trừ khi đang kiểm tra validation.
+
+| Thời gian | Không gian làm việc | Thao tác | Điểm phải kiểm tra |
 |---|---|---|---|
-| 00:00–00:45 | Giới thiệu | Chọn **Khám phá hai hồ sơ** | Nói: “VMLS cho mỗi Bất động sản một danh tính bền vững và nối Tin bán, Giao dịch, nguồn cùng lịch sử vào danh tính đó.” Chỉ rõ nhãn **Mô phỏng đề xuất**. |
-| 00:45–01:25 | S2-12A · **Môi giới** | Mở hồ sơ và ba thẻ danh tính | Chỉ `NPID-HN-09876`; hai thẻ PLID và PTID ghi **Chưa cấp mã**. Nhấn mạnh mã Tin bán và Giao dịch chưa tồn tại trong vòng đời nghiệp vụ. |
-| 01:25–02:05 | S2-12A · **Môi giới** | **Đối chiếu Bất động sản** → **Gửi xác nhận cho Người bán** | Bằng chứng đối chiếu chuyển sang đạt; yêu cầu xác nhận được gửi. Mở thẻ nguồn 357: đây là ảnh trang chính chụp ngày 15/08/2026, không phải bằng chứng kết nối hay xác minh hồ sơ. |
-| 02:05–02:45 | S2-12A · **Người bán** | **Xác nhận quyền đại diện** | Quyền đại diện được xác nhận và có thời điểm trong lịch sử. Nói rõ VNeID trên màn hình là chuyển tiếp trung lập được mô phỏng, không đăng nhập thật. |
-| 02:45–03:25 | S2-12A · **VMLS** | **Khởi tạo Tin bán** | `PLID-HN-00125` có trạng thái **Đã khởi tạo**, tuyệt đối không gọi là “đang hoạt động”. HouseNow xuất hiện một lần với biểu tượng đúng vai trò **kênh phân phối**. |
-| 03:25–03:55 | S2-12A · **Sàn môi giới** | Chỉ xem góc nhìn theo vai, không có hành động | Sàn thấy tính đầy đủ của quyền đại diện, Tin bán và điểm nghẽn; không thấy định danh đầy đủ của các bên. Đây là một góc nhìn hỗ trợ, không phải bước mới của v2. |
-| 03:55–04:40 | S2-12A · **Môi giới → Người mua** | Môi giới chọn **Ghi nhận Người mua**, rồi Người mua chọn **Xác nhận sẵn sàng công chứng** | Khu vực không đánh số chuyển thành **Đã sẵn sàng công chứng**; PTID vẫn chưa được cấp. |
-| 04:40–05:05 | S2-12A · **Ngân hàng** | Chỉ xem góc nhìn theo vai, không có hành động | Ngân hàng chỉ thấy giá, loại Bất động sản, mốc sẵn sàng và trạng thái đồng ý chia sẻ; không thấy tài liệu công chứng hoặc liên hệ Người bán. |
-| 05:05–05:50 | S2-12A · **Văn phòng công chứng** | **Tiếp nhận hồ sơ công chứng** | `HSCC-HN-00031` thành **Đã tiếp nhận**. VMLS chỉ nhận trạng thái cần thiết; nghiệp vụ công chứng vẫn ở không gian làm việc của VPCC. |
-| 05:50–06:25 | S2-12A · **Văn phòng công chứng** | **Ghi nhận kết quả ký** | Hồ sơ thành **Đã ký công chứng** và trả mã tương quan về VMLS. |
-| 06:25–07:05 | S2-12A · **VMLS** | **Tạo tham chiếu Giao dịch** | `PTID-HN-00031` được tạo dưới nhãn **mã tham chiếu demo**; sự kiện thuế được nối vào nhật ký; tuyến **Chủ đầu tư / HĐMB** được xác định tự động. |
-| 07:05–08:10 | S2-12A · **Chủ đầu tư → Người mua** | Chủ đầu tư chọn **Tiếp nhận hồ sơ chuyển nhượng** → **Xác nhận chuyển nhượng HĐMB**; Người mua chọn **Xác nhận nhận HĐMB mới** | Ba sự kiện nối tiếp, không ghi đè lịch sử. Người mua nhận HĐMB mới; Bất động sản, Tin bán và Giao dịch vẫn là ba bản ghi riêng. |
-| 08:10–08:40 | S2-12A · **Người mua** | Xem bảng **Bản ghi sống đã được cập nhật** | Trạng thái cuối là **HĐMB mới đã bàn giao**. Không có nút hoặc bước “đóng giao dịch” giả. Chỉ diện tích `69,2 m² thông thủy` và `82,3 m² tim tường` cùng nguồn riêng. |
-| 08:40–09:20 | Nhà ở Phú Thượng · **Môi giới** | **Đối chiếu Bất động sản** → **Gửi xác nhận cho Người bán** | Chuyển sang hồ sơ độc lập, nhãn **Dữ liệu giả lập**. `NPID-HN-10421` không dùng lại bất kỳ mã nào của S2-12A. |
-| 09:20–09:55 | Nhà ở Phú Thượng · **Người bán** | **Xác nhận quyền đại diện** | Quyền đại diện được xác nhận cho đúng hồ sơ Phú Thượng; tiến độ S2-12A không thay đổi. |
-| 09:55–10:25 | Nhà ở Phú Thượng · **VMLS** | **Khởi tạo Tin bán** | `PLID-HN-00208` thành **Đã khởi tạo**; `PTID-HN-00044` vẫn chưa được tạo. |
-| 10:25–10:55 | Nhà ở Phú Thượng · **Môi giới → Người mua** | Môi giới chọn **Ghi nhận Người mua**, rồi Người mua chọn **Xác nhận sẵn sàng công chứng** | Khu vực sẵn sàng hoàn tất mà không làm thay đổi Bất động sản hay Tin bán. |
-| 10:55–11:30 | Nhà ở Phú Thượng · **Văn phòng công chứng** | **Tiếp nhận hồ sơ công chứng** → **Minh họa yêu cầu bổ sung** | Hồ sơ thành **Yêu cầu bổ sung**; lần nộp đầu vẫn còn trong lịch sử. Đây là ngoại lệ có thể phục hồi, không phải màn hình lỗi cụt. |
-| 11:30–11:55 | Nhà ở Phú Thượng · **Môi giới** | **Bổ sung tài liệu** | Hồ sơ trở lại **Đủ điều kiện ký**; nội dung định danh trong tài liệu vẫn được che. |
-| 11:55–12:20 | Nhà ở Phú Thượng · **Văn phòng công chứng** | **Ghi nhận kết quả ký** | Hồ sơ thành **Đã ký công chứng** và trả kết quả về VMLS. |
-| 12:20–12:55 | Nhà ở Phú Thượng · **VMLS** | **Tạo tham chiếu Giao dịch** | `PTID-HN-00044` được tạo; nhật ký thuế được nối; tuyến **Văn phòng đăng ký đất đai** được xác định từ hồ sơ, không do Người bán chọn. |
-| 12:55–13:35 | Nhà ở Phú Thượng · **Văn phòng đăng ký đất đai** | **Ghi nhận kết quả sang tên** | Kết quả API mô phỏng `KQ-ĐKBĐ-260828-044` được nối vào lịch sử; trạng thái thành **Đã ghi nhận đăng ký biến động**. |
-| 13:35–14:10 | **VMLS** | So sánh hai **Bản ghi sống** | Tóm tắt tuyến HĐMB và tuyến VPĐKĐĐ. Nói: “VMLS không làm thay cơ quan hoặc doanh nghiệp; VMLS giúp các bên cùng nhìn một chuỗi trạng thái có danh tính và nguồn.” |
-| 14:10–15:00 | **Cùng thiết kế pilot VMLS** | **Mở bản thảo pilot** | Chọn một tuyến ưu tiên, đầu mối tổ chức, dữ liệu được phép và tiêu chí thành công. Kết thúc bằng lời mời đồng thiết kế, không dùng một bước chốt giả. |
+| 00:00–00:45 | Môi giới · Công việc | Tìm `NPID-HN-09876`; chọn `Việc của tôi`; mở S2-12A | Tìm kiếm và filter áp dụng trên cùng một bảng. Dòng có NPID, chưa có PLID/PTID, có trạng thái, người phụ trách và hạn xử lý. |
+| 00:45–01:40 | S2-12A · Tổng quan | Mở công việc hiện tại, so sánh hai candidate, chọn `NPID-HN-09876`, rồi chọn `Khớp Bất động sản` | Việc chọn candidate là tường minh. Nguồn đã chọn và trạng thái BĐS được ghi nhận; không chọn nhầm căn gần giống. |
+| 01:40–02:25 | S2-12A · Quyền đại diện | Nhập phạm vi, ngày hiệu lực và ngày hết hạn; gửi `Gửi yêu cầu xác nhận` | Yêu cầu chứa đúng BĐS, môi giới, phạm vi và thời hạn. Chủ sở hữu công việc chuyển sang Người bán. |
+| 02:25–03:05 | Người bán · Yêu cầu và tài liệu | Mở S2-12A, kiểm tra BĐS/môi giới/phạm vi/thời hạn, tích xác nhận và gửi | Representation thành `Đã xác nhận`. `PLID-HN-00125` tự xuất hiện với trạng thái Tin bán `Đã khởi tạo`. Không có thao tác VMLS chen giữa hai kết quả. |
+| 03:05–03:35 | S2-12A · Tin bán | Kiểm tra trường Tin bán và bảng `Kênh phân phối` | NPID và PLID tách biệt. HouseNow là một dòng kênh có đúng icon được cung cấp, phạm vi trường và trạng thái gửi. |
+| 03:35–04:15 | Môi giới · S2-12A | Nhập tham chiếu Người mua, giá thỏa thuận và ngày dự kiến ký; gửi `Ghi nhận Người mua` | Chủ sở hữu công việc chuyển sang Người mua. PTID vẫn chưa tồn tại. |
+| 04:15–04:55 | Người mua · Hồ sơ mua | Hoàn tất toàn bộ checklist sẵn sàng; giữ lựa chọn chia sẻ tài chính đã cấu hình; gửi | Readiness thành `Đã sẵn sàng công chứng`. Hồ sơ xuất hiện trong hàng đợi VPCC. Nếu đã đồng ý chia sẻ, hồ sơ cũng xuất hiện ở Ngân hàng với đúng tập trường. |
+| 04:55–05:25 | Ngân hàng · Hồ sơ được chia sẻ | Mở S2-12A và kiểm tra trường được trả về | Chỉ có loại BĐS, giá đã thống nhất, mốc sẵn sàng và mục đích chia sẻ. Không có giá chào, thông tin Người bán, tài liệu VPCC hoặc audit đầy đủ. |
+| 05:25–06:10 | VPCC · Hồ sơ công chứng | Mở S2-12A, nhập mã tiếp nhận, chọn đủ tài liệu bắt buộc và gửi `Tiếp nhận hồ sơ` | Hồ sơ thành `Đã tiếp nhận`; mã tiếp nhận và trạng thái từng tài liệu hiển thị. |
+| 06:10–06:50 | VPCC · S2-12A | Nhập mã kết quả ký, thời điểm và mã kiểm tra tài liệu; gửi `Ghi nhận kết quả ký` | Kết quả VPCC được lưu. `PTID-HN-00031` tự tạo; sự kiện thuế và định tuyến được nối; tuyến là Chủ đầu tư/HĐMB. |
+| 06:50–07:45 | Chủ đầu tư · Chuyển nhượng HĐMB | Gửi mã tiếp nhận, thời điểm, số tài liệu; sau đó gửi mã và thời điểm xác nhận chuyển nhượng | Cùng một PTID chuyển từ chờ tiếp nhận sang chờ Người mua nhận. Không tạo Giao dịch trùng. |
+| 07:45–08:15 | Người mua · Hồ sơ mua | Nhập mã biên nhận/thời điểm, tích xác nhận đã nhận HĐMB và gửi | Tuyến thành `Đã bàn giao HĐMB mới`; có tham chiếu HĐMB mới. Không có thao tác closing riêng. |
+| 08:15–08:45 | Vận hành VMLS · Nhật ký | Mở lịch sử S2-12A | Audit giữ actor, target, trạng thái trước/sau, thời điểm và correlation. Sự kiện tích hợp có kết quả VPCC, PTID, thuế, routing, Chủ đầu tư và biên nhận. |
+| 08:45–09:20 | Vận hành VMLS · Kết nối & nguồn dữ liệu | Mở dòng 357 và `Xem ảnh trang chủ`; đóng drawer | Dòng có chủ nguồn, URL, ngày chụp, phạm vi và `Chưa cấu hình`. Ảnh không được gắn vào NPID như provenance của hồ sơ. |
+| 09:20–10:35 | Môi giới rồi Người bán · Phú Thượng | Khớp `NPID-HN-10421`, gửi yêu cầu đại diện có thời hạn, rồi xác nhận ở vai Người bán | `PLID-HN-00208` tự tạo và hoàn toàn độc lập với S2-12A. |
+| 10:35–11:30 | Môi giới rồi Người mua · Phú Thượng | Ghi nhận Người mua, rồi hoàn tất checklist readiness | Phú Thượng vào hàng đợi VPCC; trạng thái chia sẻ tài chính không kế thừa từ S2-12A. |
+| 11:30–12:20 | VPCC · Phú Thượng | Tiếp nhận đủ hồ sơ; chọn `Yêu cầu bổ sung`; kiểm tra loại tài liệu, lý do và hạn rồi gửi | Hồ sơ thành `Yêu cầu bổ sung`. Lần tiếp nhận ban đầu còn trong lịch sử và công việc chuyển sang Người bán. |
+| 12:20–12:55 | Người bán · Phú Thượng | Nhập mã tài liệu bổ sung, đúng loại được yêu cầu và tên tệp PDF; gửi | Hồ sơ thành `Đủ hồ sơ ký`; dữ liệu yêu cầu và phản hồi đều được giữ. |
+| 12:55–13:40 | VPCC · Phú Thượng | Gửi mã kết quả ký, thời điểm và digest | `PTID-HN-00044` tự tạo; tuyến là VPĐKĐĐ theo căn cứ Giấy chứng nhận. |
+| 13:40–14:25 | VPĐKĐĐ · Đăng ký biến động | Nhập mã kết quả, thời điểm hiệu lực và tham chiếu Người mua đã cấu hình; gửi | BĐS và Giao dịch thành `Đã sang tên`; mã kết quả bên ngoài xuất hiện. |
+| 14:25–15:00 | Sàn môi giới rồi Vận hành VMLS | Kiểm tra hàng đợi điều phối và bảng audit/tích hợp tổng hợp | Hai hồ sơ có danh tính và kết quả độc lập. Không còn blocker mở và số liệu khớp với dòng đang hiển thị. |
 
-## Các điểm phải được người xem nhìn thấy
+## Điểm kiểm tra payload
 
-- `NPID` luôn nằm trên **Bất động sản**, `PLID` luôn nằm trên **Tin bán**, `PTID` luôn nằm trên **Giao dịch**.
-- Tin bán sau bước 03 là **Đã khởi tạo**, không phải “Active”, “đang bán” hoặc “đã duyệt”.
-- PTID chỉ xuất hiện sau khi VPCC trả kết quả **Đã ký công chứng**.
-- Người dùng không chọn tuyến; hồ sơ xác định tuyến và nhật ký ghi lại lý do.
-- Yêu cầu bổ sung nối thêm sự kiện, không xóa lần nộp cũ.
-- Sàn môi giới và Ngân hàng có góc nhìn hữu ích trên cùng hồ sơ, không tạo thêm bước quy trình.
-- Kết thúc là **Bản ghi sống đã cập nhật**, không phải Closing Record hoặc tuyên bố giao dịch pháp lý đã hoàn tất.
+Không chấp nhận thay đổi trạng thái nếu form chưa hiển thị và thu đủ payload tương ứng.
 
-## Đào sâu tùy chọn — phiên 60 phút
-
-Có thể dùng từng mô-đun độc lập hoặc chạy đủ sáu mô-đun. Luôn khôi phục dữ liệu mẫu trước mô-đun cần thao tác từ đầu.
-
-| Phút | Mô-đun | Vai và thao tác | Câu hỏi cần chốt |
-|---|---|---|---|
-| 00–10 | Danh tính và nguồn | **Môi giới** mở NPID, hai khái niệm diện tích và ảnh 357; thực hiện **Đối chiếu Bất động sản** rồi **Gửi xác nhận cho Người bán** | Nguồn nào được phép tạo claim? Ai xử lý xung đột? Trường nào là công khai, trong ngành hoặc hạn chế? |
-| 10–20 | Quyền đại diện và Tin bán | **Người bán** thực hiện **Xác nhận quyền đại diện**; **VMLS** thực hiện **Khởi tạo Tin bán**; chuyển sang **Sàn môi giới** và xem HouseNow | Nội dung xác nhận, thời hạn, thu hồi và trách nhiệm kiểm duyệt thuộc về ai? HouseNow nhận trường nào và theo cơ chế đối soát nào? |
-| 20–30 | Sẵn sàng và công chứng | **Môi giới** ghi nhận Người mua; **Người mua** xác nhận sẵn sàng; **VPCC** tiếp nhận, yêu cầu bổ sung và ghi nhận kết quả ký; **Môi giới** nộp bổ sung | Bộ hồ sơ tối thiểu là gì? Trạng thái nào được chia sẻ? Mã tương quan và cơ chế gửi lại hoạt động ra sao? |
-| 30–40 | PTID, thuế và điều phối | **VMLS** tạo Giao dịch; so sánh lý do tuyến của hai hồ sơ; mở nhật ký tích hợp | Ai cấp hoặc đối chiếu PTID chính thức? Thuế cần bước phê duyệt thủ công không? Quy tắc tuyến nào có thẩm quyền xác nhận? |
-| 40–50 | Sáu góc nhìn thị trường | Lần lượt chọn **Môi giới → Sàn môi giới → Chủ đầu tư → Người mua → Người bán → Ngân hàng** trên cùng hồ sơ | Mỗi vai cần trường nào để hoàn thành công việc? Trường nào tuyệt đối không được trả về góc nhìn đó? Cần bằng chứng đồng ý nào? |
-| 50–60 | Hai kết quả và thiết kế pilot | Hoàn tất **Chủ đầu tư** trên S2-12A, **VPĐKĐĐ** trên Phú Thượng, so sánh bản ghi sống rồi mở **Cùng thiết kế pilot VMLS** | Tuyến nào có giá trị kiểm chứng lớn nhất nhưng phạm vi nhỏ nhất? Đơn vị đầu mối, dữ liệu, tiêu chí chấp nhận và ranh giới pháp lý là gì? |
-
-### Gợi ý đào sâu theo vai
-
-- **Môi giới:** tập trung thời gian tìm đúng Bất động sản, nguồn đối chiếu và khả năng theo dõi thay cho trao đổi rời rạc.
-- **Sàn môi giới:** tập trung hàng đợi chất lượng, quyền đại diện, điểm nghẽn và dữ liệu không được nhìn thấy.
-- **Chủ đầu tư:** tập trung việc chỉ nhận đúng hồ sơ HĐMB, ba mốc tiếp nhận–xác nhận–bàn giao và đồng bộ tự động.
-- **Người mua:** tập trung khả năng hiểu tài sản, trạng thái hồ sơ của mình và kết quả nhận được.
-- **Người bán:** tập trung quyền xác nhận có phạm vi, lịch sử không bị xóa và cách xử lý bổ sung.
-- **Ngân hàng:** tập trung góc nhìn giới hạn theo đúng mục đích; không biến việc có mặt trong hệ sinh thái thành quyền xem toàn bộ hồ sơ.
-- **VPCC / VPĐKĐĐ / VMLS:** tập trung quyền sở hữu thao tác, mã tương quan, trạng thái tối thiểu và nhật ký nối tiếp.
-
-## Khôi phục, tiếp tục và phương án dự phòng
-
-### Khôi phục dữ liệu mẫu
-
-1. Chọn **Khôi phục dữ liệu mẫu**.
-2. Xác nhận hành động khi giao diện hỏi; đây là thao tác xóa tiến độ demo trong trình duyệt, không xóa dữ liệu nguồn hay gọi hệ thống bên ngoài.
-3. Kiểm tra cả hai Tin bán và Giao dịch trở về **Chưa khởi tạo**.
-4. Kiểm tra lịch sử mỗi hồ sơ chỉ còn sự kiện nạp dữ liệu mẫu tương ứng.
-
-### Tiếp tục phiên đang dở
-
-- Chọn **Tiếp tục hành trình** ở trang giới thiệu để tới hồ sơ và hành động hợp lệ gần nhất.
-- Nếu vai hiện tại không có quyền thực hiện hành động tiếp theo, dùng gợi ý đổi vai; không diễn giải nút bị khóa như lỗi kỹ thuật.
-- Tiến độ của hai hồ sơ phải độc lập. Nếu thay đổi sai hồ sơ, khôi phục dữ liệu mẫu trước khi tiếp tục buổi trình diễn chính thức.
-
-### Dự phòng trình diễn
-
-- Nếu bản triển khai công khai không truy cập được, dùng bản `vite preview` từ đúng bản build đã kiểm thử và nói rõ đang chạy bản tĩnh cục bộ.
-- Nếu ảnh 357 không tải, không mở trang web trực tiếp giữa buổi. Dùng thẻ nguồn kèm dòng ghi công, sau đó sửa asset trước khi quay video chính thức.
-- Nếu biểu tượng HouseNow không tải, dừng bản ghi chính thức và khôi phục asset; đây là hiện vật bắt buộc trong hành trình.
-- Nếu trạng thái không khớp, kiểm tra đúng hồ sơ, đúng vai và điều kiện trước. Nếu chưa rõ, khôi phục dữ liệu mẫu thay vì nhấp thử nhiều hành động.
-- Nếu trình duyệt chặn lưu trữ, tiếp tục trong một phiên duy nhất và không tải lại trang; ghi nhận giới hạn trong báo cáo QA.
-- Nếu bố cục trình chiếu quá chật, ẩn thanh công cụ trình duyệt hoặc chuyển về khung 1440 × 900; không giảm chữ tới mức khó đọc.
-
-## Lời mời thiết kế pilot
-
-Mở màn **Cùng thiết kế pilot VMLS** và dùng lời dẫn:
-
-> “Đây chưa phải đề nghị triển khai một hệ thống hoàn chỉnh. Chúng ta hãy chọn một tuyến đủ nhỏ, xác định ai chịu trách nhiệm cho từng trạng thái, dữ liệu nào được phép dùng và bằng chứng nào cho thấy pilot tạo giá trị.”
-
-Ghi nhận bốn đầu ra ngay trong cuộc thảo luận:
-
-1. Một tuyến và phân khúc hoặc địa bàn ưu tiên.
-2. Đầu mối của các tổ chức tham gia.
-3. Bộ dữ liệu giả lập hoặc đã che được phép sử dụng.
-4. Tiêu chí chấp nhận về thời gian, chất lượng dữ liệu, khả năng truy vết và góc nhìn theo vai.
-
-Không ghi nhận sự quan tâm như một cam kết mua, phê duyệt pháp lý hoặc đồng ý chia sẻ dữ liệu.
-
-## Chú thích cho video không lời
-
-Các câu dưới đây dùng làm chú thích nổi hoặc phụ đề đọc được ở 1080p. Giữ mỗi chú thích trên màn hình ít nhất 3 giây.
-
-| Mốc gợi ý | Chú thích |
+| Hành động | Trường phải kiểm tra |
 |---|---|
-| 00:00 | **VMLS — Một danh tính bền vững, một lịch sử có thể truy vết** |
-| 00:25 | **Bản demo tĩnh · Dữ liệu giả lập · Không kết nối hệ thống thật** |
-| 00:50 | **Bất động sản / NPID ≠ Tin bán / PLID ≠ Giao dịch / PTID** |
-| 01:30 | **Môi giới bắt đầu từ đúng Bất động sản, không tạo một bản sao rời rạc** |
-| 02:10 | **Ảnh 357 là nguồn tham khảo được ghi công — không phải bằng chứng tích hợp hoặc bảo chứng** |
-| 02:45 | **Người bán xác nhận quyền đại diện qua chuyển tiếp VNeID mô phỏng** |
-| 03:30 | **Tin bán được khởi tạo với PLID riêng — chưa phải Tin bán đang hoạt động** |
-| 04:05 | **HouseNow là một kênh phân phối; VMLS giữ danh tính và lịch sử lõi** |
-| 04:45 | **Mỗi vai chỉ thấy dữ liệu cần thiết cho mục đích của mình** |
-| 05:35 | **PTID chưa xuất hiện khi hồ sơ mới chỉ sẵn sàng công chứng** |
-| 06:35 | **VPCC trả kết quả; VMLS mới tạo mã Giao dịch tham chiếu** |
-| 07:10 | **Thuế là chuỗi sự kiện tự động mô phỏng; cơ chế thật vẫn cần xác nhận** |
-| 07:35 | **Hồ sơ xác định tuyến — Người bán không chọn cơ quan xử lý** |
-| 08:15 | **Tuyến HĐMB: Chủ đầu tư tiếp nhận → xác nhận → bàn giao HĐMB mới** |
-| 09:20 | **Hồ sơ thứ hai độc lập hoàn toàn và dùng dữ liệu giả lập** |
-| 10:40 | **Yêu cầu bổ sung nối thêm lịch sử, không xóa lần nộp trước** |
-| 12:15 | **Tuyến VPĐKĐĐ: kết quả API mô phỏng cập nhật bản ghi sống** |
-| 13:10 | **Hai kết quả, cùng một nguyên tắc: danh tính, nguồn và trạng thái có thể truy vết** |
-| 14:15 | **VMLS điều phối — không thay thế thẩm quyền của các bên** |
-| 15:00 | **Cùng thiết kế một pilot đủ nhỏ để kiểm chứng giá trị** |
+| Khớp Bất động sản | Candidate NPID và toàn bộ nguồn đã chọn |
+| Gửi yêu cầu đại diện | Phạm vi, ngày bắt đầu, ngày hết hạn |
+| Người bán xác nhận | Đúng BĐS, môi giới/sàn, phạm vi, thời hạn, xác nhận tường minh |
+| Ghi nhận Người mua | Tham chiếu Người mua, giá VND nguyên, ngày dự kiến ký |
+| Người mua xác nhận | Định danh, phương án thanh toán, tài liệu; chia sẻ Ngân hàng là tùy chọn |
+| VPCC tiếp nhận | Mã tiếp nhận và toàn bộ tài liệu bắt buộc |
+| Yêu cầu bổ sung | Mã lý do, đúng loại tài liệu, hạn bổ sung |
+| Gửi bổ sung | Mã tài liệu, đúng loại, tên tệp PDF |
+| VPCC ghi nhận ký | Mã kết quả, thời điểm trong chronology tháng 08/2026, digest tài liệu |
+| Kết quả VPĐKĐĐ | Mã kết quả, thời điểm hiệu lực, tham chiếu Người mua đã cấu hình |
+| Chủ đầu tư tiếp nhận | Mã tiếp nhận, thời điểm, số tài liệu |
+| Chủ đầu tư xác nhận | Mã xác nhận và thời điểm |
+| Người mua nhận HĐMB | Mã biên nhận, thời điểm, xác nhận tường minh |
 
-## Ranh giới bằng chứng và tuyên bố
+## Kiểm tra collection và detail
 
-- `FACT`: Ảnh trang chính `thongtinbds.moc.gov.vn` được chụp ngày 15/08/2026 và hiển thị với nguồn. Sự tồn tại của ảnh không chứng minh có API, dữ liệu hồ sơ, thẩm quyền nguồn hoặc quan hệ bảo chứng.
-- `PROPOSAL`: Hai hồ sơ, mốc tháng 08/2026, quy tắc điều phối, góc nhìn theo vai, chuyển tiếp VNeID, trạng thái VPCC/VPĐKĐĐ/Chủ đầu tư và phân phối qua HouseNow đều là mô phỏng để thảo luận.
-- `OPEN QUESTION`: Cơ quan hoặc hệ thống nào cấp PTID chính thức, trường nào được phép đối chiếu và cách VMLS ánh xạ mã tham chiếu vẫn cần xác nhận.
-- `OPEN QUESTION`: Trao đổi thuế có hoàn toàn tự động hay cần một bước xét duyệt thủ công vẫn chưa được quyết định.
-- Dữ liệu cá nhân trong demo là giả lập hoặc đã che. Không nhập dữ liệu thật trong buổi trình diễn.
-- VMLS ghi nhận và điều phối trạng thái; demo không tuyên bố VMLS có thẩm quyền công chứng, thuế, đăng ký đất đai hoặc xác nhận chuyển nhượng của Chủ đầu tư.
-- Kết quả cuối là bản ghi sống được cập nhật. Demo không tạo Closing Record và không tuyên bố một giao dịch pháp lý đã hoàn tất.
+Trong phiên chạy, kiểm tra ít nhất một lần từng hành vi sau:
+
+- Metric tổng hợp thay đổi filter và số dòng của hàng đợi.
+- Global search tìm được dòng bằng NPID, sau đó bằng PLID hoặc PTID.
+- Identifier trong hàng đợi mở đúng tab chi tiết.
+- Thanh liên kết chuyển từ chỉ có NPID sang NPID/PLID rồi NPID/PLID/PTID.
+- Vai trò không có quyền không nhận được record hoặc field bị hạn chế.
+- Khi vai hiện tại không có lệnh, giao diện chỉ ra vai trò và công việc đang chờ thay vì nút “tiếp tục”.
+- Refresh khôi phục các lệnh hợp lệ bằng replay; state bị sửa sai quay về dữ liệu cấu hình ban đầu.
+- Reset tác động lên cả hai hồ sơ nhưng không xóa source registry hoặc bundled assets.
+
+## Các mô-đun review 60 phút
+
+Các mô-đun dùng trực tiếp màn hình vận hành; không cần trang trình bày hoặc trang pilot riêng.
+
+| Phút | Mô-đun | Màn hình và thao tác | Câu hỏi review |
+|---|---|---|---|
+| 00–10 | Hàng đợi và ownership | Queue theo vai, filter, search, người phụ trách, hạn, blocker | Mỗi vai có biết việc cần làm mà không đọc copy giải thích không? |
+| 10–20 | Định danh và nguồn | So sánh candidate, NPID detail, khái niệm diện tích, source records | Bằng chứng nào đủ để khớp BĐS và ai xử lý xung đột? |
+| 20–30 | Representation và Tin bán | Yêu cầu có thời hạn, xác nhận Người bán, PLID tự tạo, kênh phân phối | Phạm vi, thời hạn, thu hồi và điều kiện phân phối nào cần được phê duyệt? |
+| 30–40 | Người mua và VPCC | Payload Người mua, consent, tài liệu bắt buộc, bổ sung, kết quả ký | Trường và tài liệu nào bắt buộc, bị hạn chế hoặc thuộc trách nhiệm bên nào? |
+| 40–50 | Giao dịch và routing | PTID tự tạo, sự kiện thuế, căn cứ tuyến, hai queue tiếp nhận | Ai sở hữu mã chính thức và rule version; retry/reconciliation vận hành thế nào? |
+| 50–60 | Projection và audit | Sàn, Ngân hàng, source registry, integration và audit tables | Mỗi vai có đủ dữ liệu để làm việc mà không nhận field hạn chế ngoài mục đích không? |
+
+## Đặt lại và tiếp tục
+
+### Đặt lại cả hai hồ sơ
+
+1. Chọn `Đặt lại dữ liệu` trên header.
+2. Xác nhận `Đặt lại 2 hồ sơ?`.
+3. Kiểm tra trạng thái đối chiếu của cả hai BĐS là `Chờ đối chiếu`.
+4. Kiểm tra chưa có Listing hoặc Transaction trong projection của hai hồ sơ.
+5. Kiểm tra source registry và bundled assets vẫn còn.
+
+### Tiếp tục phiên bị gián đoạn
+
+- Tải lại trang; các lệnh đã chấp nhận được replay từ browser storage có version.
+- Chọn đúng vai trò trong bộ chọn workspace.
+- Dùng `Việc của tôi` hoặc tìm theo NPID để lấy hồ sơ có thể xử lý.
+- Mở hồ sơ và kiểm tra trạng thái, owner và form trước khi gửi.
+- Không reset nếu không có ý định chạy lại cả hai tuyến.
+
+## Xử lý sự cố
+
+- Nếu form không gửi, kiểm tra vai trò, trạng thái hiện tại, trường bắt buộc, định dạng ngày, tập tài liệu/nguồn đầy đủ và tham chiếu có khớp không. Không bấm control không liên quan để ép tiến độ.
+- Nếu hồ sơ không xuất hiện trong queue của một vai, kiểm tra điều kiện trước và projection rule. Ví dụ: Ngân hàng cần consent; VPCC cần readiness; queue chuyển quyền cần kết quả ký và route đã xác định.
+- Nếu ảnh 357 không tải, kiểm tra local asset và dòng source registry trước khi quay; không thay bằng trang web live giữa phiên.
+- Nếu icon HouseNow không tải, kiểm tra local asset và dòng kênh trên Tin bán trước khi quay.
+- Nếu browser storage không dùng được, hoàn tất trong một phiên liên tục và ghi giới hạn vào QA evidence.
+- Nếu deployment không truy cập được, dùng `vite preview` từ đúng build đã kiểm thử và không ghi nhận là production verification.
+
+## Checklist cuối phiên
+
+- [ ] Màn hình đầu tiên là work queue, không phải trang giới thiệu.
+- [ ] Search, metric filter, row, ID, status, owner và due date đều hoạt động.
+- [ ] Mọi hành động thay đổi trạng thái đều dùng form payload nghiệp vụ.
+- [ ] PLID tự xuất hiện sau khi Người bán xác nhận.
+- [ ] PTID, integration events và route tự xuất hiện sau khi VPCC ghi nhận ký.
+- [ ] S2-12A hoàn tất qua Chủ đầu tư/HĐMB.
+- [ ] Phú Thượng hoàn tất qua VPĐKĐĐ sau một yêu cầu bổ sung có thể xử lý.
+- [ ] Queue Sàn hiển thị blocker và ownership mà không lộ dữ liệu bên ngoài phạm vi.
+- [ ] Ngân hàng chỉ thấy hồ sơ và field đã được đồng ý chia sẻ.
+- [ ] 357 chỉ nằm trong source registry; trạng thái vẫn là `Chưa cấu hình`.
+- [ ] HouseNow chỉ nằm trong kênh phân phối của Tin bán.
+- [ ] NPID, PLID, PTID, dossier ID, result reference và correlation ID luôn riêng biệt.
+- [ ] Audit nối thêm sự kiện; reset và replay đúng.
+- [ ] Giao diện không render evidence label, product-story copy hoặc disclaimer banner về thẩm quyền bên ngoài.
+
+## Ranh giới bằng chứng cho người review
+
+- `FACT`: Có thể kiểm tra trực tiếp static build, bundled assets, giá trị cấu hình, reducer guards và hành vi UI quan sát được.
+- `FACT`: Asset 357 là ảnh chụp trang chủ công khai có ngày. Sự tồn tại của ảnh không thiết lập nguồn ở cấp record hoặc kết nối kỹ thuật.
+- `PROPOSAL`: Role jobs, payload, automatic transitions, routing basis, tax events và external result shapes là product hypothesis hiện tại.
+- `OPEN QUESTION`: Chủ sở hữu mã chính thức, field nguồn có thẩm quyền, state transition pháp lý, tax decision point, quyền production, integration contract và SLA cần quyết định của stakeholder có thẩm quyền.
+- Dữ liệu cá nhân trong mọi phiên công khai phải được che. Không nhập định danh, liên hệ, tài chính hoặc tài liệu thật.

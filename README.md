@@ -1,36 +1,27 @@
-# VMLS interactive demo
+# VMLS operational workspace
 
-This repository contains a Vietnamese, static pre-MVP demo of the VMLS Living Registry idea. It is designed to help senior stakeholders understand how VMLS keeps **Bất động sản / NPID**, **Tin bán / PLID**, and **Giao dịch / PTID** distinct while orchestrating a traceable property-transfer journey.
+This repository contains a Vietnamese, static Vite/React pre-MVP for working with two property-transfer dossiers. The application opens directly to a role-scoped work queue; it does not use a marketing introduction or a guided presentation flow.
 
-> **PROPOSAL:** The journey follows `vmls-process-v2` for demonstration. It is not an approved legal, tax, identity, notarization, cadastral, developer, or production integration workflow.
+Start with the [repository context router](./context/README.md), then read the [current product state](./context/product/current-state.md), the [operational workspace contract](./context/product/vmls-operational-workspace.md), and the [v2 process proposal](./context/product/vmls-process-v2.md).
 
-Start with the [repository context router](./context/README.md), then read the [current product state](./context/product/current-state.md) and the [v2 process proposal](./context/product/vmls-process-v2.md).
+> **PROPOSAL:** The configured lifecycle follows `vmls-process-v2`. It does not establish an approved legal, tax, identity, notarization, cadastral, developer, or production-integration workflow.
 
-## Canonical market actors
+## What is implemented
 
-1. Real-estate Agent (`Môi giới BĐS`)
-2. Brokerage (`Sàn môi giới`)
-3. Developer (`Chủ đầu tư`)
-4. Buyer (`Người mua`)
-5. Owner/Seller (`Người bán / Chủ sở hữu`)
-6. Bank (`Ngân hàng`)
+- A persistent application shell with global search, role-specific navigation, real queue filters, data tables, record detail tabs, forms, document checklists, integration events, and audit history.
+- Two independent dossiers: the S2-12A HĐMB-transfer case and a synthetic Phú Thượng landed-property case.
+- Separate Bất động sản/`NPID`, Tin bán/`PLID`, and Giao dịch/`PTID` records and lifecycles.
+- Payload validation and actor/state guards for the Môi giới, Người bán, Người mua, VPCC, Chủ đầu tư, and VPĐKĐĐ jobs.
+- Automatic PLID creation after seller confirmation and automatic PTID/tax-event/routing updates after a valid VPCC signing result.
+- Role-scoped projections for all six market actors plus VMLS operations, VPCC, and VPĐKĐĐ. Bank records appear only after explicit buyer consent.
+- A 357 source-registry record with a dated local homepage capture, and a HouseNow distribution-channel record with the exact supplied icon.
+- Versioned browser-state replay and a confirmed reset action.
 
-Data Steward, Organization Admin, and System Admin are operational roles, not additional market actors. Regulator remains deferred oversight scope until a lawful workflow is approved.
-
-## What the demo contains
-
-- Two independent dossiers: a Sun Grand City Thụy Khuê Residence HĐMB transfer and a synthetic landed-property transfer.
-- A gated common journey from Property matching and Seller confirmation through Listing creation, notarization readiness, PTID creation, tax events, and automatic routing.
-- Two mocked outcomes: Developer/HĐMB transfer and VPĐKĐĐ approval.
-- The six market perspectives listed above.
-- Separate simulated workspaces for VMLS, Văn phòng công chứng, and Văn phòng đăng ký đất đai.
-- A dated 357 reference screenshot and a restrained HouseNow distribution-channel reference; neither implies endorsement or a live integration.
-
-All external integrations and authority actions are labelled `Mô phỏng đề xuất`. The demo uses only bundled, synthetic or masked data.
+The client uses only configured, synthetic, or masked records. It has no backend, database, authentication, analytics, or live external API.
 
 ## Run locally
 
-Requires Node.js 22 or newer.
+Node.js 22 or newer is required.
 
 ```bash
 npm install
@@ -38,6 +29,8 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5180`.
+
+Run the release checks:
 
 ```bash
 npm run lint
@@ -48,21 +41,19 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The application is a static Vite/React client. It has no backend, database, authentication, analytics, or live external API. Demo progress is stored in versioned browser `localStorage`; hash routes keep dossier, role, and pilot views directly addressable on static hosting.
+The repeatable 15-minute operational runbook is [context/product/vmls-demo-playbook.md](./context/product/vmls-demo-playbook.md).
 
 ## Repository map
 
 ```text
-context/    Canonical knowledge, proposals, research, and quality context
-src/        React interface, configured demo records, and journey state machine
-test/       Demo-data and state-machine unit tests
-e2e/        Browser journey and responsive checks
-public/     Self-hosted public demo assets
+context/    Canonical product, domain, research, and quality context
+src/        React application, configured records, and reducer
+test/       Data-contract and reducer tests
+e2e/        Browser acceptance and responsive tests
+public/     Self-hosted fonts and image assets
 reference/  Immutable legacy research snapshot
-output/     Local QA and recording evidence; generated captures remain uncommitted
+output/     Local QA and recording evidence; do not commit generated captures
 tmp/        Ignored source media, credentials, and scratch artifacts
 ```
 
-The committed presenter guide is [context/product/vmls-demo-playbook.md](./context/product/vmls-demo-playbook.md).
-
-Read [`AGENTS.md`](./AGENTS.md) before assigning repository work. Product intent wins only when it is marked accepted, locked, or canonical; implemented demo behavior does not promote a proposal into Vietnam policy.
+Read [`AGENTS.md`](./AGENTS.md) before repository work. Implemented behavior does not promote a proposal into Vietnam policy.

@@ -4,7 +4,7 @@ export function BrandMark({
   className = '',
   compact = false,
   inverse = false,
-  ariaLabel = 'VMLS by HouseNow — Hạ tầng dữ liệu thị trường bất động sản Việt Nam',
+  ariaLabel = 'VMLS',
 }) {
   const classes = [
     'vmls-brand-mark',
@@ -43,7 +43,6 @@ export function BrandMark({
 
       <span className="vmls-brand-mark__wordmark" aria-hidden="true">
         <strong>VMLS</strong>
-        {!compact && <small>by HouseNow</small>}
       </span>
     </span>
   )

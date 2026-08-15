@@ -9,28 +9,24 @@ last_reviewed: 2026-08-15
 
 HouseNow MLS standardizes the language used to describe durable real-estate identities, market offerings, participating parties, and traceable data. Terms marked as unresolved in specifications do not become approved policy merely by appearing in this glossary.
 
-## Public demo vocabulary
+## Operational workspace vocabulary
 
-> **PROPOSAL:** These Vietnamese labels and identifiers are scoped to the static `vmls-process-v2` pre-MVP demo. They make the identity distinctions teachable; they do not establish an official identifier, legal record, production lifecycle, or final Vietnamese domain translation.
+> **PROPOSAL:** These Vietnamese labels and configured identifiers are scoped to the static VMLS operational prototype. They preserve object boundaries while users search, inspect, and process records; they do not establish an official identifier, legal record, production lifecycle, or final Vietnamese domain translation. Repository evidence labels remain in maintained documentation and review artifacts, not in the product interface.
 
 **Bất động sản / NPID**:
-The demo-facing label and proposed identifier for the durable Property. It persists independently from each Tin bán or Giao dịch.
+The workspace label and configured reference for the durable Property. It persists independently from each Tin bán or Giao dịch.
 _Avoid_: PLID, PTID, Tin bán, Giao dịch, official government identifier
 
 **Tin bán / PLID**:
-The sale/transfer-only demo rendering of a Listing and its separate proposed identifier. Status `Đã khởi tạo` means the demo record exists; it does not mean Active, approved, or publicly distributed.
+The sale/transfer-only workspace rendering of a Listing and its separate configured identifier. Status `Đã khởi tạo` means the Listing record exists; it does not mean Active, approved, or publicly distributed.
 _Avoid_: Bất động sản, NPID, Giao dịch, PTID, every future Listing type
 
 **Giao dịch / PTID**:
-A separate VMLS demo orchestration reference created after the notarization result. It may later map to an official identifier if an approved integration provides one; the demo PTID is not an official code, Closing Record, Property, Listing, or HouseNow billing `Transaction`.
+A separate VMLS orchestration reference configured for the prototype and created after the notarization result. It may later map to an official identifier if an approved integration provides one; the configured PTID is not an official code, Closing Record, Property, Listing, or HouseNow billing `Transaction`.
 _Avoid_: NPID, PLID, Closing Record, official transaction identifier
 
-**Mô phỏng đề xuất**:
-The required label for client-side actions or outcomes representing VNeID, VPCC, tax, VPĐKĐĐ, Developer Portal, 357, HouseNow, or another system without a live approved contract.
-_Avoid_: verified integration, official approval, production authority
-
 **Tuyến chuyển quyền / Transfer Route**:
-The demo branch determined from configured dossier evidence: VPĐKĐĐ for the synthetic landed Property or Developer/HĐMB for the supplied apartment case. The user does not select the branch, and neither route is approved policy through implementation.
+The branch automatically derived from configured dossier data: VPĐKĐĐ for the synthetic landed Property or Chủ đầu tư/HĐMB for the supplied apartment case. The user does not select the branch, and implementation does not make either route approved Vietnam policy.
 _Avoid_: user-selected destination, legal determination, universal Vietnam workflow
 
 ## Asset identity

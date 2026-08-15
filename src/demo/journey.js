@@ -1,19 +1,17 @@
 // @ts-check
 
-import { ROLE_PROJECTIONS, STAGES, demoCases } from './demoData.js'
+import { DEMO_VERSION, demoCases, getDemoCase, roles } from './demoData.js'
 
 export const ACTIONS = Object.freeze({
   MATCH_PROPERTY: 'match_property',
   REQUEST_SELLER_CONFIRMATION: 'request_seller_confirmation',
   CONFIRM_REPRESENTATION: 'confirm_representation',
-  CREATE_LISTING: 'create_listing',
   RECORD_BUYER: 'record_buyer',
   VERIFY_READINESS: 'verify_readiness',
   SUBMIT_NOTARY_DOSSIER: 'submit_notary_dossier',
   REQUEST_SUPPLEMENT: 'request_supplement',
   PROVIDE_SUPPLEMENT: 'provide_supplement',
   RECORD_NOTARY_SIGNING: 'record_notary_signing',
-  CREATE_TRANSACTION: 'create_transaction',
   APPROVE_LAND_REGISTRY: 'approve_land_registry',
   DEVELOPER_INTAKE: 'developer_intake',
   DEVELOPER_CONFIRM_TRANSFER: 'developer_confirm_transfer',
@@ -22,593 +20,1246 @@ export const ACTIONS = Object.freeze({
 
 export const ACTION_META = Object.freeze({
   [ACTIONS.MATCH_PROPERTY]: {
-    actor: 'agent',
-    label: 'Đối chiếu Bất động sản',
-    description: 'Khớp địa chỉ, dự án và bằng chứng nguồn với NPID hiện có.',
+    actorRoleId: 'agent',
+    label: 'Đối chiếu bất động sản',
+    targetType: 'property',
   },
   [ACTIONS.REQUEST_SELLER_CONFIRMATION]: {
-    actor: 'agent',
-    label: 'Gửi xác nhận cho Người bán',
-    description: 'Tạo yêu cầu xác nhận quyền đại diện, không tạo Tin bán ngay.',
+    actorRoleId: 'agent',
+    label: 'Gửi yêu cầu xác nhận',
+    targetType: 'representation',
   },
   [ACTIONS.CONFIRM_REPRESENTATION]: {
-    actor: 'seller',
+    actorRoleId: 'seller',
     label: 'Xác nhận quyền đại diện',
-    description: 'Mô phỏng bàn giao trung lập qua VNeID và ghi lại sự đồng ý.',
-  },
-  [ACTIONS.CREATE_LISTING]: {
-    actor: 'vmls',
-    label: 'Khởi tạo Tin bán',
-    description: 'Tạo PLID riêng biệt ở trạng thái Đã khởi tạo.',
+    targetType: 'representation',
   },
   [ACTIONS.RECORD_BUYER]: {
-    actor: 'agent',
-    label: 'Ghi nhận Người mua',
-    description: 'Bổ sung bên mua đã được che danh tính vào hồ sơ giao dịch.',
+    actorRoleId: 'agent',
+    label: 'Ghi nhận người mua',
+    targetType: 'readiness',
   },
   [ACTIONS.VERIFY_READINESS]: {
-    actor: 'buyer',
+    actorRoleId: 'buyer',
     label: 'Xác nhận sẵn sàng công chứng',
-    description: 'Người mua xác nhận thông tin và sự sẵn sàng trước khi nộp hồ sơ.',
+    targetType: 'readiness',
   },
   [ACTIONS.SUBMIT_NOTARY_DOSSIER]: {
-    actor: 'notary',
+    actorRoleId: 'notary',
     label: 'Tiếp nhận hồ sơ công chứng',
-    description: 'VPCC mô phỏng kiểm tra thành phần hồ sơ và tiếp nhận.',
+    targetType: 'notaryDossier',
   },
   [ACTIONS.REQUEST_SUPPLEMENT]: {
-    actor: 'notary',
-    label: 'Mô phỏng yêu cầu bổ sung',
-    description: 'Tạo một ngoại lệ có thể khôi phục để minh họa lịch sử không bị mất.',
+    actorRoleId: 'notary',
+    label: 'Yêu cầu bổ sung',
+    targetType: 'notaryDossier',
   },
   [ACTIONS.PROVIDE_SUPPLEMENT]: {
-    actor: 'agent',
-    label: 'Bổ sung tài liệu',
-    description: 'Nộp phần còn thiếu và nối tiếp đúng hồ sơ đã tiếp nhận.',
+    actorRoleId: 'seller',
+    label: 'Cung cấp tài liệu bổ sung',
+    targetType: 'notaryDossier',
   },
   [ACTIONS.RECORD_NOTARY_SIGNING]: {
-    actor: 'notary',
-    label: 'Ghi nhận kết quả ký',
-    description: 'VPCC trả kết quả ký qua kết nối mô phỏng.',
-  },
-  [ACTIONS.CREATE_TRANSACTION]: {
-    actor: 'vmls',
-    label: 'Tạo tham chiếu Giao dịch',
-    description: 'Tạo PTID mô phỏng, nối sự kiện thuế và tự động xác định tuyến.',
+    actorRoleId: 'notary',
+    label: 'Ghi nhận kết quả công chứng',
+    targetType: 'notaryDossier',
   },
   [ACTIONS.APPROVE_LAND_REGISTRY]: {
-    actor: 'land_registry',
+    actorRoleId: 'landRegistry',
     label: 'Ghi nhận kết quả sang tên',
-    description: 'Mô phỏng kết quả API từ VPĐKĐĐ và cập nhật bản ghi sống.',
+    targetType: 'transfer',
   },
   [ACTIONS.DEVELOPER_INTAKE]: {
-    actor: 'developer',
+    actorRoleId: 'developer',
     label: 'Tiếp nhận hồ sơ chuyển nhượng',
-    description: 'Chủ đầu tư tiếp nhận đúng bộ bằng chứng đã được định tuyến.',
+    targetType: 'transfer',
   },
   [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: {
-    actor: 'developer',
+    actorRoleId: 'developer',
     label: 'Xác nhận chuyển nhượng HĐMB',
-    description: 'Chủ đầu tư ghi nhận thay đổi bên mua trong hồ sơ mô phỏng.',
+    targetType: 'transfer',
   },
   [ACTIONS.BUYER_RECEIVE_CONTRACT]: {
-    actor: 'buyer',
+    actorRoleId: 'buyer',
     label: 'Xác nhận nhận HĐMB mới',
-    description: 'Người mua nhận kết quả; VMLS đã đồng bộ bản ghi trước đó.',
+    targetType: 'transfer',
   },
-})
-
-const CHRONOLOGY_ACTION = Object.freeze({
-  [ACTIONS.MATCH_PROPERTY]: 'match-property',
-  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'match-property',
-  [ACTIONS.CONFIRM_REPRESENTATION]: 'confirm-representation',
-  [ACTIONS.CREATE_LISTING]: 'create-listing',
-  [ACTIONS.RECORD_BUYER]: 'record-buyer',
-  [ACTIONS.VERIFY_READINESS]: 'confirm-readiness',
-  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: 'submit-notary-dossier',
-  [ACTIONS.REQUEST_SUPPLEMENT]: 'request-supplement',
-  [ACTIONS.PROVIDE_SUPPLEMENT]: 'provide-supplement',
-  [ACTIONS.RECORD_NOTARY_SIGNING]: 'record-signing',
-  [ACTIONS.CREATE_TRANSACTION]: 'create-transaction',
-  [ACTIONS.APPROVE_LAND_REGISTRY]: 'approve-land-transfer',
-  [ACTIONS.DEVELOPER_INTAKE]: 'accept-developer-dossier',
-  [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'confirm-developer-transfer',
-  [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'deliver-new-contract',
 })
 
 const clone = (value) => structuredClone(value)
+const roleIds = new Set(roles.map(({ id }) => id))
 
-function getCase(caseId) {
-  return demoCases.find((item) => item.id === caseId) ?? demoCases[0]
+const SELLER_AUDIT_ACTIONS = new Set([
+  ACTIONS.REQUEST_SELLER_CONFIRMATION,
+  ACTIONS.CONFIRM_REPRESENTATION,
+  ACTIONS.VERIFY_READINESS,
+  ACTIONS.SUBMIT_NOTARY_DOSSIER,
+  ACTIONS.REQUEST_SUPPLEMENT,
+  ACTIONS.PROVIDE_SUPPLEMENT,
+  ACTIONS.RECORD_NOTARY_SIGNING,
+  ACTIONS.APPROVE_LAND_REGISTRY,
+  ACTIONS.DEVELOPER_CONFIRM_TRANSFER,
+  ACTIONS.BUYER_RECEIVE_CONTRACT,
+])
+
+function resolveCase(caseId) {
+  return getDemoCase(caseId) ?? demoCases[0]
 }
 
-function addMinutes(isoTime, minutes) {
-  if (!minutes) return isoTime
-  const minute = Number(isoTime.slice(14, 16)) + minutes
-  return `${isoTime.slice(0, 14)}${String(minute).padStart(2, '0')}${isoTime.slice(16)}`
-}
-
-function eventTimeFor(state, actionType, offset = 0) {
-  const demoCase = getCase(state.caseId)
-  const chronologyId = CHRONOLOGY_ACTION[actionType]
-  const matched = demoCase.chronology.find(({ actionId }) => actionId === chronologyId)
-  const fallback = demoCase.chronology.at(-1)?.at ?? '2026-08-15T09:00:00+07:00'
-  const actionOffset = actionType === ACTIONS.REQUEST_SELLER_CONFIRMATION ? 2 : 0
-  return addMinutes(matched?.at ?? fallback, actionOffset + offset)
+function blankChecklist() {
+  return {
+    identityReviewed: false,
+    paymentPlanReviewed: false,
+    documentsReviewed: false,
+  }
 }
 
 export function createInitialState(caseId = demoCases[0]?.id) {
-  const demoCase = getCase(caseId)
+  const dossier = resolveCase(caseId)
 
   return {
-    version: 1,
-    caseId: demoCase.id,
-    stage: STAGES.PROPERTY_MATCH,
-    route: null,
+    version: 2,
+    dataVersion: DEMO_VERSION,
+    caseId: dossier.id,
     records: {
-      property: clone(demoCase.property),
+      property: {
+        ...clone(dossier.property),
+        status: 'Chờ đối chiếu',
+        matchedCandidateId: null,
+        matchedAt: null,
+        selectedSourceIds: [],
+        sources: clone(dossier.property.sourceRecords),
+      },
+      representation: {
+        id: dossier.representation.id,
+        propertyId: dossier.property.id,
+        status: 'Chưa gửi',
+        confirmationChannel: dossier.representation.confirmationChannel,
+        scope: null,
+        startsOn: null,
+        expiresOn: null,
+        requestedAt: null,
+        confirmationRef: null,
+        confirmedAt: null,
+        request: null,
+        confirmation: null,
+      },
       listing: null,
+      readiness: {
+        id: `READY-${dossier.dossierId}`,
+        status: 'Chưa ghi nhận người mua',
+        buyer: null,
+        agreedPrice: null,
+        expectedSigningOn: null,
+        checklist: blankChecklist(),
+        financeSharing: {
+          shareId: null,
+          status: 'Chưa áp dụng',
+          purpose: null,
+          visibleFields: [],
+          scope: null,
+          recordedAt: null,
+        },
+      },
+      notaryDossier: {
+        id: dossier.notary.id,
+        office: dossier.notary.office,
+        correlationId: dossier.notary.correlationId,
+        status: 'Chưa nộp',
+        requiredDocumentIds: [...dossier.notary.requiredDocumentIds],
+        documents: dossier.notary.documents.map((document) => ({
+          ...document,
+          status: 'Chưa nộp',
+        })),
+        submission: null,
+        supplement: null,
+        signedResult: null,
+      },
       transaction: null,
+      transfer: {
+        basis: dossier.transfer.basis,
+        route: null,
+        status: 'Chưa xác định',
+        intakeRef: null,
+        intakeAt: null,
+        documentCount: null,
+        confirmationRef: null,
+        confirmedAt: null,
+        resultRef: null,
+        resultAt: null,
+        newOwnerRef: null,
+        contractReference: null,
+        receiptRef: null,
+        receivedAt: null,
+      },
     },
-    flags: {
-      propertyMatched: false,
-      sellerRequestSent: false,
-      representationConfirmed: false,
-      buyerRecorded: false,
-      readinessVerified: false,
-      notarySubmitted: false,
-    },
-    supplement: {
-      status: 'none',
-      count: 0,
-    },
+    parties: clone(dossier.parties),
     auditEvents: [],
     integrationEvents: [],
+    actionLog: [],
   }
 }
 
-export function allowedActionsFor(state, actor) {
-  if (!state || !actor) return []
+export function allowedActionsFor(state, roleId) {
+  if (!state?.records || !roleIds.has(roleId)) return []
 
-  if (state.stage === STAGES.PROPERTY_MATCH) {
-    if (actor !== 'agent') return []
-    return state.flags.propertyMatched
-      ? [ACTIONS.REQUEST_SELLER_CONFIRMATION]
-      : [ACTIONS.MATCH_PROPERTY]
+  const dossier = getDemoCase(state.caseId)
+  if (!dossier) return []
+
+  const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
+
+  if (roleId === 'agent') {
+    if (property.status === 'Chờ đối chiếu') return [ACTIONS.MATCH_PROPERTY]
+    if (property.status === 'Đã đối chiếu' && representation.status === 'Chưa gửi') {
+      return [ACTIONS.REQUEST_SELLER_CONFIRMATION]
+    }
+    if (listing && !readiness.buyer) return [ACTIONS.RECORD_BUYER]
+    return []
   }
 
-  if (state.stage === STAGES.SELLER_CONFIRMATION) {
-    if (!state.flags.representationConfirmed && actor === 'seller') {
-      return [ACTIONS.CONFIRM_REPRESENTATION]
-    }
-    if (state.flags.representationConfirmed && actor === 'vmls') {
-      return [ACTIONS.CREATE_LISTING]
+  if (roleId === 'seller') {
+    if (representation.status === 'Chờ xác nhận') return [ACTIONS.CONFIRM_REPRESENTATION]
+    if (notaryDossier.supplement?.status === 'Chờ người bán') {
+      return [ACTIONS.PROVIDE_SUPPLEMENT]
     }
     return []
   }
 
-  if (state.stage === STAGES.LISTING_CREATED) {
-    return actor === 'agent' ? [ACTIONS.RECORD_BUYER] : []
-  }
-
-  if (state.stage === STAGES.TRANSACTION_READINESS) {
-    if (!state.flags.readinessVerified && actor === 'buyer') return [ACTIONS.VERIFY_READINESS]
-    if (state.flags.readinessVerified && actor === 'notary') return [ACTIONS.SUBMIT_NOTARY_DOSSIER]
-    return []
-  }
-
-  if (state.stage === STAGES.NOTARY_DOSSIER) {
-    if (state.supplement.status === 'required') {
-      return actor === 'agent' ? [ACTIONS.PROVIDE_SUPPLEMENT] : []
+  if (roleId === 'buyer') {
+    if (readiness.buyer && readiness.status === 'Chờ người mua xác nhận') {
+      return [ACTIONS.VERIFY_READINESS]
     }
-    if (actor !== 'notary') return []
-    if (state.supplement.status === 'none' && state.supplement.count === 0) {
-      return [ACTIONS.RECORD_NOTARY_SIGNING, ACTIONS.REQUEST_SUPPLEMENT]
-    }
-    return [ACTIONS.RECORD_NOTARY_SIGNING]
-  }
-
-  if (state.stage === STAGES.NOTARY_SIGNED) {
-    return actor === 'vmls' ? [ACTIONS.CREATE_TRANSACTION] : []
-  }
-
-  if (state.stage === STAGES.ROUTED) {
-    if (state.route === 'land_registry' && actor === 'land_registry') {
-      return [ACTIONS.APPROVE_LAND_REGISTRY]
-    }
-    if (state.route === 'developer' && actor === 'developer') {
-      return [ACTIONS.DEVELOPER_INTAKE]
+    if (transfer.status === 'Chờ người mua nhận HĐMB') {
+      return [ACTIONS.BUYER_RECEIVE_CONTRACT]
     }
     return []
   }
 
-  if (state.stage === STAGES.DEVELOPER_INTAKE) {
-    return actor === 'developer' ? [ACTIONS.DEVELOPER_CONFIRM_TRANSFER] : []
+  if (roleId === 'notary') {
+    if (readiness.status === 'Đã sẵn sàng công chứng'
+      && notaryDossier.status === 'Chưa nộp') {
+      return [ACTIONS.SUBMIT_NOTARY_DOSSIER]
+    }
+    if (notaryDossier.status === 'Đã tiếp nhận') {
+      return dossier.notary.requiresSupplement
+        ? [ACTIONS.REQUEST_SUPPLEMENT]
+        : [ACTIONS.RECORD_NOTARY_SIGNING]
+    }
+    if (notaryDossier.status === 'Đủ hồ sơ ký') {
+      return [ACTIONS.RECORD_NOTARY_SIGNING]
+    }
+    return []
   }
 
-  if (state.stage === STAGES.DEVELOPER_CONFIRMED) {
-    return actor === 'buyer' ? [ACTIONS.BUYER_RECEIVE_CONTRACT] : []
+  if (roleId === 'developer') {
+    if (transfer.route !== 'developer') return []
+    if (transfer.status === 'Chờ chủ đầu tư tiếp nhận') return [ACTIONS.DEVELOPER_INTAKE]
+    if (transfer.status === 'Chủ đầu tư đang xử lý') return [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]
+    return []
+  }
+
+  if (roleId === 'landRegistry') {
+    return transaction && transfer.route === 'landRegistry'
+      && transfer.status === 'Chờ đăng ký biến động'
+      ? [ACTIONS.APPROVE_LAND_REGISTRY]
+      : []
   }
 
   return []
 }
 
-function lifecycleSnapshot(state) {
-  return {
-    stage: state.stage,
-    route: state.route,
-    flags: { ...state.flags },
-    property: {
-      id: state.records.property.id,
-      status: state.records.property.status,
-    },
-    listing: state.records.listing ? { ...state.records.listing } : null,
-    transaction: state.records.transaction ? { ...state.records.transaction } : null,
-    supplement: { ...state.supplement },
-  }
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+const hasReference = (value) => typeof value === 'string'
+  && value.trim().length >= 6
+  && value.trim().length <= 100
+  && !/[\r\n]/.test(value)
+const isDateOnly = (value) => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
+const isAugustDate = (value) => isDateOnly(value) && value.startsWith('2026-08-')
+const isAugustDateTime = (value) => typeof value === 'string'
+  && /^2026-08-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+  && !Number.isNaN(Date.parse(value))
+const isDateOnOrAfter = (value, boundary) => isDateOnly(value) && value >= boundary.slice(0, 10)
+const isDateOnOrBefore = (value, boundary) => isDateOnly(value) && value <= boundary.slice(0, 10)
+const sameMembers = (actual, expected) => Array.isArray(actual)
+  && actual.length === expected.length
+  && new Set(actual).size === actual.length
+  && expected.every((value) => actual.includes(value))
 
-function actionTarget(state, actionType) {
-  const demoCase = getCase(state.caseId)
-
-  if ([ACTIONS.MATCH_PROPERTY, ACTIONS.REQUEST_SELLER_CONFIRMATION].includes(actionType)) {
-    return { targetType: 'property', targetId: demoCase.property.id }
-  }
-  if (actionType === ACTIONS.CONFIRM_REPRESENTATION) {
-    return { targetType: 'representation', targetId: `REP-${state.caseId}` }
-  }
-  if (actionType === ACTIONS.CREATE_LISTING) {
-    return { targetType: 'listing', targetId: demoCase.listing.id }
-  }
-  if ([ACTIONS.RECORD_BUYER, ACTIONS.VERIFY_READINESS].includes(actionType)) {
-    return { targetType: 'transactionReadiness', targetId: `READY-${state.caseId}` }
-  }
-  if ([
-    ACTIONS.SUBMIT_NOTARY_DOSSIER,
-    ACTIONS.REQUEST_SUPPLEMENT,
-    ACTIONS.PROVIDE_SUPPLEMENT,
-    ACTIONS.RECORD_NOTARY_SIGNING,
-  ].includes(actionType)) {
-    return { targetType: 'notaryDossier', targetId: demoCase.notary.dossierId }
-  }
-  return { targetType: 'transaction', targetId: demoCase.transaction.id }
-}
-
-function correlationFor(state, actionType) {
-  const demoCase = getCase(state.caseId)
-  if ([
-    ACTIONS.SUBMIT_NOTARY_DOSSIER,
-    ACTIONS.REQUEST_SUPPLEMENT,
-    ACTIONS.PROVIDE_SUPPLEMENT,
-    ACTIONS.RECORD_NOTARY_SIGNING,
-  ].includes(actionType)) {
-    return demoCase.notary.correlationId
-  }
-  return actionTarget(state, actionType).targetId
-}
-
-function auditEvent(state, nextState, action) {
-  const meta = ACTION_META[action.type]
-  const index = state.auditEvents.length
-  const evidence = action.type === ACTIONS.MATCH_PROPERTY ? 'SOURCE CLAIM' : 'PROPOSAL'
-  const target = actionTarget(state, action.type)
-  return {
-    id: `AUD-${state.caseId}-${String(index + 1).padStart(2, '0')}`,
-    at: eventTimeFor(state, action.type),
-    actor: action.actor,
-    action: action.type,
-    label: meta.label,
-    reason: meta.description,
-    ...target,
-    correlationId: correlationFor(state, action.type),
-    before: lifecycleSnapshot(state),
-    after: lifecycleSnapshot(nextState),
-    evidence,
-    evidenceLabel: evidence,
-  }
-}
-
-function integrationEvent(state, actionType, type, label, extra = {}, offset = 0) {
-  const demoCase = getCase(state.caseId)
-  const evidence = type.startsWith('tax_') ? 'OPEN QUESTION' : 'PROPOSAL'
-  return {
-    id: `INT-${state.caseId}-${String(state.integrationEvents.length + offset + 1).padStart(2, '0')}`,
-    at: eventTimeFor(state, actionType, offset + 1),
-    type,
-    label,
-    status: 'Mô phỏng',
-    correlationId: type.startsWith('vneid_')
-      ? `REP-${state.caseId}`
-      : type.startsWith('notary_')
-        ? demoCase.notary.correlationId
-        : demoCase.transaction.id,
-    evidence,
-    evidenceLabel: evidence,
-    disclaimer: type.startsWith('tax_')
-      ? 'Cơ chế trao đổi và xác nhận thuế thật vẫn cần cơ quan có thẩm quyền quyết định.'
-      : 'Sự kiện được cấu hình cho bản demo; không chứng minh kết nối hoặc kết quả từ hệ thống thật.',
-    ...extra,
-  }
-}
-
-function accepted(state, action, changes, integrations = []) {
-  const changedState = {
-    ...state,
-    ...changes,
-  }
-  const next = {
-    ...changedState,
-    auditEvents: [...state.auditEvents, auditEvent(state, changedState, action)],
-  }
-
-  if (integrations.length > 0) {
-    next.integrationEvents = [
-      ...state.integrationEvents,
-      ...integrations.map(({ type, label, ...extra }, offset) => integrationEvent(state, action.type, type, label, extra, offset)),
-    ]
-  }
-
-  return next
-}
-
-export function journeyReducer(state, action) {
-  const configuredActions = /** @type {readonly string[]} */ (
-    ROLE_PROJECTIONS[action?.actor]?.allowedActions ?? []
-  )
-  const lifecycleActions = /** @type {readonly string[]} */ (
-    allowedActionsFor(state, action?.actor)
-  )
-  if (!state || !action || !configuredActions.includes(action.type)
-    || !lifecycleActions.includes(action.type)) {
-    return state
-  }
-
-  const demoCase = getCase(state.caseId)
+function validPayload(state, action) {
+  if (!isPlainObject(action?.payload)) return false
+  const payload = action.payload
+  const dossier = getDemoCase(state.caseId)
+  if (!dossier) return false
 
   switch (action.type) {
     case ACTIONS.MATCH_PROPERTY:
-      return accepted(state, action, {
-        flags: { ...state.flags, propertyMatched: true },
+      return payload.candidateId === dossier.property.id
+        && sameMembers(payload.sourceIds, dossier.property.sourceRecords.map(({ id }) => id))
+    case ACTIONS.REQUEST_SELLER_CONFIRMATION: {
+      if (!dossier.representation.allowedScopes.includes(payload.scope)
+        || !isDateOnly(payload.startsOn) || !isDateOnly(payload.expiresOn)) return false
+      const startsAt = Date.parse(`${payload.startsOn}T00:00:00Z`)
+      const expiresAt = Date.parse(`${payload.expiresOn}T00:00:00Z`)
+      return isDateOnOrAfter(payload.startsOn, dossier.actionTimes.request_seller_confirmation)
+        && expiresAt > startsAt
+        && expiresAt - startsAt <= 366 * 24 * 60 * 60 * 1000
+    }
+    case ACTIONS.CONFIRM_REPRESENTATION:
+      return payload.accepted === true && hasReference(payload.confirmationRef)
+    case ACTIONS.RECORD_BUYER:
+      return payload.buyerRef === dossier.parties.buyer.reference
+        && Number.isInteger(payload.agreedPrice) && payload.agreedPrice > 0
+        && isAugustDate(payload.expectedSigningOn)
+        && isDateOnOrAfter(payload.expectedSigningOn, dossier.actionTimes.record_buyer)
+        && isDateOnOrBefore(payload.expectedSigningOn, dossier.slaDueAt)
+    case ACTIONS.VERIFY_READINESS:
+      return payload.confirmed === true
+        && typeof payload.bankConsent === 'boolean'
+        && isPlainObject(payload.checklist)
+        && ['identityReviewed', 'paymentPlanReviewed', 'documentsReviewed']
+          .every((key) => payload.checklist[key] === true)
+    case ACTIONS.SUBMIT_NOTARY_DOSSIER:
+      return hasReference(payload.submissionRef)
+        && sameMembers(payload.documentIds, dossier.notary.requiredDocumentIds)
+    case ACTIONS.REQUEST_SUPPLEMENT:
+      return Boolean(dossier.notary.supplement)
+        && payload.reasonCode === dossier.notary.supplement?.reasonCode
+        && payload.documentType === dossier.notary.supplement?.documentType
+        && isAugustDate(payload.dueOn)
+        && isDateOnOrAfter(payload.dueOn, dossier.actionTimes.provide_supplement)
+        && isDateOnOrBefore(payload.dueOn, dossier.actionTimes.record_notary_signing)
+    case ACTIONS.PROVIDE_SUPPLEMENT:
+      return hasReference(payload.documentId)
+        && payload.documentType === dossier.notary.supplement?.documentType
+        && typeof payload.fileName === 'string'
+        && /^[^/\\]+\.pdf$/i.test(payload.fileName)
+    case ACTIONS.RECORD_NOTARY_SIGNING:
+      return hasReference(payload.resultRef)
+        && isAugustDateTime(payload.signedAt)
+        && typeof payload.documentDigest === 'string'
+        && /^[a-f\d]{12,64}$/i.test(payload.documentDigest)
+    case ACTIONS.APPROVE_LAND_REGISTRY:
+      return hasReference(payload.resultRef)
+        && isAugustDateTime(payload.approvedAt)
+        && payload.newOwnerRef === dossier.parties.buyer.reference
+    case ACTIONS.DEVELOPER_INTAKE:
+      return hasReference(payload.intakeRef)
+        && isAugustDateTime(payload.receivedAt)
+        && Number.isInteger(payload.documentCount)
+        && payload.documentCount >= dossier.notary.requiredDocumentIds.length
+    case ACTIONS.DEVELOPER_CONFIRM_TRANSFER:
+      return hasReference(payload.confirmationRef) && isAugustDateTime(payload.confirmedAt)
+    case ACTIONS.BUYER_RECEIVE_CONTRACT:
+      return payload.acknowledged === true
+        && hasReference(payload.receiptRef)
+        && isAugustDateTime(payload.receivedAt)
+    default:
+      return false
+  }
+}
+
+const ACTION_TIMESTAMP_FIELDS = Object.freeze({
+  [ACTIONS.RECORD_NOTARY_SIGNING]: 'signedAt',
+  [ACTIONS.APPROVE_LAND_REGISTRY]: 'approvedAt',
+  [ACTIONS.DEVELOPER_INTAKE]: 'receivedAt',
+  [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'confirmedAt',
+  [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'receivedAt',
+})
+
+function actionTimestamp(dossier, action) {
+  const field = ACTION_TIMESTAMP_FIELDS[action.type]
+  return field ? action.payload?.[field] : dossier.actionTimes[action.type]
+}
+
+function eventAt(dossier, action, offset = 0) {
+  const base = actionTimestamp(dossier, action)
+  if (!offset) return base
+  return new Date(Date.parse(base) + offset * 1000).toISOString()
+}
+
+function chronologyAllows(state, action) {
+  const dossier = getDemoCase(state.caseId)
+  if (!dossier) return false
+  const occurredAt = actionTimestamp(dossier, action)
+  const configuredAt = dossier.actionTimes[action.type]
+  const occurredTime = Date.parse(occurredAt)
+  const configuredTime = Date.parse(configuredAt)
+  const slaTime = Date.parse(dossier.slaDueAt)
+  if (!Number.isFinite(occurredTime) || !Number.isFinite(configuredTime)
+    || occurredTime < configuredTime || occurredTime > slaTime) return false
+
+  const previousTimes = [...state.auditEvents, ...state.integrationEvents]
+    .map(({ at }) => Date.parse(at))
+    .filter(Number.isFinite)
+  return previousTimes.length === 0 || occurredTime > Math.max(...previousTimes)
+}
+
+function targetIdFor(state, actionType) {
+  if (actionType === ACTIONS.MATCH_PROPERTY) return state.records.property.id
+  if ([ACTIONS.REQUEST_SELLER_CONFIRMATION, ACTIONS.CONFIRM_REPRESENTATION].includes(actionType)) {
+    return state.records.representation.id
+  }
+  if ([ACTIONS.RECORD_BUYER, ACTIONS.VERIFY_READINESS].includes(actionType)) {
+    return state.records.readiness.id
+  }
+  if ([
+    ACTIONS.SUBMIT_NOTARY_DOSSIER,
+    ACTIONS.REQUEST_SUPPLEMENT,
+    ACTIONS.PROVIDE_SUPPLEMENT,
+    ACTIONS.RECORD_NOTARY_SIGNING,
+  ].includes(actionType)) return state.records.notaryDossier.id
+  return state.records.transaction?.id ?? state.caseId
+}
+
+function createAuditEvent(state, changedState, action) {
+  const dossier = resolveCase(state.caseId)
+  const meta = ACTION_META[action.type]
+  return {
+    id: `AUD-${state.caseId}-${String(state.auditEvents.length + 1).padStart(2, '0')}`,
+    at: eventAt(dossier, action),
+    actorRoleId: action.actor,
+    action: action.type,
+    label: meta.label,
+    targetType: meta.targetType,
+    targetId: targetIdFor(changedState, action.type),
+    correlationId: targetIdFor(changedState, action.type),
+    beforeStatus: getCaseStatus(state).label,
+    afterStatus: getCaseStatus(changedState).label,
+    reason: `${getCaseStatus(state).label} → ${getCaseStatus(changedState).label}`,
+  }
+}
+
+function createIntegrationEvents(state, action, definitions) {
+  const dossier = resolveCase(state.caseId)
+  return definitions.map((definition, offset) => ({
+    id: `INT-${state.caseId}-${String(state.integrationEvents.length + offset + 1).padStart(2, '0')}`,
+    at: eventAt(dossier, action, offset + 1),
+    type: definition.type,
+    label: definition.label,
+    system: definition.system,
+    source: definition.source ?? definition.system,
+    target: definition.target ?? 'VMLS',
+    status: definition.status ?? 'Đã ghi nhận',
+    targetId: definition.targetId,
+    correlationId: definition.correlationId ?? dossier.notary.correlationId,
+    route: definition.route ?? null,
+  }))
+}
+
+function accept(state, action, records, integrationDefinitions = []) {
+  const changedState = { ...state, records }
+  const audit = createAuditEvent(state, changedState, action)
+  const integrations = createIntegrationEvents(state, action, integrationDefinitions)
+  return {
+    ...changedState,
+    auditEvents: [...state.auditEvents, audit],
+    integrationEvents: [...state.integrationEvents, ...integrations],
+    actionLog: [...state.actionLog, clone({
+      type: action.type,
+      actor: action.actor,
+      payload: action.payload,
+    })],
+  }
+}
+
+export function journeyReducer(state, action) {
+  if (!state || !action || ACTION_META[action.type]?.actorRoleId !== action.actor) return state
+  const lifecycleActions = /** @type {string[]} */ (allowedActionsFor(state, action.actor))
+  if (!lifecycleActions.includes(action.type)) return state
+  if (!validPayload(state, action)) return state
+  if (!chronologyAllows(state, action)) return state
+
+  const dossier = resolveCase(state.caseId)
+  const records = state.records
+  const at = eventAt(dossier, action)
+
+  switch (action.type) {
+    case ACTIONS.MATCH_PROPERTY:
+      return accept(state, action, {
+        ...records,
+        property: {
+          ...records.property,
+          status: 'Đã đối chiếu',
+          matchedCandidateId: action.payload.candidateId,
+          matchedAt: at,
+          selectedSourceIds: [...action.payload.sourceIds],
+        },
       })
     case ACTIONS.REQUEST_SELLER_CONFIRMATION:
-      return accepted(state, action, {
-        stage: STAGES.SELLER_CONFIRMATION,
-        flags: { ...state.flags, sellerRequestSent: true },
-      })
-    case ACTIONS.CONFIRM_REPRESENTATION:
-      return accepted(state, action, {
-        flags: { ...state.flags, representationConfirmed: true },
-      }, [{
-        type: 'vneid_consent_received',
-        label: 'Đã nhận xác nhận quyền đại diện qua bàn giao VNeID mô phỏng',
-      }])
-    case ACTIONS.CREATE_LISTING:
-      return accepted(state, action, {
-        stage: STAGES.LISTING_CREATED,
-        records: {
-          ...state.records,
-          listing: { id: demoCase.listing.id, status: 'Đã khởi tạo' },
+      return accept(state, action, {
+        ...records,
+        representation: {
+          ...records.representation,
+          status: 'Chờ xác nhận',
+          scope: action.payload.scope,
+          startsOn: action.payload.startsOn,
+          expiresOn: action.payload.expiresOn,
+          requestedAt: at,
+          request: {
+            scope: action.payload.scope,
+            startsOn: action.payload.startsOn,
+            expiresOn: action.payload.expiresOn,
+            requestedAt: at,
+          },
         },
       })
+    case ACTIONS.CONFIRM_REPRESENTATION: {
+      const listing = {
+        id: dossier.listing.id,
+        propertyId: dossier.property.id,
+        representationId: dossier.representation.id,
+        transactionType: dossier.listing.transactionType,
+        status: 'Đã khởi tạo',
+        createdAt: at,
+        askingPrice: clone(dossier.listing.askingPrice),
+        distributionConsent: {
+          status: 'Chưa ghi nhận',
+          grantedChannelIds: [],
+        },
+        channels: [clone(dossier.listing.channel)],
+      }
+      return accept(state, action, {
+        ...records,
+        representation: {
+          ...records.representation,
+          status: 'Đã xác nhận',
+          confirmationRef: action.payload.confirmationRef,
+          confirmedAt: at,
+          confirmation: {
+            reference: action.payload.confirmationRef,
+            confirmedAt: at,
+          },
+        },
+        listing,
+      }, [
+        {
+          type: 'representation_confirmation_received',
+          label: 'Nhận xác nhận quyền đại diện',
+          system: dossier.representation.confirmationChannel,
+          source: dossier.representation.confirmationChannel,
+          target: 'VMLS',
+          targetId: dossier.representation.id,
+          correlationId: dossier.representation.id,
+        },
+        {
+          type: 'listing_created',
+          label: 'Cấp PLID và khởi tạo tin bán',
+          system: 'VMLS',
+          source: 'VMLS',
+          target: 'Tin bán',
+          targetId: dossier.listing.id,
+          correlationId: dossier.representation.id,
+        },
+      ])
+    }
     case ACTIONS.RECORD_BUYER:
-      return accepted(state, action, {
-        stage: STAGES.TRANSACTION_READINESS,
-        flags: { ...state.flags, buyerRecorded: true },
+      return accept(state, action, {
+        ...records,
+        readiness: {
+          ...records.readiness,
+          status: 'Chờ người mua xác nhận',
+          buyer: {
+            ref: dossier.parties.buyer.reference,
+            reference: dossier.parties.buyer.reference,
+            displayName: dossier.parties.buyer.displayName,
+            agreedPrice: action.payload.agreedPrice,
+            expectedSigningOn: action.payload.expectedSigningOn,
+          },
+          agreedPrice: action.payload.agreedPrice,
+          expectedSigningOn: action.payload.expectedSigningOn,
+          financeSharing: {
+            shareId: null,
+            status: 'Chưa ghi nhận',
+            purpose: null,
+            visibleFields: [],
+            scope: null,
+            recordedAt: null,
+          },
+        },
       })
     case ACTIONS.VERIFY_READINESS:
-      return accepted(state, action, {
-        flags: { ...state.flags, readinessVerified: true },
+      return accept(state, action, {
+        ...records,
+        readiness: {
+          ...records.readiness,
+          status: 'Đã sẵn sàng công chứng',
+          checklist: clone(action.payload.checklist),
+          verifiedAt: at,
+          financeSharing: action.payload.bankConsent
+            ? {
+                shareId: dossier.readiness.financeSharing.shareId,
+                status: 'Đã đồng ý',
+                purpose: dossier.readiness.financeSharing.purpose,
+                visibleFields: [...dossier.readiness.financeSharing.visibleFields],
+                scope: dossier.readiness.financeSharing.visibleFields.join(' · '),
+                recordedAt: at,
+              }
+            : {
+                shareId: null,
+                status: 'Chưa đồng ý',
+                purpose: null,
+                visibleFields: [],
+                scope: null,
+                recordedAt: at,
+              },
+        },
       })
     case ACTIONS.SUBMIT_NOTARY_DOSSIER:
-      return accepted(state, action, {
-        stage: STAGES.NOTARY_DOSSIER,
-        flags: { ...state.flags, notarySubmitted: true },
-      }, [{
-        type: 'notary_dossier_received',
-        label: 'VPCC đã tiếp nhận hồ sơ qua kết nối mô phỏng',
-      }])
-    case ACTIONS.REQUEST_SUPPLEMENT:
-      return accepted(state, action, {
-        supplement: { status: 'required', count: 1 },
-      })
-    case ACTIONS.PROVIDE_SUPPLEMENT:
-      return accepted(state, action, {
-        supplement: { ...state.supplement, status: 'provided' },
-      })
-    case ACTIONS.RECORD_NOTARY_SIGNING:
-      return accepted(state, action, {
-        stage: STAGES.NOTARY_SIGNED,
-        supplement: {
-          ...state.supplement,
-          status: state.supplement.status === 'provided' ? 'resolved' : state.supplement.status,
+      return accept(state, action, {
+        ...records,
+        notaryDossier: {
+          ...records.notaryDossier,
+          status: 'Đã tiếp nhận',
+          submission: {
+            ref: action.payload.submissionRef,
+            reference: action.payload.submissionRef,
+            receivedAt: at,
+            documentIds: [...action.payload.documentIds],
+          },
+          documents: records.notaryDossier.documents.map((document) => ({
+            ...document,
+            status: 'Đã nhận',
+          })),
         },
       }, [{
-        type: 'notary_result_received',
-        label: 'VMLS đã nhận kết quả ký từ VPCC mô phỏng',
+        type: 'notary_dossier_received',
+        label: 'Hồ sơ công chứng đã được tiếp nhận',
+        system: 'VPCC',
+        source: 'VPCC',
+        target: 'VMLS',
+        targetId: dossier.notary.id,
       }])
-    case ACTIONS.CREATE_TRANSACTION:
-      return accepted(state, action, {
-        stage: STAGES.ROUTED,
-        route: demoCase.route,
-        records: {
-          ...state.records,
-          transaction: { id: demoCase.transaction.id, status: 'Đã ký công chứng' },
+    case ACTIONS.REQUEST_SUPPLEMENT:
+      return accept(state, action, {
+        ...records,
+        notaryDossier: {
+          ...records.notaryDossier,
+          status: 'Yêu cầu bổ sung',
+          supplement: {
+            status: 'Chờ người bán',
+            reasonCode: action.payload.reasonCode,
+            documentType: action.payload.documentType,
+            dueOn: action.payload.dueOn,
+            requestedAt: at,
+            ownerRoleId: 'seller',
+            document: null,
+            fileName: null,
+          },
+        },
+      })
+    case ACTIONS.PROVIDE_SUPPLEMENT:
+      return accept(state, action, {
+        ...records,
+        notaryDossier: {
+          ...records.notaryDossier,
+          status: 'Đủ hồ sơ ký',
+          supplement: {
+            ...records.notaryDossier.supplement,
+            status: 'Đã bổ sung',
+            providedAt: at,
+            fileName: action.payload.fileName,
+            document: {
+              id: action.payload.documentId,
+              documentType: action.payload.documentType,
+              fileName: action.payload.fileName,
+            },
+          },
+        },
+      })
+    case ACTIONS.RECORD_NOTARY_SIGNING: {
+      const transaction = {
+        id: dossier.transaction.id,
+        propertyId: dossier.property.id,
+        listingId: dossier.listing.id,
+        notaryDossierId: dossier.notary.id,
+        status: 'Đã ký công chứng',
+        createdAt: action.payload.signedAt,
+        route: dossier.expectedRoute,
+      }
+      const routeLabel = dossier.expectedRoute === 'developer'
+        ? 'Chủ đầu tư'
+        : 'Văn phòng đăng ký đất đai'
+      return accept(state, action, {
+        ...records,
+        notaryDossier: {
+          ...records.notaryDossier,
+          status: 'Đã ký công chứng',
+          supplement: records.notaryDossier.supplement
+            ? { ...records.notaryDossier.supplement, status: 'Đã xử lý' }
+            : null,
+          signedResult: {
+            resultRef: action.payload.resultRef,
+            reference: action.payload.resultRef,
+            signedAt: action.payload.signedAt,
+            documentDigest: action.payload.documentDigest,
+          },
+        },
+        transaction,
+        transfer: {
+          ...records.transfer,
+          route: dossier.expectedRoute,
+          status: dossier.expectedRoute === 'developer'
+            ? 'Chờ chủ đầu tư tiếp nhận'
+            : 'Chờ đăng ký biến động',
         },
       }, [
         {
-          type: 'tax_obligation_exchange',
-          label: 'Trao đổi nghĩa vụ thuế tự động',
+          type: 'notary_result_received',
+          label: 'Nhận kết quả công chứng',
+          system: 'VPCC',
+          source: 'VPCC',
+          target: 'VMLS',
+          targetId: dossier.notary.id,
         },
         {
-          type: 'tax_payment_confirmation',
-          label: 'Nhận xác nhận hoàn thành nghĩa vụ thuế',
+          type: 'transaction_created',
+          label: 'Cấp PTID cho giao dịch',
+          system: 'VMLS',
+          source: 'VMLS',
+          target: 'Giao dịch',
+          targetId: dossier.transaction.id,
+          correlationId: dossier.notary.correlationId,
+        },
+        {
+          type: 'tax_obligation_recorded',
+          label: 'Ghi nhận nghĩa vụ thuế',
+          system: 'Thuế',
+          source: 'VMLS',
+          target: 'Thuế',
+          targetId: dossier.transaction.id,
+          correlationId: dossier.transaction.id,
+        },
+        {
+          type: 'tax_payment_status_recorded',
+          label: 'Ghi nhận trạng thái nghĩa vụ thuế',
+          system: 'Thuế',
+          source: 'Thuế',
+          target: 'VMLS',
+          targetId: dossier.transaction.id,
+          correlationId: dossier.transaction.id,
         },
         {
           type: 'route_determined',
-          label: demoCase.route === 'developer'
-            ? 'Tự động xác định tuyến Chủ đầu tư / HĐMB'
-            : 'Tự động xác định tuyến VPĐKĐĐ',
-          route: demoCase.route,
+          label: `Chuyển hồ sơ tới ${routeLabel}`,
+          system: 'VMLS',
+          source: 'VMLS',
+          target: routeLabel,
+          targetId: dossier.transaction.id,
+          correlationId: dossier.transaction.id,
+          route: dossier.expectedRoute,
         },
       ])
+    }
     case ACTIONS.APPROVE_LAND_REGISTRY:
-      return accepted(state, action, {
-        stage: STAGES.LAND_REGISTRY_COMPLETE,
-        records: {
-          ...state.records,
-          transaction: { ...state.records.transaction, status: 'Đã sang tên' },
+      return accept(state, action, {
+        ...records,
+        property: { ...records.property, status: 'Đã sang tên' },
+        transaction: { ...records.transaction, status: 'Đã sang tên' },
+        transfer: {
+          ...records.transfer,
+          status: 'Đã sang tên',
+          resultRef: action.payload.resultRef,
+          resultAt: action.payload.approvedAt,
+          newOwnerRef: action.payload.newOwnerRef,
         },
       }, [{
-        type: 'land_registry_approved',
-        label: 'Đã nhận kết quả phê duyệt sang tên từ API VPĐKĐĐ mô phỏng',
+        type: 'land_registry_result_received',
+        label: 'Nhận kết quả đăng ký biến động',
+        system: 'VPĐKĐĐ',
+        source: 'VPĐKĐĐ',
+        target: 'VMLS',
+        targetId: dossier.transaction.id,
+        correlationId: dossier.transaction.id,
+        route: 'landRegistry',
       }])
     case ACTIONS.DEVELOPER_INTAKE:
-      return accepted(state, action, {
-        stage: STAGES.DEVELOPER_INTAKE,
+      return accept(state, action, {
+        ...records,
+        transfer: {
+          ...records.transfer,
+          status: 'Chủ đầu tư đang xử lý',
+          intakeRef: action.payload.intakeRef,
+          intakeAt: action.payload.receivedAt,
+          documentCount: action.payload.documentCount,
+        },
       }, [{
         type: 'developer_dossier_received',
-        label: 'Chủ đầu tư đã tiếp nhận hồ sơ chuyển nhượng',
+        label: 'Chủ đầu tư tiếp nhận hồ sơ',
+        system: 'Chủ đầu tư',
+        source: 'VMLS',
+        target: 'Chủ đầu tư',
+        targetId: dossier.transaction.id,
+        correlationId: dossier.transaction.id,
+        route: 'developer',
       }])
     case ACTIONS.DEVELOPER_CONFIRM_TRANSFER:
-      return accepted(state, action, {
-        stage: STAGES.DEVELOPER_CONFIRMED,
-        records: {
-          ...state.records,
-          transaction: { ...state.records.transaction, status: 'Đã xác nhận chuyển nhượng' },
+      return accept(state, action, {
+        ...records,
+        transaction: { ...records.transaction, status: 'Đã xác nhận chuyển nhượng' },
+        transfer: {
+          ...records.transfer,
+          status: 'Chờ người mua nhận HĐMB',
+          confirmationRef: action.payload.confirmationRef,
+          confirmedAt: action.payload.confirmedAt,
+          contractReference: dossier.transfer.contractReference,
         },
       }, [{
         type: 'developer_transfer_confirmed',
-        label: 'Chủ đầu tư đã xác nhận chuyển nhượng HĐMB',
+        label: 'Chủ đầu tư xác nhận chuyển nhượng',
+        system: 'Chủ đầu tư',
+        source: 'Chủ đầu tư',
+        target: 'VMLS',
+        targetId: dossier.transaction.id,
+        correlationId: dossier.transaction.id,
+        route: 'developer',
       }])
     case ACTIONS.BUYER_RECEIVE_CONTRACT:
-      return accepted(state, action, {
-        stage: STAGES.CONTRACT_RECEIVED,
-        records: {
-          ...state.records,
-          transaction: { ...state.records.transaction, status: 'Đã nhận HĐMB mới' },
+      return accept(state, action, {
+        ...records,
+        property: { ...records.property, status: 'Đã cập nhật bên mua HĐMB' },
+        transaction: { ...records.transaction, status: 'Đã nhận HĐMB mới' },
+        transfer: {
+          ...records.transfer,
+          status: 'Đã bàn giao HĐMB mới',
+          resultRef: dossier.transfer.resultRef,
+          receiptRef: action.payload.receiptRef,
+          receivedAt: action.payload.receivedAt,
         },
       }, [{
-        type: 'new_contract_received',
-        label: 'Người mua đã nhận HĐMB mới; bản ghi VMLS đã đồng bộ',
+        type: 'contract_receipt_recorded',
+        label: 'Ghi nhận người mua đã nhận HĐMB mới',
+        system: 'VMLS',
+        source: 'Người mua',
+        target: 'VMLS',
+        targetId: dossier.transaction.id,
+        correlationId: dossier.transaction.id,
+        route: 'developer',
       }])
     default:
       return state
   }
 }
 
-export function serializeDemoState(state) {
-  return JSON.stringify(state)
+export function getCaseStatus(state) {
+  const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
+
+  if (transfer.status === 'Đã sang tên' || transfer.status === 'Đã bàn giao HĐMB mới') {
+    return { code: 'transfer_complete', label: 'Hoàn tất chuyển quyền', tone: 'success' }
+  }
+  if (transfer.status === 'Chờ người mua nhận HĐMB') {
+    return { code: 'contract_receipt_pending', label: 'Chờ nhận HĐMB mới', tone: 'warning' }
+  }
+  if (transfer.status === 'Chủ đầu tư đang xử lý') {
+    return { code: 'developer_processing', label: 'Chủ đầu tư đang xử lý', tone: 'info' }
+  }
+  if (transfer.status === 'Chờ chủ đầu tư tiếp nhận') {
+    return { code: 'developer_intake_pending', label: 'Chờ chủ đầu tư tiếp nhận', tone: 'warning' }
+  }
+  if (transfer.status === 'Chờ đăng ký biến động') {
+    return { code: 'land_registry_pending', label: 'Chờ đăng ký biến động', tone: 'warning' }
+  }
+  if (transaction) return { code: 'transaction_created', label: 'Đã tạo giao dịch', tone: 'info' }
+  if (notaryDossier.status === 'Đã ký công chứng') {
+    return { code: 'notary_signed', label: 'Đã ký công chứng', tone: 'success' }
+  }
+  if (notaryDossier.status === 'Yêu cầu bổ sung') {
+    return { code: 'supplement_required', label: 'Cần bổ sung hồ sơ', tone: 'danger' }
+  }
+  if (notaryDossier.status === 'Đủ hồ sơ ký') {
+    return { code: 'notary_ready_to_sign', label: 'Đủ hồ sơ ký', tone: 'success' }
+  }
+  if (notaryDossier.status === 'Đã tiếp nhận') {
+    return { code: 'notary_received', label: 'VPCC đã tiếp nhận', tone: 'info' }
+  }
+  if (readiness.status === 'Đã sẵn sàng công chứng') {
+    return { code: 'notary_submission_pending', label: 'Sẵn sàng công chứng', tone: 'success' }
+  }
+  if (readiness.buyer) {
+    return { code: 'buyer_confirmation_pending', label: 'Chờ người mua xác nhận', tone: 'warning' }
+  }
+  if (listing) return { code: 'listing_created', label: 'Tin bán đã khởi tạo', tone: 'info' }
+  if (representation.status === 'Chờ xác nhận') {
+    return { code: 'seller_confirmation_pending', label: 'Chờ người bán xác nhận', tone: 'warning' }
+  }
+  if (property.status === 'Đã đối chiếu') {
+    return { code: 'confirmation_request_pending', label: 'Chờ gửi yêu cầu xác nhận', tone: 'warning' }
+  }
+  return { code: 'property_match_pending', label: 'Chờ đối chiếu', tone: 'neutral' }
+}
+
+export function getNextWorkItem(state) {
+  for (const role of roles) {
+    const action = allowedActionsFor(state, role.id)[0]
+    if (!action) continue
+    const dossier = resolveCase(state.caseId)
+    return {
+      id: `TASK-${state.caseId}-${action}`,
+      caseId: state.caseId,
+      roleId: role.id,
+      ownerLabel: role.label,
+      action,
+      label: ACTION_META[action].label,
+      dueAt: state.records.notaryDossier.supplement?.dueOn ?? dossier.slaDueAt,
+      priority: dossier.priority,
+    }
+  }
+  return null
+}
+
+function isVisibleToRole(state, roleId) {
+  if (!roleIds.has(roleId)) return false
+  if (['agent', 'brokerage', 'vmls'].includes(roleId)) return true
+  if (roleId === 'seller') return state.records.representation.status !== 'Chưa gửi'
+  if (roleId === 'buyer') return Boolean(state.records.readiness.buyer)
+  if (roleId === 'bank') return state.records.readiness.financeSharing.status === 'Đã đồng ý'
+  if (roleId === 'notary') {
+    return state.records.readiness.status === 'Đã sẵn sàng công chứng'
+      || state.records.notaryDossier.status !== 'Chưa nộp'
+  }
+  if (roleId === 'developer') return state.records.transfer.route === 'developer'
+  if (roleId === 'landRegistry') return state.records.transfer.route === 'landRegistry'
+  return false
+}
+
+function normalizeStates(input) {
+  if (Array.isArray(input)) return input
+  if (input?.caseId) return [input]
+  if (input && typeof input === 'object') return Object.values(input).filter((value) => value?.caseId)
+  return []
+}
+
+export function deriveWorkItems(caseStatesOrState, roleId) {
+  if (!roleIds.has(roleId)) return []
+
+  return normalizeStates(caseStatesOrState)
+    .map((state) => {
+      const projected = /** @type {any} */ (projectStateForRole(state, roleId))
+      if (!projected) return null
+
+      if (roleId === 'bank') {
+        return {
+          id: `WORK-bank-${projected.shareId}`,
+          shareId: projected.shareId,
+          roleId,
+          propertyType: projected.records.property.type,
+          agreedPrice: projected.records.readiness.agreedPrice,
+          status: projected.records.readiness.status,
+          statusCode: 'readiness',
+          financePurpose: projected.records.readiness.financeSharing.purpose,
+          visibleFields: [...projected.records.readiness.financeSharing.visibleFields],
+          actionable: false,
+        }
+      }
+
+      const records = projected.records
+      const status = projected.status
+      const next = projected.nextWorkItem
+      return {
+        id: `WORK-${roleId}-${state.caseId}`,
+        caseId: projected.caseId,
+        dossierId: projected.dossierId ?? null,
+        title: projected.title ?? records.property?.name ?? records.property?.type ?? null,
+        propertyId: records.property?.id ?? null,
+        listingId: records.listing?.id ?? null,
+        transactionId: records.transaction?.id ?? null,
+        status: status.label,
+        statusCode: status.code,
+        statusTone: status.tone,
+        priority: projected.priority ?? null,
+        slaDueAt: next?.dueAt ?? projected.slaDueAt ?? null,
+        route: records.transfer?.route ?? null,
+        ownerRoleId: next?.roleId ?? null,
+        ownerLabel: next?.ownerLabel ?? '—',
+        nextAction: next?.action ?? null,
+        nextActionLabel: next?.label ?? 'Không có việc đang chờ',
+        actionable: next?.roleId === roleId,
+      }
+    })
+    .filter(Boolean)
+}
+
+function searchable(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('vi')
+}
+
+export function filterWorkItems(items, filters = {}) {
+  if (!Array.isArray(items)) return []
+  const query = searchable(filters.query).trim()
+  return items.filter((item) => {
+    const haystack = searchable([
+      item.dossierId,
+      item.title,
+      item.propertyId,
+      item.listingId,
+      item.transactionId,
+      item.propertyType,
+      item.agreedPrice,
+      item.status,
+    ].join(' '))
+    return (!query || haystack.includes(query))
+      && (!filters.status || item.statusCode === filters.status || item.status === filters.status)
+      && (!filters.ownerRoleId || item.ownerRoleId === filters.ownerRoleId)
+      && (!filters.route || item.route === filters.route)
+      && (!filters.priority || item.priority === filters.priority)
+      && (typeof filters.actionable !== 'boolean' || item.actionable === filters.actionable)
+  })
+}
+
+function commonProjection(state, roleId) {
+  const dossier = resolveCase(state.caseId)
+  return {
+    caseId: state.caseId,
+    dossierId: dossier.dossierId,
+    roleId,
+    title: dossier.title,
+    priority: dossier.priority,
+    slaDueAt: dossier.slaDueAt,
+    status: getCaseStatus(state),
+    nextWorkItem: getNextWorkItem(state),
+    allowedActions: allowedActionsFor(state, roleId),
+  }
+}
+
+function sellerAuditProjection(events) {
+  return events
+    .filter((event) => SELLER_AUDIT_ACTIONS.has(event.action))
+    .map((event) => ({
+      id: event.id,
+      at: event.at,
+      actorRoleId: event.actorRoleId,
+      action: event.action,
+      label: event.label,
+      beforeStatus: event.beforeStatus,
+      afterStatus: event.afterStatus,
+      reason: event.reason,
+    }))
 }
 
 export function projectStateForRole(state, roleId) {
-  const projection = ROLE_PROJECTIONS[roleId] ?? ROLE_PROJECTIONS.agent
-  const demoCase = getCase(state.caseId)
-  const common = {
-    caseId: state.caseId,
-    roleId,
-    stage: state.stage,
-    route: state.route,
-    scope: {
-      headline: projection.headline,
-      cards: [...projection.cards],
-      hidden: [...projection.hidden],
-    },
-    allowedActions: allowedActionsFor(state, roleId),
+  if (!state || !isVisibleToRole(state, roleId)) return null
+  const common = commonProjection(state, roleId)
+  const records = state.records
+
+  if (roleId === 'bank') {
+    return {
+      shareId: records.readiness.financeSharing.shareId,
+      roleId,
+      allowedActions: common.allowedActions,
+      records: {
+        property: { type: records.property.type },
+        readiness: {
+          status: records.readiness.status,
+          agreedPrice: records.readiness.agreedPrice,
+          financeSharing: clone(records.readiness.financeSharing),
+        },
+      },
+    }
   }
 
   if (roleId === 'brokerage') {
     return {
       ...common,
       records: {
-        property: { id: state.records.property.id },
-        listing: state.records.listing
-          ? { id: state.records.listing.id, status: state.records.listing.status }
-          : null,
-        transaction: state.records.transaction
-          ? { status: state.records.transaction.status }
-          : null,
+        property: {
+          id: records.property.id,
+          type: records.property.type,
+          location: records.property.location,
+          status: records.property.status,
+        },
+        representation: clone(records.representation),
+        listing: clone(records.listing),
+        readiness: { status: records.readiness.status },
+        notaryDossier: {
+          id: records.notaryDossier.id,
+          status: records.notaryDossier.status,
+          supplement: clone(records.notaryDossier.supplement),
+        },
+        transaction: clone(records.transaction),
+        transfer: clone(records.transfer),
       },
-      indicators: {
-        representation: state.flags.representationConfirmed ? 'Đã xác nhận' : 'Chưa xác nhận',
-        listing: state.records.listing?.status ?? 'Chưa khởi tạo',
-        bottleneck: state.supplement.status === 'required' ? 'Cần bổ sung hồ sơ' : 'Không có điểm nghẽn đang mở',
+      parties: {
+        seller: clone(state.parties.seller),
+        agent: clone(state.parties.agent),
       },
     }
   }
 
-  if (roleId === 'bank') {
+  if (roleId === 'seller') {
     return {
       ...common,
       records: {
-        property: { type: demoCase.property.type },
-        listing: state.records.listing
-          ? { askingPrice: demoCase.listing.askingPrice.displayValue, status: state.records.listing.status }
-          : null,
-        transaction: null,
+        property: clone(records.property),
+        representation: clone(records.representation),
+        listing: clone(records.listing),
+        readiness: { status: records.readiness.status },
+        notaryDossier: {
+          id: records.notaryDossier.id,
+          status: records.notaryDossier.status,
+          supplement: clone(records.notaryDossier.supplement),
+        },
+        transaction: clone(records.transaction),
+        transfer: clone(records.transfer),
       },
-      indicators: {
-        consent: demoCase.readiness.financeConsent.label,
-        readiness: state.flags.readinessVerified ? 'Đã sẵn sàng công chứng' : 'Chưa sẵn sàng công chứng',
-        financeContext: demoCase.readiness.financeContext,
+      parties: {
+        seller: clone(state.parties.seller),
+        agent: clone(state.parties.agent),
       },
+      auditEvents: sellerAuditProjection(state.auditEvents),
+    }
+  }
+
+  if (roleId === 'buyer') {
+    return {
+      ...common,
+      records: {
+        property: {
+          id: records.property.id,
+          name: records.property.name,
+          type: records.property.type,
+          location: records.property.location,
+          areas: clone(records.property.areas),
+        },
+        listing: clone(records.listing),
+        readiness: clone(records.readiness),
+        notaryDossier: {
+          id: records.notaryDossier.id,
+          office: records.notaryDossier.office,
+          status: records.notaryDossier.status,
+          signedResult: clone(records.notaryDossier.signedResult),
+        },
+        transaction: clone(records.transaction),
+        transfer: clone(records.transfer),
+      },
+      parties: { buyer: clone(state.parties.buyer) },
+    }
+  }
+
+  if (roleId === 'notary') {
+    return {
+      ...common,
+      records: {
+        property: {
+          id: records.property.id,
+          name: records.property.name,
+          type: records.property.type,
+          location: records.property.location,
+        },
+        representation: {
+          id: records.representation.id,
+          status: records.representation.status,
+        },
+        listing: records.listing ? { id: records.listing.id } : null,
+        readiness: {
+          status: records.readiness.status,
+          buyer: records.readiness.buyer
+            ? {
+                reference: records.readiness.buyer.reference,
+                displayName: records.readiness.buyer.displayName,
+              }
+            : null,
+          agreedPrice: records.readiness.agreedPrice,
+          expectedSigningOn: records.readiness.expectedSigningOn,
+          checklist: clone(records.readiness.checklist),
+        },
+        notaryDossier: clone(records.notaryDossier),
+        transaction: clone(records.transaction),
+      },
+      parties: {
+        seller: clone(state.parties.seller),
+        buyer: clone(state.parties.buyer),
+      },
+    }
+  }
+
+  if (roleId === 'developer') {
+    return {
+      ...common,
+      records: {
+        property: {
+          id: records.property.id,
+          project: records.property.project,
+          unit: records.property.unit,
+          areas: clone(records.property.areas),
+        },
+        listing: records.listing ? { id: records.listing.id } : null,
+        notaryDossier: {
+          id: records.notaryDossier.id,
+          status: records.notaryDossier.status,
+          signedResult: clone(records.notaryDossier.signedResult),
+        },
+        transaction: clone(records.transaction),
+        transfer: clone(records.transfer),
+      },
+      parties: { buyer: clone(state.parties.buyer) },
+    }
+  }
+
+  if (roleId === 'landRegistry') {
+    return {
+      ...common,
+      records: {
+        property: {
+          id: records.property.id,
+          location: records.property.location,
+          areas: clone(records.property.areas),
+        },
+        notaryDossier: {
+          id: records.notaryDossier.id,
+          status: records.notaryDossier.status,
+          signedResult: clone(records.notaryDossier.signedResult),
+        },
+        transaction: clone(records.transaction),
+        transfer: clone(records.transfer),
+      },
+      parties: { buyer: clone(state.parties.buyer) },
     }
   }
 
   return {
     ...common,
-    records: clone(state.records),
-    indicators: {
-      auditCount: state.auditEvents.length,
-      integrationCount: state.integrationEvents.length,
-    },
+    records: clone(records),
+    parties: clone(state.parties),
+    auditEvents: clone(state.auditEvents),
+    integrationEvents: roleId === 'vmls' ? clone(state.integrationEvents) : [],
   }
 }
 
-export function restoreDemoState(serialized, expectedCaseId) {
-  const validExpectedCase = demoCases.some(({ id }) => id === expectedCaseId)
-  const fallbackCaseId = validExpectedCase ? expectedCaseId : demoCases[0]?.id
-  const fallback = () => createInitialState(fallbackCaseId)
+export function serializeDemoState(state) {
+  return JSON.stringify({
+    version: 2,
+    caseId: state.caseId,
+    actions: clone(state.actionLog),
+  })
+}
 
+export function restoreDemoState(serialized, expectedCaseId) {
+  const expectedCase = getDemoCase(expectedCaseId)
+  const fallback = () => createInitialState(expectedCase?.id ?? demoCases[0]?.id)
   if (typeof serialized !== 'string') return fallback()
 
   try {
     const parsed = JSON.parse(serialized)
-    const demoCase = demoCases.find(({ id }) => id === parsed.caseId)
-    const matchesExpectedCase = !validExpectedCase || parsed.caseId === expectedCaseId
-    const knownStage = Object.values(STAGES).includes(parsed.stage)
-    const validRecords = parsed.records?.property?.id === demoCase?.property.id
-      && (!parsed.records.listing || parsed.records.listing.id === demoCase?.listing.id)
-      && (!parsed.records.transaction || parsed.records.transaction.id === demoCase?.transaction.id)
-    const validFlags = parsed.flags && [
-      'propertyMatched',
-      'sellerRequestSent',
-      'representationConfirmed',
-      'buyerRecorded',
-      'readinessVerified',
-      'notarySubmitted',
-    ].every((key) => typeof parsed.flags[key] === 'boolean')
-    const validSupplement = parsed.supplement && Number.isInteger(parsed.supplement.count)
-      && ['none', 'required', 'provided', 'resolved'].includes(parsed.supplement.status)
-    const validHistory = Array.isArray(parsed.auditEvents) && Array.isArray(parsed.integrationEvents)
-    const validRoute = parsed.route === null || parsed.route === demoCase?.route
-
-    if (parsed.version !== 1 || !demoCase || !matchesExpectedCase || !knownStage || !validRecords || !validFlags
-      || !validSupplement || !validHistory || !validRoute) {
+    const storedCase = getDemoCase(parsed?.caseId)
+    if (parsed?.version !== 2 || !storedCase || !Array.isArray(parsed.actions)
+      || parsed.actions.length > 20 || (expectedCase && expectedCase.id !== storedCase.id)) {
       return fallback()
     }
 
-    let replayed = createInitialState(parsed.caseId)
-    for (const event of parsed.auditEvents) {
-      const next = journeyReducer(replayed, { type: event.action, actor: event.actor })
-      if (next === replayed) return fallback()
-      replayed = next
+    let state = createInitialState(storedCase.id)
+    for (const action of parsed.actions) {
+      if (!isPlainObject(action) || !isPlainObject(action.payload)) return fallback()
+      const next = journeyReducer(state, action)
+      if (next === state) return fallback()
+      state = next
     }
-
-    if (JSON.stringify(replayed) !== JSON.stringify(parsed)) {
-      return fallback()
-    }
-
-    return parsed
+    return state
   } catch {
     return fallback()
   }
