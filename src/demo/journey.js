@@ -3,7 +3,6 @@
 import { DEMO_VERSION, demoCases, getDemoCase, roles } from './demoData.js'
 
 export const ACTIONS = Object.freeze({
-  MATCH_PROPERTY: 'match_property',
   REQUEST_SELLER_CONFIRMATION: 'request_seller_confirmation',
   CONFIRM_REPRESENTATION: 'confirm_representation',
   RECORD_BUYER: 'record_buyer',
@@ -19,14 +18,9 @@ export const ACTIONS = Object.freeze({
 })
 
 export const ACTION_META = Object.freeze({
-  [ACTIONS.MATCH_PROPERTY]: {
-    actorRoleId: 'agent',
-    label: 'Đối chiếu bất động sản',
-    targetType: 'property',
-  },
   [ACTIONS.REQUEST_SELLER_CONFIRMATION]: {
     actorRoleId: 'agent',
-    label: 'Gửi yêu cầu xác nhận',
+    label: 'Gửi thông tin đến Người bán',
     targetType: 'representation',
   },
   [ACTIONS.CONFIRM_REPRESENTATION]: {
@@ -118,16 +112,13 @@ export function createInitialState(caseId = demoCases[0]?.id) {
   const dossier = resolveCase(caseId)
 
   return {
-    version: 2,
+    version: 3,
     dataVersion: DEMO_VERSION,
     caseId: dossier.id,
     records: {
       property: {
         ...clone(dossier.property),
-        status: 'Chờ đối chiếu',
-        matchedCandidateId: null,
-        matchedAt: null,
-        selectedSourceIds: [],
+        status: 'Đã định danh',
         sources: clone(dossier.property.sourceRecords),
       },
       representation: {
@@ -139,16 +130,20 @@ export function createInitialState(caseId = demoCases[0]?.id) {
         startsOn: null,
         expiresOn: null,
         requestedAt: null,
-        confirmationRef: null,
         confirmedAt: null,
         request: null,
         confirmation: null,
+        parties: {
+          seller: clone(dossier.parties.seller),
+          representative: clone(dossier.parties.agent),
+        },
       },
       listing: null,
       readiness: {
         id: `READY-${dossier.dossierId}`,
         status: 'Chưa ghi nhận người mua',
         buyer: null,
+        contractConfirmation: null,
         agreedPrice: null,
         expectedSigningOn: null,
         checklist: blankChecklist(),
@@ -187,7 +182,6 @@ export function createInitialState(caseId = demoCases[0]?.id) {
         confirmedAt: null,
         resultRef: null,
         resultAt: null,
-        newOwnerRef: null,
         contractReference: null,
         receiptRef: null,
         receivedAt: null,
@@ -209,8 +203,7 @@ export function allowedActionsFor(state, roleId) {
   const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
 
   if (roleId === 'agent') {
-    if (property.status === 'Chờ đối chiếu') return [ACTIONS.MATCH_PROPERTY]
-    if (property.status === 'Đã đối chiếu' && representation.status === 'Chưa gửi') {
+    if (property.status === 'Đã định danh' && representation.status === 'Chưa gửi') {
       return [ACTIONS.REQUEST_SELLER_CONFIRMATION]
     }
     if (listing && !readiness.buyer) return [ACTIONS.RECORD_BUYER]
@@ -288,19 +281,40 @@ const sameMembers = (actual, expected) => Array.isArray(actual)
   && actual.length === expected.length
   && new Set(actual).size === actual.length
   && expected.every((value) => actual.includes(value))
+const normalizeIdentity = (value) => typeof value === 'string'
+  ? value.trim().toLocaleUpperCase('vi')
+  : ''
+const PAYLOAD_KEYS = Object.freeze({
+  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: ['propertyId', 'scope', 'startsOn', 'expiresOn'],
+  [ACTIONS.CONFIRM_REPRESENTATION]: ['accepted'],
+  [ACTIONS.RECORD_BUYER]: ['buyerRef', 'agreedPrice', 'expectedSigningOn'],
+  [ACTIONS.VERIFY_READINESS]: ['confirmed', 'bankConsent', 'checklist'],
+  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: ['submissionRef', 'documentIds'],
+  [ACTIONS.REQUEST_SUPPLEMENT]: ['reasonCode', 'documentType', 'dueOn'],
+  [ACTIONS.PROVIDE_SUPPLEMENT]: ['documentId', 'documentType', 'fileName'],
+  [ACTIONS.RECORD_NOTARY_SIGNING]: ['contractId', 'signedAt'],
+  [ACTIONS.APPROVE_LAND_REGISTRY]: ['resultRef', 'approvedAt'],
+  [ACTIONS.DEVELOPER_INTAKE]: ['intakeRef', 'receivedAt', 'documentCount'],
+  [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: ['confirmationRef', 'confirmedAt'],
+  [ACTIONS.BUYER_RECEIVE_CONTRACT]: ['receiptRef', 'receivedAt', 'acknowledged'],
+})
+const hasExactKeys = (value, expectedKeys) => {
+  const actualKeys = Reflect.ownKeys(value)
+  return actualKeys.length === expectedKeys.length
+    && expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(value, key))
+}
 
 function validPayload(state, action) {
   if (!isPlainObject(action?.payload)) return false
   const payload = action.payload
   const dossier = getDemoCase(state.caseId)
-  if (!dossier) return false
+  const expectedKeys = PAYLOAD_KEYS[action.type]
+  if (!dossier || !expectedKeys || !hasExactKeys(payload, expectedKeys)) return false
 
   switch (action.type) {
-    case ACTIONS.MATCH_PROPERTY:
-      return payload.candidateId === dossier.property.id
-        && sameMembers(payload.sourceIds, dossier.property.sourceRecords.map(({ id }) => id))
     case ACTIONS.REQUEST_SELLER_CONFIRMATION: {
-      if (!dossier.representation.allowedScopes.includes(payload.scope)
+      if (normalizeIdentity(payload.propertyId) !== dossier.property.id
+        || !dossier.representation.allowedScopes.includes(payload.scope)
         || !isDateOnly(payload.startsOn) || !isDateOnly(payload.expiresOn)) return false
       const startsAt = Date.parse(`${payload.startsOn}T00:00:00Z`)
       const expiresAt = Date.parse(`${payload.expiresOn}T00:00:00Z`)
@@ -309,7 +323,7 @@ function validPayload(state, action) {
         && expiresAt - startsAt <= 366 * 24 * 60 * 60 * 1000
     }
     case ACTIONS.CONFIRM_REPRESENTATION:
-      return payload.accepted === true && hasReference(payload.confirmationRef)
+      return payload.accepted === true
     case ACTIONS.RECORD_BUYER:
       return payload.buyerRef === dossier.parties.buyer.reference
         && Number.isInteger(payload.agreedPrice) && payload.agreedPrice > 0
@@ -320,6 +334,11 @@ function validPayload(state, action) {
       return payload.confirmed === true
         && typeof payload.bankConsent === 'boolean'
         && isPlainObject(payload.checklist)
+        && hasExactKeys(payload.checklist, [
+          'identityReviewed',
+          'paymentPlanReviewed',
+          'documentsReviewed',
+        ])
         && ['identityReviewed', 'paymentPlanReviewed', 'documentsReviewed']
           .every((key) => payload.checklist[key] === true)
     case ACTIONS.SUBMIT_NOTARY_DOSSIER:
@@ -338,14 +357,11 @@ function validPayload(state, action) {
         && typeof payload.fileName === 'string'
         && /^[^/\\]+\.pdf$/i.test(payload.fileName)
     case ACTIONS.RECORD_NOTARY_SIGNING:
-      return hasReference(payload.resultRef)
+      return hasReference(payload.contractId)
         && isAugustDateTime(payload.signedAt)
-        && typeof payload.documentDigest === 'string'
-        && /^[a-f\d]{12,64}$/i.test(payload.documentDigest)
     case ACTIONS.APPROVE_LAND_REGISTRY:
       return hasReference(payload.resultRef)
         && isAugustDateTime(payload.approvedAt)
-        && payload.newOwnerRef === dossier.parties.buyer.reference
     case ACTIONS.DEVELOPER_INTAKE:
       return hasReference(payload.intakeRef)
         && isAugustDateTime(payload.receivedAt)
@@ -399,7 +415,6 @@ function chronologyAllows(state, action) {
 }
 
 function targetIdFor(state, actionType) {
-  if (actionType === ACTIONS.MATCH_PROPERTY) return state.records.property.id
   if ([ACTIONS.REQUEST_SELLER_CONFIRMATION, ACTIONS.CONFIRM_REPRESENTATION].includes(actionType)) {
     return state.records.representation.id
   }
@@ -478,17 +493,6 @@ export function journeyReducer(state, action) {
   const at = eventAt(dossier, action)
 
   switch (action.type) {
-    case ACTIONS.MATCH_PROPERTY:
-      return accept(state, action, {
-        ...records,
-        property: {
-          ...records.property,
-          status: 'Đã đối chiếu',
-          matchedCandidateId: action.payload.candidateId,
-          matchedAt: at,
-          selectedSourceIds: [...action.payload.sourceIds],
-        },
-      })
     case ACTIONS.REQUEST_SELLER_CONFIRMATION:
       return accept(state, action, {
         ...records,
@@ -500,13 +504,27 @@ export function journeyReducer(state, action) {
           expiresOn: action.payload.expiresOn,
           requestedAt: at,
           request: {
+            propertyId: normalizeIdentity(action.payload.propertyId),
             scope: action.payload.scope,
             startsOn: action.payload.startsOn,
             expiresOn: action.payload.expiresOn,
             requestedAt: at,
           },
+          confirmation: {
+            id: dossier.representation.confirmationId,
+            requestedAt: at,
+            confirmedAt: null,
+          },
         },
-      })
+      }, [{
+        type: 'representation_request_sent',
+        label: 'Gửi thông tin xác nhận quyền đại diện',
+        system: dossier.representation.confirmationChannel,
+        source: 'VMLS',
+        target: 'Người bán',
+        targetId: dossier.representation.id,
+        correlationId: dossier.representation.id,
+      }])
     case ACTIONS.CONFIRM_REPRESENTATION: {
       const listing = {
         id: dossier.listing.id,
@@ -527,10 +545,9 @@ export function journeyReducer(state, action) {
         representation: {
           ...records.representation,
           status: 'Đã xác nhận',
-          confirmationRef: action.payload.confirmationRef,
           confirmedAt: at,
           confirmation: {
-            reference: action.payload.confirmationRef,
+            ...records.representation.confirmation,
             confirmedAt: at,
           },
         },
@@ -566,6 +583,23 @@ export function journeyReducer(state, action) {
             ref: dossier.parties.buyer.reference,
             reference: dossier.parties.buyer.reference,
             displayName: dossier.parties.buyer.displayName,
+            identityRef: dossier.parties.buyer.identityRef,
+            agreedPrice: action.payload.agreedPrice,
+            expectedSigningOn: action.payload.expectedSigningOn,
+          },
+          contractConfirmation: {
+            agreement: clone(dossier.readiness.agreement),
+            transactionType: dossier.listing.transactionType,
+            property: {
+              id: dossier.property.id,
+              name: dossier.property.name,
+              location: dossier.property.location,
+            },
+            buyer: {
+              reference: dossier.parties.buyer.reference,
+              displayName: dossier.parties.buyer.displayName,
+              identityRef: dossier.parties.buyer.identityRef,
+            },
             agreedPrice: action.payload.agreedPrice,
             expectedSigningOn: action.payload.expectedSigningOn,
           },
@@ -692,10 +726,8 @@ export function journeyReducer(state, action) {
             ? { ...records.notaryDossier.supplement, status: 'Đã xử lý' }
             : null,
           signedResult: {
-            resultRef: action.payload.resultRef,
-            reference: action.payload.resultRef,
+            contractId: action.payload.contractId,
             signedAt: action.payload.signedAt,
-            documentDigest: action.payload.documentDigest,
           },
         },
         transaction,
@@ -764,7 +796,6 @@ export function journeyReducer(state, action) {
           status: 'Đã sang tên',
           resultRef: action.payload.resultRef,
           resultAt: action.payload.approvedAt,
-          newOwnerRef: action.payload.newOwnerRef,
         },
       }, [{
         type: 'land_registry_result_received',
@@ -845,7 +876,7 @@ export function journeyReducer(state, action) {
 }
 
 export function getCaseStatus(state) {
-  const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
+  const { representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
 
   if (transfer.status === 'Đã sang tên' || transfer.status === 'Đã bàn giao HĐMB mới') {
     return { code: 'transfer_complete', label: 'Hoàn tất chuyển quyền', tone: 'success' }
@@ -885,10 +916,11 @@ export function getCaseStatus(state) {
   if (representation.status === 'Chờ xác nhận') {
     return { code: 'seller_confirmation_pending', label: 'Chờ người bán xác nhận', tone: 'warning' }
   }
-  if (property.status === 'Đã đối chiếu') {
-    return { code: 'confirmation_request_pending', label: 'Chờ gửi yêu cầu xác nhận', tone: 'warning' }
+  return {
+    code: 'representation_request_pending',
+    label: 'Chờ gửi thông tin đến Người bán',
+    tone: 'neutral',
   }
-  return { code: 'property_match_pending', label: 'Chờ đối chiếu', tone: 'neutral' }
 }
 
 export function getNextWorkItem(state) {
@@ -913,7 +945,7 @@ export function getNextWorkItem(state) {
 const publicString = (value) => typeof value === 'string' ? value : null
 
 function getPublicLifecycle(state) {
-  const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
+  const { representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
   const dueAt = getDemoCase(state.caseId)?.slaDueAt ?? null
 
   if (transfer.status === 'Đã sang tên' || transfer.status === 'Đã bàn giao HĐMB mới') {
@@ -982,21 +1014,23 @@ function getPublicLifecycle(state) {
       nextWork: { label: 'Hoàn tất quyền đại diện', ownerLabel: 'Các bên đại diện', dueAt },
     }
   }
-  if (property.status === 'Đã đối chiếu') {
-    return {
-      status: { code: 'property_matched', label: 'Đã đối chiếu Bất động sản', tone: 'info' },
-      nextWork: { label: 'Thiết lập quyền đại diện', ownerLabel: 'Đơn vị môi giới', dueAt },
-    }
-  }
   return {
-    status: { code: 'property_match_pending', label: 'Chờ đối chiếu', tone: 'neutral' },
-    nextWork: { label: 'Đối chiếu Bất động sản', ownerLabel: 'Đơn vị môi giới', dueAt },
+    status: {
+      code: 'representation_request_pending',
+      label: 'Chờ gửi thông tin đến Người bán',
+      tone: 'neutral',
+    },
+    nextWork: {
+      label: 'Gửi thông tin đến Người bán',
+      ownerLabel: 'Đơn vị môi giới',
+      dueAt,
+    },
   }
 }
 
 function latestPublicMaterialTime(records) {
   const candidates = [
-    records.property?.matchedAt,
+    records.representation?.requestedAt,
     records.listing?.createdAt,
     records.transaction?.createdAt,
     records.transfer?.intakeAt,
@@ -1315,10 +1349,7 @@ export function projectStateForRole(state, roleId) {
           type: records.property.type,
           location: records.property.location,
         },
-        representation: {
-          id: records.representation.id,
-          status: records.representation.status,
-        },
+        representation: clone(records.representation),
         listing: records.listing ? { id: records.listing.id } : null,
         readiness: {
           status: records.readiness.status,
@@ -1330,6 +1361,7 @@ export function projectStateForRole(state, roleId) {
             : null,
           agreedPrice: records.readiness.agreedPrice,
           expectedSigningOn: records.readiness.expectedSigningOn,
+          contractConfirmation: clone(records.readiness.contractConfirmation),
           checklist: clone(records.readiness.checklist),
         },
         notaryDossier: clone(records.notaryDossier),
@@ -1337,6 +1369,7 @@ export function projectStateForRole(state, roleId) {
       },
       parties: {
         seller: clone(state.parties.seller),
+        agent: clone(state.parties.agent),
         buyer: clone(state.parties.buyer),
       },
     }
@@ -1397,7 +1430,7 @@ export function projectStateForRole(state, roleId) {
 
 export function serializeDemoState(state) {
   return JSON.stringify({
-    version: 2,
+    version: 3,
     caseId: state.caseId,
     actions: clone(state.actionLog),
   })
@@ -1411,7 +1444,7 @@ export function restoreDemoState(serialized, expectedCaseId) {
   try {
     const parsed = JSON.parse(serialized)
     const storedCase = getDemoCase(parsed?.caseId)
-    if (parsed?.version !== 2 || !storedCase || !Array.isArray(parsed.actions)
+    if (parsed?.version !== 3 || !storedCase || !Array.isArray(parsed.actions)
       || parsed.actions.length > 20 || (expectedCase && expectedCase.id !== storedCase.id)) {
       return fallback()
     }

@@ -997,12 +997,6 @@ select:focus-visible,
   gap: 1rem;
 }
 
-.form-instruction {
-  margin-bottom: 0;
-  color: var(--color-ink-muted);
-  font-size: 0.82rem;
-}
-
 .form-error {
   display: flex;
   align-items: flex-start;
@@ -1109,6 +1103,12 @@ select:focus-visible,
   background: #f8f8f4;
 }
 
+.contract-confirmation h3 {
+  margin: 0 0 0.8rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
 .readiness-checks,
 .document-checks {
   display: grid;
@@ -1132,56 +1132,6 @@ select:focus-visible,
 .document-checks small {
   color: var(--color-ink-muted);
   font-size: 0.67rem;
-}
-
-.candidate-list {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.candidate-list > label {
-  display: grid;
-  grid-template-columns: auto minmax(10rem, 0.7fr) minmax(14rem, 1fr);
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.8rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.candidate-list > label.is-selected {
-  border-color: var(--registry-green);
-  background: #f0f7f3;
-  box-shadow: inset 3px 0 0 var(--registry-green);
-}
-
-.candidate-list input {
-  width: 1.05rem;
-  height: 1.05rem;
-  accent-color: var(--registry-green);
-}
-
-.candidate-list span strong,
-.candidate-list span small {
-  display: block;
-}
-
-.candidate-list span strong {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-}
-
-.candidate-list span small {
-  color: var(--color-ink-muted);
-  font-size: 0.7rem;
-}
-
-.candidate-list ul {
-  margin: 0;
-  padding-left: 1rem;
-  color: var(--color-ink-muted);
-  font-size: 0.72rem;
 }
 
 .action-button {
@@ -1728,13 +1678,6 @@ select:focus-visible,
     grid-template-columns: 1fr 1fr;
   }
 
-  .candidate-list > label {
-    grid-template-columns: auto 1fr;
-  }
-
-  .candidate-list ul {
-    grid-column: 2;
-  }
 }
 
 @media (max-width: 620px) {
@@ -1863,10 +1806,6 @@ select:focus-visible,
   .form-grid,
   .source-drawer > dl {
     grid-template-columns: 1fr;
-  }
-
-  .candidate-list > label {
-    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .compact-table {

@@ -70,7 +70,7 @@ Empty values use a concise operational state such as `Chưa có`. They do not ex
 
 | Role | Navigation | Commands and decisions |
 |---|---|---|
-| Môi giới | Công việc, Bất động sản, Tin bán, Giao dịch | Match NPID and sources; send representation request; record buyer |
+| Môi giới | Công việc, Bất động sản, Tin bán, Giao dịch | Enter the existing NPID and send the representation request; record buyer |
 | Sàn môi giới | Điều phối hồ sơ, Bất động sản, Tin bán | Filter blockers, verify representation/listing state, inspect owner and due date |
 | Người bán | Yêu cầu và tài liệu, Bất động sản, Tin bán | Confirm representation; provide an exact requested document |
 | Người mua | Hồ sơ mua, Giao dịch | Confirm readiness; acknowledge receipt of a new HĐMB |
@@ -108,16 +108,15 @@ All commands require the correct role, current object states, and a valid payloa
 
 | Command owner | Command | Required payload | Result |
 |---|---|---|---|
-| Môi giới | Match Bất động sản | Candidate `NPID` and the complete selected source-ID set | Property match state and audit event update |
-| Môi giới | Send representation request | Scope, effective start, expiry | Representation becomes `Chờ xác nhận` |
-| Người bán | Confirm representation | Explicit acceptance and confirmation reference | Representation becomes confirmed; system automatically creates PLID with status `Đã khởi tạo` |
+| Môi giới | Send representation request | Existing `NPID`, scope, effective start, expiry | Representation becomes `Chờ xác nhận`; the work moves to the seller |
+| Người bán | Confirm representation | Explicit acceptance | Representation becomes confirmed; the system retains its immutable confirmation-record reference and automatically creates PLID with status `Đã khởi tạo` |
 | Môi giới | Record buyer | Buyer reference, integer agreed price, expected signing date | Readiness becomes `Chờ người mua xác nhận` |
-| Người mua | Confirm readiness | Explicit confirmation and all required checklist items; optional finance-sharing choice | Readiness becomes `Đã sẵn sàng công chứng`; bank projection is created only when consent exists |
+| Người mua | Confirm readiness | Read-only buyer and contract summary, explicit confirmation and all required checklist items; optional finance-sharing choice | Readiness becomes `Đã sẵn sàng công chứng`; bank projection is created only when consent exists |
 | VPCC | Receive dossier | Submission reference and complete required document-ID set | VPCC dossier becomes `Đã tiếp nhận` |
 | VPCC | Request supplement | Reason code, document type, due date | An owned, recoverable supplement work item is created |
 | Người bán | Provide supplement | Document ID, requested type, PDF filename | The same VPCC dossier becomes `Đủ hồ sơ ký`; the original submission remains in history |
-| VPCC | Record signing result | Result reference, August 2026 signing timestamp, document digest | System automatically creates PTID, records tax/integration events, and derives the route |
-| VPĐKĐĐ | Record registration result | Result reference, effective timestamp, buyer reference | Property and transaction reflect the registration-change outcome |
+| VPCC | Record signing result | Contract identifier and August 2026 signing timestamp | System automatically creates PTID, records tax/integration events, and derives the route |
+| VPĐKĐĐ | Record registration result | Result reference and effective timestamp | Property and transaction reflect the registration-change outcome |
 | Chủ đầu tư | Receive transfer dossier | Intake reference, received timestamp, document count | HĐMB route enters Developer processing |
 | Chủ đầu tư | Confirm HĐMB transfer | Confirmation reference and timestamp | Transaction becomes confirmed; receipt work is assigned to the buyer |
 | Người mua | Acknowledge new HĐMB | Receipt reference, received timestamp, explicit acknowledgement | HĐMB route records delivery without adding a separate fake closing action |
@@ -152,7 +151,7 @@ The user never chooses the route. `PROPOSAL`: the current deterministic bases ar
 
 ## Separate lifecycle state
 
-The implementation maintains independent state for Property match, Representation, Listing, readiness, notary dossier, Transaction, transfer, integration events, and audit events. A single global “step” must not control all UI.
+The implementation maintains independent state for the identified Property, Representation, Listing, readiness, notary dossier, Transaction, transfer, integration events, and audit events. A single global “step” must not control all UI.
 
 This separation is required because:
 
@@ -203,7 +202,7 @@ Repository documentation and QA reports continue to preserve evidence labels and
 ## Acceptance criteria
 
 1. First paint is an operational queue with searchable records, status, owner, and next work.
-2. Within three interactions, a user can open a dossier and submit its first valid command.
+2. Within three interactions, a user can open a dossier, enter its existing NPID and send the representation request to the seller.
 3. Queue metrics and filters are computed from the same projected rows and update after accepted commands.
 4. Every editable transition has a payload form and validation; there is no generic “advance” action.
 5. PLID creation, PTID creation, tax-event append, and routing require no VMLS-role click.

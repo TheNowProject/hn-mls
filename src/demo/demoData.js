@@ -1,7 +1,7 @@
 // @ts-check
 
-export const DEMO_VERSION = 'vmls-operations-2026-08-v2'
-export const STORAGE_KEY = 'vmls:operations:2026-08:v2'
+export const DEMO_VERSION = 'vmls-operations-2026-08-v3'
+export const STORAGE_KEY = 'vmls:operations:2026-08:v3'
 
 export const roles = Object.freeze([
   {
@@ -10,7 +10,7 @@ export const roles = Object.freeze([
     shortLabel: 'MG',
     group: 'Thị trường',
     defaultWorkspace: 'sellerDossiers',
-    purpose: 'Đối chiếu bất động sản và hoàn thiện hồ sơ khách bán.',
+    purpose: 'Gửi yêu cầu xác nhận quyền đại diện và hoàn thiện hồ sơ khách bán.',
   },
   {
     id: 'brokerage',
@@ -148,9 +148,9 @@ export const ecosystemConnections = Object.freeze([
     capturedOn: '15/08/2026',
     screenshot: '/assets/demo/vneid-google-play-2026-08-15.png',
     inputLabel: 'Dữ liệu gửi',
-    inputFields: ['Mã yêu cầu', 'NPID', 'Phạm vi đại diện', 'Thời hạn hiệu lực'],
+    inputFields: ['Mã yêu cầu', 'Mã định danh Bất động sản', 'Phạm vi đại diện', 'Thời hạn hiệu lực'],
     outputLabel: 'Dữ liệu nhận',
-    outputFields: ['Mã xác nhận', 'Kết quả', 'Thời điểm xác nhận'],
+    outputFields: ['Kết quả', 'Thời điểm xác nhận'],
   },
   {
     id: 'source-357',
@@ -185,11 +185,21 @@ export const ecosystemConnections = Object.freeze([
   },
 ])
 
-const maskedParty = (reference, displayName, phone, identityRef, organization = null) => ({
+const maskedParty = (
   reference,
   displayName,
   phone,
   identityRef,
+  roleLabel,
+  organization = null,
+) => ({
+  reference,
+  displayName,
+  phone,
+  identityRef,
+  roleLabel,
+  displayNameLabel: 'Họ tên',
+  referenceLabel: `Mã định danh ${roleLabel}`,
   organization,
   masked: true,
 })
@@ -221,22 +231,6 @@ export const demoCases = Object.freeze([
       project: 'Sun Grand City Thụy Khuê Residence',
       unit: 'S2-12A',
       location: 'Thụy Khuê, Tây Hồ, Hà Nội',
-      candidates: [
-        {
-          id: 'NPID-HN-09876',
-          title: 'S2-12A · Sun Grand City Thụy Khuê Residence',
-          label: 'S2-12A · Sun Grand City Thụy Khuê Residence',
-          location: 'Thụy Khuê, Tây Hồ, Hà Nội',
-          matchSignals: ['Mã căn', 'Dự án', 'Hai khái niệm diện tích'],
-        },
-        {
-          id: 'NPID-HN-09341',
-          title: 'S2-12 · Sun Grand City Thụy Khuê Residence',
-          label: 'S2-12 · Sun Grand City Thụy Khuê Residence',
-          location: 'Thụy Khuê, Tây Hồ, Hà Nội',
-          matchSignals: ['Cùng dự án', 'Khác mã căn'],
-        },
-      ],
       areas: [
         {
           kind: 'usable',
@@ -272,6 +266,7 @@ export const demoCases = Object.freeze([
     },
     representation: {
       id: 'REP-HN-00031',
+      confirmationId: 'XND-HN-00031',
       confirmationChannel: 'VNeID',
       allowedScopes: ['Độc quyền', 'Không độc quyền'],
     },
@@ -282,6 +277,10 @@ export const demoCases = Object.freeze([
       channel: houseNowChannel,
     },
     readiness: {
+      agreement: {
+        reference: 'TTCN-HDMB-HN-00031',
+        type: 'Thỏa thuận chuyển nhượng HĐMB',
+      },
       financeSharing: {
         shareId: 'CS-8F2D1A',
         purpose: 'Trao đổi nhu cầu tài chính',
@@ -292,7 +291,7 @@ export const demoCases = Object.freeze([
       id: 'HSCC-HN-00031',
       office: 'Văn phòng công chứng Minh Tâm',
       correlationId: 'VPCC-HN-260819-031',
-      resultRef: 'KQCC-HN-260822-031',
+      contractId: 'HDCC-HN-260822-031',
       requiredDocumentIds: ['seller-identity', 'buyer-identity', 'sale-contract', 'representation'],
       documents: [
         { id: 'seller-identity', label: 'Giấy tờ định danh bên bán' },
@@ -314,12 +313,11 @@ export const demoCases = Object.freeze([
       contractReference: 'HDMB-MOI-S2-12A/2026',
     },
     parties: {
-      seller: maskedParty('NB-HN-0031', 'T••• M••• A•••', '09•• ••• 218', 'CCCD •••• 1842'),
-      buyer: maskedParty('NM-HN-0031', 'N••• V••• A•', '09•• ••• 506', 'CCCD •••• 5076'),
-      agent: maskedParty('MG-HN-0831', 'N••• H••• N••', '09•• ••• 831', 'Mã môi giới ••831', 'Sàn An Cư'),
+      seller: maskedParty('NB-HN-0031', 'T••• M••• A•••', '09•• ••• 218', 'CCCD •••• 1842', 'Người bán'),
+      buyer: maskedParty('NM-HN-0031', 'N••• V••• A•', '09•• ••• 506', 'CCCD •••• 5076', 'Người mua'),
+      agent: maskedParty('MG-HN-0831', 'N••• H••• N••', '09•• ••• 831', 'Mã môi giới ••831', 'Người đại diện', 'Sàn An Cư'),
     },
     actionTimes: {
-      match_property: '2026-08-10T09:05:00+07:00',
       request_seller_confirmation: '2026-08-10T09:07:00+07:00',
       confirm_representation: '2026-08-12T10:15:00+07:00',
       record_buyer: '2026-08-14T14:20:00+07:00',
@@ -348,22 +346,6 @@ export const demoCases = Object.freeze([
       project: null,
       unit: null,
       location: 'Phú Thượng, Tây Hồ, Hà Nội',
-      candidates: [
-        {
-          id: 'NPID-HN-10421',
-          title: 'Thửa 118, tờ bản đồ 24',
-          label: 'Thửa 118, tờ bản đồ 24',
-          location: 'Phú Thượng, Tây Hồ, Hà Nội',
-          matchSignals: ['Số thửa', 'Tờ bản đồ', 'Diện tích đất'],
-        },
-        {
-          id: 'NPID-HN-10418',
-          title: 'Thửa 181, tờ bản đồ 24',
-          label: 'Thửa 181, tờ bản đồ 24',
-          location: 'Phú Thượng, Tây Hồ, Hà Nội',
-          matchSignals: ['Cùng tờ bản đồ', 'Khác số thửa'],
-        },
-      ],
       areas: [
         {
           kind: 'land',
@@ -399,6 +381,7 @@ export const demoCases = Object.freeze([
     },
     representation: {
       id: 'REP-HN-00044',
+      confirmationId: 'XND-HN-00044',
       confirmationChannel: 'VNeID',
       allowedScopes: ['Độc quyền', 'Không độc quyền'],
     },
@@ -409,6 +392,10 @@ export const demoCases = Object.freeze([
       channel: houseNowChannel,
     },
     readiness: {
+      agreement: {
+        reference: 'HDMB-HN-00044',
+        type: 'Hợp đồng mua bán nhà ở',
+      },
       financeSharing: {
         shareId: 'CS-41C7E9',
         purpose: 'Trao đổi nhu cầu tài chính',
@@ -419,7 +406,7 @@ export const demoCases = Object.freeze([
       id: 'HSCC-HN-00044',
       office: 'Văn phòng công chứng Minh Tâm',
       correlationId: 'VPCC-HN-260818-044',
-      resultRef: 'KQCC-HN-260826-044',
+      contractId: 'HDCC-HN-260826-044',
       requiredDocumentIds: ['seller-identity', 'buyer-identity', 'land-certificate', 'representation'],
       documents: [
         { id: 'seller-identity', label: 'Giấy tờ định danh bên bán' },
@@ -444,12 +431,11 @@ export const demoCases = Object.freeze([
       contractReference: null,
     },
     parties: {
-      seller: maskedParty('NB-HN-0044', 'L••• T••• H•••', '09•• ••• 731', 'CCCD •••• 2941'),
-      buyer: maskedParty('NM-HN-0044', 'V••• T••• L•••', '09•• ••• 945', 'CCCD •••• 9135'),
-      agent: maskedParty('MG-HN-0246', 'P••• Q••• M•••', '09•• ••• 246', 'Mã môi giới ••246', 'Sàn An Cư'),
+      seller: maskedParty('NB-HN-0044', 'L••• T••• H•••', '09•• ••• 731', 'CCCD •••• 2941', 'Người bán'),
+      buyer: maskedParty('NM-HN-0044', 'V••• T••• L•••', '09•• ••• 945', 'CCCD •••• 9135', 'Người mua'),
+      agent: maskedParty('MG-HN-0246', 'P••• Q••• M•••', '09•• ••• 246', 'Mã môi giới ••246', 'Người đại diện', 'Sàn An Cư'),
     },
     actionTimes: {
-      match_property: '2026-08-11T08:35:00+07:00',
       request_seller_confirmation: '2026-08-11T08:38:00+07:00',
       confirm_representation: '2026-08-12T10:10:00+07:00',
       record_buyer: '2026-08-14T15:20:00+07:00',

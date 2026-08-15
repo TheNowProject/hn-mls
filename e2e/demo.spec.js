@@ -15,10 +15,20 @@ const CASES = {
     route: 'Chủ đầu tư / HĐMB',
     shareId: 'CS-8F2D1A',
     buyerRef: 'NM-HN-0031',
+    buyerName: 'N••• V••• A•',
+    sellerRef: 'NB-HN-0031',
+    sellerName: 'T••• M••• A•••',
+    agentRef: 'MG-HN-0831',
+    agentName: 'N••• H••• N••',
+    representationId: 'REP-HN-00031',
+    notaryContractId: 'HDCC-HN-260822-031',
+    transactionType: 'Chuyển nhượng',
     price: '15600000000',
+    priceLabel: '15.600.000.000',
+    signingDate: '2026-08-22',
+    signingDateLabel: '22/08/2026',
     representationStart: '2026-08-10',
     representationExpiry: '2026-09-09',
-    confirmationRef: 'XN-REP-HN-00031-20260812',
     customerLabel: 'T••• M••• A•••',
     sourceReceivedOn: '10/08/2026',
     sourceIds: ['SRC-HDMB-S2-12A', 'SRC-HS-BAN-S2-12A'],
@@ -32,10 +42,20 @@ const CASES = {
     route: 'Văn phòng đăng ký đất đai',
     shareId: 'CS-41C7E9',
     buyerRef: 'NM-HN-0044',
+    buyerName: 'V••• T••• L•••',
+    sellerRef: 'NB-HN-0044',
+    sellerName: 'L••• T••• H•••',
+    agentRef: 'MG-HN-0246',
+    agentName: 'P••• Q••• M•••',
+    representationId: 'REP-HN-00044',
+    notaryContractId: 'HDCC-HN-260826-044',
+    transactionType: 'Bán',
     price: '24600000000',
+    priceLabel: '24.600.000.000',
+    signingDate: '2026-08-26',
+    signingDateLabel: '26/08/2026',
     representationStart: '2026-08-11',
     representationExpiry: '2026-09-10',
-    confirmationRef: 'XN-REP-HN-00044-20260812',
     customerLabel: 'L••• T••• H•••',
     sourceReceivedOn: '11/08/2026',
     sourceIds: ['SRC-GCN-PTH-118', 'SRC-HS-BAN-PTH-118'],
@@ -84,6 +104,15 @@ const FORBIDDEN_UI_WORDING = [
   /hành trình/i,
   /bản ghi sống/i,
   /\bpilot\b/i,
+]
+
+const LEGACY_IDENTIFIER_LABELS = [
+  /^Mã BĐS$/i,
+  /^Mã người mua$/i,
+  /^Mã người bán$/i,
+  /^Mã kết quả công chứng$/i,
+  /^Mã kiểm tra tài liệu$/i,
+  /^(?:Mã )?tham chiếu chủ mới$/i,
 ]
 
 function isProtectedPreviewInfrastructure(request) {
@@ -216,6 +245,55 @@ async function expectNoNarrativeInjection(page) {
   await expect(page.getByText(/Một tài sản\. Một định danh/i)).toHaveCount(0)
 }
 
+async function expectNoLegacyIdentifierLabels(page) {
+  for (const label of LEGACY_IDENTIFIER_LABELS) {
+    await expect(
+      page.getByText(label),
+      `Không được hiển thị nhãn cũ ${label}`,
+    ).toHaveCount(0)
+    await expect(
+      page.getByLabel(label),
+      `Không được có trường nhập mang nhãn cũ ${label}`,
+    ).toHaveCount(0)
+  }
+}
+
+async function expectNoEditableConfirmationCode(page) {
+  const fields = page.getByLabel(/^Mã xác nhận$/i)
+  for (let index = 0; index < await fields.count(); index += 1) {
+    expect(
+      await fields.nth(index).evaluate((element) => (
+        !element.matches('input, textarea, select') || element.readOnly || element.disabled
+      )),
+      'Mã xác nhận do hệ thống cấp không được cho Người bán chỉnh sửa',
+    ).toBe(true)
+  }
+}
+
+async function expectRepresentationParties(page, demoCase) {
+  await openTab(page, 'Quyền đại diện')
+  const main = page.getByRole('main')
+  for (const heading of [
+    'Thông tin Người bán',
+    'Thông tin Người đại diện (Môi giới)',
+    'Phạm vi và hiệu lực',
+  ]) {
+    await expect(main.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+  }
+  for (const [label, value] of [
+    ['Họ tên', demoCase.sellerName],
+    ['Mã định danh Người bán', demoCase.sellerRef],
+    ['Họ tên', demoCase.agentName],
+    ['Mã định danh Người đại diện', demoCase.agentRef],
+  ]) {
+    await expect(main.getByText(label, { exact: true }).first()).toBeVisible()
+    await expect(main.getByText(value, { exact: true }).first()).toBeVisible()
+  }
+  for (const label of ['Trạng thái', 'Kênh xác nhận', 'Phạm vi', 'Ngày bắt đầu', 'Ngày hết hạn']) {
+    await expect(main.getByText(label, { exact: true }).first()).toBeVisible()
+  }
+}
+
 async function switchRole(page, roleId) {
   await page.getByTestId('role-switcher').selectOption(roleId)
   await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/${roleId}\/cong-viec$`))
@@ -258,22 +336,23 @@ async function submitAction(page, action) {
   await button.click()
 }
 
-async function matchAndRequestRepresentation(page, demoCase) {
+async function requestRepresentation(page, demoCase) {
   await page.goto('/#/vai-tro/agent/cong-viec')
   await openCase(page, 'agent', demoCase)
 
-  const candidate = page.getByRole('radio', { name: new RegExp(demoCase.npid) })
-  await expect(candidate).toBeVisible()
-  await candidate.check()
+  const propertyId = page.getByLabel('Mã định danh Bất động sản', { exact: true })
+  await expect(propertyId).toBeVisible()
+  await propertyId.fill(demoCase.npid)
+  await expect(page.getByRole('radio')).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Nguồn dùng để đối chiếu' })).toHaveCount(0)
+  await expect(page.getByTestId('action-match_property')).toHaveCount(0)
 
-  const sourceChecklist = page.getByRole('group', { name: 'Nguồn dùng để đối chiếu' })
-  await expect(sourceChecklist).toBeVisible()
-  for (const sourceId of demoCase.sourceIds) {
-    const source = sourceChecklist.getByRole('checkbox', { name: new RegExp(sourceId) })
-    await expect(source).toBeVisible()
-    await expect(source).toBeChecked()
-  }
-  await submitAction(page, 'match_property')
+  await page.getByLabel('Phạm vi đại diện').selectOption('Độc quyền')
+  await expect(page.getByLabel('Ngày hiệu lực')).toHaveValue(demoCase.representationStart)
+  await expect(page.getByLabel('Ngày hết hạn')).toHaveValue(demoCase.representationExpiry)
+  await expect(page.getByRole('button', { name: 'Gửi thông tin đến Người bán', exact: true })).toBeVisible()
+  await submitAction(page, 'request_seller_confirmation')
+  await expect(page.getByTestId('action-request_seller_confirmation')).toHaveCount(0)
 
   await openTab(page, 'Dữ liệu BĐS')
   await expect(page.getByRole('columnheader', { name: 'Ngày ghi nhận' })).toBeVisible()
@@ -283,13 +362,7 @@ async function matchAndRequestRepresentation(page, demoCase) {
     await expect(sourceRow).toContainText(demoCase.sourceReceivedOn)
   }
   await openTab(page, 'Tổng quan')
-
-  await expect(page.getByTestId('action-request_seller_confirmation')).toBeVisible()
-  await page.getByLabel('Phạm vi đại diện').selectOption('Độc quyền')
-  await expect(page.getByLabel('Ngày hiệu lực')).toHaveValue(demoCase.representationStart)
-  await expect(page.getByLabel('Ngày hết hạn')).toHaveValue(demoCase.representationExpiry)
-  await submitAction(page, 'request_seller_confirmation')
-  await expect(page.getByTestId('action-request_seller_confirmation')).toHaveCount(0)
+  await expectNoLegacyIdentifierLabels(page)
 }
 
 async function confirmRepresentation(page, demoCase) {
@@ -299,20 +372,19 @@ async function confirmRepresentation(page, demoCase) {
   const acknowledgement = page.getByRole('checkbox', {
     name: /Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn/,
   })
-  const confirmationRef = page.getByLabel('Mã xác nhận')
-  await expect(confirmationRef).toHaveValue(demoCase.confirmationRef)
-  await confirmationRef.fill(demoCase.confirmationRef)
+  await expectNoEditableConfirmationCode(page)
   await acknowledgement.check()
   await submitAction(page, 'confirm_representation')
 
   await expect(page.getByTestId('object-plid')).toContainText(demoCase.plid)
   await expect(page.getByTestId('action-create_listing')).toHaveCount(0)
   await openTab(page, 'Quyền đại diện')
-  await expect(page.getByText(demoCase.confirmationRef, { exact: true })).toBeVisible()
+  await expect(page.getByText(demoCase.representationId, { exact: true }).first()).toBeVisible()
+  await expectRepresentationParties(page, demoCase)
   await openTab(page, 'Lịch sử')
   const history = page.getByRole('heading', { name: 'Lịch sử thay đổi' })
     .locator('xpath=ancestor::section[1]')
-  for (const actionLabel of ['Gửi yêu cầu xác nhận', 'Xác nhận quyền đại diện']) {
+  for (const actionLabel of ['Gửi thông tin đến Người bán', 'Xác nhận quyền đại diện']) {
     await expect(history.getByText(actionLabel, { exact: true })).toBeVisible()
   }
   await expect(history.getByText('Đối chiếu bất động sản', { exact: true })).toHaveCount(0)
@@ -328,15 +400,16 @@ async function confirmRepresentation(page, demoCase) {
   const icon = houseNow.locator('img')
   await expect(icon).toHaveAttribute('src', '/assets/demo/housenow-icon.png')
   await expect.poll(() => icon.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true)
+  await expectNoLegacyIdentifierLabels(page)
 }
 
 async function recordBuyer(page, demoCase) {
   await switchRole(page, 'agent')
   await openCase(page, 'agent', demoCase)
 
-  await page.getByLabel('Mã Người mua').fill(demoCase.buyerRef)
+  await page.getByLabel('Mã định danh Người mua', { exact: true }).fill(demoCase.buyerRef)
   await page.getByLabel('Giá đã thống nhất (VND)').fill(demoCase.price)
-  await page.getByLabel('Ngày dự kiến ký').fill('2026-08-22')
+  await page.getByLabel('Ngày dự kiến ký').fill(demoCase.signingDate)
   await submitAction(page, 'record_buyer')
   await expect(page.getByTestId('action-record_buyer')).toHaveCount(0)
 }
@@ -345,6 +418,23 @@ async function verifyBuyerReadiness(page, demoCase, { shareWithBank }) {
   await switchRole(page, 'buyer')
   await openCase(page, 'buyer', demoCase)
 
+  const task = page.getByTestId('task-panel')
+  const contractSummary = task.getByRole('region', {
+    name: 'Thông tin hợp đồng cần xác nhận',
+    exact: true,
+  })
+  await expect(contractSummary).toBeVisible()
+  for (const [label, value] of [
+    ['Họ tên Người mua', demoCase.buyerName],
+    ['Mã định danh Người mua', demoCase.buyerRef],
+    ['Mã định danh Bất động sản', demoCase.npid],
+    ['Loại giao dịch', demoCase.transactionType],
+    ['Giá đã thống nhất', demoCase.priceLabel],
+    ['Ngày dự kiến ký', demoCase.signingDateLabel],
+  ]) {
+    await expect(contractSummary.getByText(label, { exact: true }).first()).toBeVisible()
+    await expect(contractSummary).toContainText(value)
+  }
   for (const label of [
     'Thông tin định danh của tôi',
     'Phương án thanh toán',
@@ -360,11 +450,19 @@ async function verifyBuyerReadiness(page, demoCase, { shareWithBank }) {
 
   await submitAction(page, 'verify_readiness')
   await expect(page.getByTestId('action-verify_readiness')).toHaveCount(0)
+  await openTab(page, 'Người mua')
+  await expect(page.getByText('Họ tên', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(demoCase.buyerName, { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Mã định danh Người mua', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(demoCase.buyerRef, { exact: true }).first()).toBeVisible()
+  await expectNoLegacyIdentifierLabels(page)
 }
 
 async function submitNotaryDossier(page, demoCase, { exerciseInvalidPayload = false } = {}) {
   await switchRole(page, 'notary')
   await openCase(page, 'notary', demoCase)
+  await expectRepresentationParties(page, demoCase)
+  await openTab(page, 'Tổng quan')
 
   await page.getByLabel('Mã tiếp nhận').fill(
     demoCase.id === CASES.developer.id ? 'HSCC-HN-00031' : 'HSCC-HN-00044',
@@ -386,28 +484,29 @@ async function submitNotaryDossier(page, demoCase, { exerciseInvalidPayload = fa
 }
 
 async function recordNotarySigning(page, demoCase) {
-  await page.getByLabel('Mã kết quả công chứng').fill(
-    demoCase.id === CASES.developer.id ? 'KQCC-HN-00031' : 'KQCC-HN-00044',
-  )
+  await page.getByLabel('Mã hợp đồng', { exact: true }).fill(demoCase.notaryContractId)
   await page.getByLabel('Thời điểm ký').fill(
     demoCase.id === CASES.developer.id ? '2026-08-22T15:30' : '2026-08-26T10:00',
   )
-  await page.getByLabel('Mã kiểm tra tài liệu').fill(
-    demoCase.id === CASES.developer.id ? 'a9048b2e113f' : 'c1729d8f482e',
-  )
+  await expect(page.getByLabel('Mã kiểm tra tài liệu', { exact: true })).toHaveCount(0)
   await submitAction(page, 'record_notary_signing')
 
   await expect(page.getByTestId('object-ptid')).toContainText(demoCase.ptid)
   await expect(page.getByTestId('action-create_transaction')).toHaveCount(0)
+  await openTab(page, 'Công chứng')
+  await expect(page.getByText('Mã hợp đồng', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(demoCase.notaryContractId, { exact: true }).first()).toBeVisible()
+  await expectNoLegacyIdentifierLabels(page)
   await switchRole(page, 'vmls')
   await openCase(page, 'vmls', demoCase)
   await openTab(page, 'Chuyển quyền')
   await expectTransferRoute(page, demoCase.route)
   await expect(page.getByTestId('object-ptid')).toContainText(demoCase.ptid)
+  await expectNoLegacyIdentifierLabels(page)
 }
 
 async function advanceToNotary(page, demoCase, { shareWithBank, exerciseInvalidPayload = false }) {
-  await matchAndRequestRepresentation(page, demoCase)
+  await requestRepresentation(page, demoCase)
   await confirmRepresentation(page, demoCase)
   await recordBuyer(page, demoCase)
   await verifyBuyerReadiness(page, demoCase, { shareWithBank })
@@ -525,7 +624,7 @@ test('landing tìm theo state hiện tại và chỉ mở PLID, PTID sau đúng 
     await expect(page.getByText(futureId, { exact: true })).toHaveCount(0)
   }
 
-  await matchAndRequestRepresentation(page, CASES.developer)
+  await requestRepresentation(page, CASES.developer)
   await confirmRepresentation(page, CASES.developer)
   await openLanding(page)
   await searchLanding(page, CASES.developer.plid, CASES.developer, CASES.landRegistry)
@@ -619,7 +718,7 @@ test('landing hạ route hồ sơ hết quyền về đúng hàng đợi vai tr�
       lastWorkspaceRoute: staleRoute,
     }))
   }, {
-    storageKey: 'vmls:operations:2026-08:v2',
+    storageKey: 'vmls:operations:2026-08:v3',
     staleRoute: `#/vai-tro/bank/ho-so/${CASES.developer.shareId}/tong-quan`,
   })
   await page.reload()
@@ -632,7 +731,7 @@ test('landing hạ route hồ sơ hết quyền về đúng hàng đợi vai tr�
 })
 
 test('landing mở đúng token chia sẻ khi Ngân hàng đã được đồng ý', async ({ page }) => {
-  await matchAndRequestRepresentation(page, CASES.developer)
+  await requestRepresentation(page, CASES.developer)
   await confirmRepresentation(page, CASES.developer)
   await recordBuyer(page, CASES.developer)
   await verifyBuyerReadiness(page, CASES.developer, { shareWithBank: true })
@@ -811,25 +910,62 @@ test('mở thẳng hàng đợi dữ liệu, tìm kiếm và lọc bằng số l
   await expectNoNarrativeInjection(page)
 })
 
+for (const demoCase of Object.values(CASES)) {
+  test(`quyền đại diện dùng mã định danh và luôn đủ hai bên · ${demoCase.title}`, async ({ page }) => {
+    await openCase(page, 'agent', demoCase)
+    const task = page.getByTestId('task-panel')
+    const propertyId = task.getByLabel('Mã định danh Bất động sản', { exact: true })
+
+    await expect(propertyId).toBeVisible()
+    await expect(page.getByRole('button', {
+      name: 'Gửi thông tin đến Người bán',
+      exact: true,
+    })).toBeVisible()
+    await expect(task.getByRole('radio')).toHaveCount(0)
+    await expect(task.getByRole('group', { name: 'Nguồn dùng để đối chiếu' })).toHaveCount(0)
+    await expect(task).not.toContainText('Chọn một bản ghi')
+    await expect(task).not.toContainText('Khớp Bất động sản')
+    await expectRepresentationParties(page, demoCase)
+    await expectNoLegacyIdentifierLabels(page)
+
+    await requestRepresentation(page, demoCase)
+    await switchRole(page, 'seller')
+    await openCase(page, 'seller', demoCase)
+    await expectRepresentationParties(page, demoCase)
+    await openTab(page, 'Tổng quan')
+    await expectNoEditableConfirmationCode(page)
+    await expectNoLegacyIdentifierLabels(page)
+
+    await confirmRepresentation(page, demoCase)
+    await expectRepresentationParties(page, demoCase)
+    await expectNoLegacyIdentifierLabels(page)
+  })
+}
+
+test('các vai trò được phép đều thấy đủ Người bán và Người đại diện', async ({ page }) => {
+  await requestRepresentation(page, CASES.developer)
+
+  for (const roleId of ['agent', 'brokerage', 'seller', 'vmls']) {
+    await openCase(page, roleId, CASES.developer)
+    await expectRepresentationParties(page, CASES.developer)
+    await expectNoLegacyIdentifierLabels(page)
+  }
+})
+
 test('biểu mẫu giải thích payload nghiệp vụ sai và vai trò sai không có hành động', async ({ page }) => {
   await openCase(page, 'agent', CASES.developer)
-  await page.getByRole('radio', { name: new RegExp(CASES.developer.npid) }).check()
-
-  const sources = page.getByRole('group', { name: 'Nguồn dùng để đối chiếu' })
-  const omittedSource = sources.getByRole('checkbox', {
-    name: new RegExp(CASES.developer.sourceIds[0]),
-  })
-  await omittedSource.uncheck()
-  await submitAction(page, 'match_property')
+  const propertyId = page.getByLabel('Mã định danh Bất động sản', { exact: true })
+  await propertyId.fill('NPID-HN-00000')
+  await expect(page.getByRole('radio')).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Nguồn dùng để đối chiếu' })).toHaveCount(0)
+  await submitAction(page, 'request_seller_confirmation')
   await expect(page.getByRole('alert')).toHaveText(
-    'Chọn đúng Bất động sản và đủ nguồn dùng để đối chiếu.',
+    'Kiểm tra mã định danh Bất động sản, phạm vi và thời hạn của quyền đại diện.',
   )
-  await expect(page.getByTestId('action-match_property')).toBeVisible()
+  await expect(page.getByTestId('action-request_seller_confirmation')).toBeVisible()
   await expect(page.getByTestId('object-plid')).toBeDisabled()
 
-  await omittedSource.check()
-  await submitAction(page, 'match_property')
-
+  await propertyId.fill(CASES.developer.npid)
   const start = page.getByLabel('Ngày hiệu lực')
   const expiry = page.getByLabel('Ngày hết hạn')
   await expect(start).toHaveValue(CASES.developer.representationStart)
@@ -839,6 +975,7 @@ test('biểu mẫu giải thích payload nghiệp vụ sai và vai trò sai khô
   await expect(expiry).toBeFocused()
   await expect(page.getByTestId('action-request_seller_confirmation')).toBeVisible()
   await expect(page.getByTestId('object-plid')).toBeDisabled()
+  await expectNoLegacyIdentifierLabels(page)
 
   await switchRole(page, 'brokerage')
   await openCase(page, 'brokerage', CASES.developer)
@@ -848,7 +985,7 @@ test('biểu mẫu giải thích payload nghiệp vụ sai và vai trò sai khô
 })
 
 test('Người mua bỏ trống checklist nhận lỗi tiếng Việt mà không đổi trạng thái', async ({ page }) => {
-  await matchAndRequestRepresentation(page, CASES.developer)
+  await requestRepresentation(page, CASES.developer)
   await confirmRepresentation(page, CASES.developer)
   await recordBuyer(page, CASES.developer)
   await switchRole(page, 'buyer')
@@ -864,7 +1001,7 @@ test('Người mua bỏ trống checklist nhận lỗi tiếng Việt mà không
 
   const storageBefore = await page.evaluate((storageKey) => (
     window.localStorage.getItem(storageKey)
-  ), 'vmls:operations:2026-08:v2')
+  ), 'vmls:operations:2026-08:v3')
   expect(storageBefore).not.toBeNull()
 
   async function observeNativeInvalidEvents() {
@@ -889,7 +1026,7 @@ test('Người mua bỏ trống checklist nhận lỗi tiếng Việt mà không
     }
     expect(await page.evaluate((storageKey) => (
       window.localStorage.getItem(storageKey)
-    ), 'vmls:operations:2026-08:v2')).toBe(storageBefore)
+    ), 'vmls:operations:2026-08:v3')).toBe(storageBefore)
   }
 
   await observeNativeInvalidEvents()
@@ -906,7 +1043,7 @@ test('Người mua bỏ trống checklist nhận lỗi tiếng Việt mà không
 })
 
 test('Sàn điều phối bằng cột nghiệp vụ và bộ lọc có tác dụng', async ({ page }) => {
-  await matchAndRequestRepresentation(page, CASES.developer)
+  await requestRepresentation(page, CASES.developer)
   await switchRole(page, 'brokerage')
 
   await expect(page.getByRole('heading', { name: 'Điều phối hồ sơ' })).toBeVisible()
@@ -936,7 +1073,7 @@ test('Sàn điều phối bằng cột nghiệp vụ và bộ lọc có tác d�
 })
 
 test('PLID tự sinh, consent Ngân hàng có hiệu lực và hoàn tất tuyến Chủ đầu tư', async ({ page }) => {
-  await matchAndRequestRepresentation(page, CASES.developer)
+  await requestRepresentation(page, CASES.developer)
   await confirmRepresentation(page, CASES.developer)
 
   await expect(page.getByTestId('source-357')).toHaveCount(0)
@@ -1038,13 +1175,15 @@ test('Người bán bổ sung tài liệu và VPĐKĐĐ hoàn tất tuyến đ�
   await openCase(page, 'landRegistry', CASES.landRegistry)
   await page.getByLabel('Mã kết quả').fill('KQ-DKBD-260828-044')
   await page.getByLabel('Thời điểm hiệu lực').fill('2026-08-28T14:30')
-  await page.getByLabel('Tham chiếu chủ mới').fill(CASES.landRegistry.buyerRef)
+  await expect(page.getByLabel(/^(?:Mã )?tham chiếu chủ mới$/i)).toHaveCount(0)
   await submitAction(page, 'approve_land_registry')
 
   await expect(page.getByTestId('task-panel')).toContainText('Không còn việc cần xử lý')
   await openTab(page, 'Chuyển quyền')
   await expectTransferRoute(page, CASES.landRegistry.route)
   await expect(page.getByTestId('object-ptid')).toContainText(CASES.landRegistry.ptid)
+  await expect(page.getByText(/^(?:Mã )?tham chiếu chủ mới$/i)).toHaveCount(0)
+  await expectNoLegacyIdentifierLabels(page)
 
   await switchRole(page, 'bank')
   await expect(page.getByTestId(`shared-case-row-${CASES.landRegistry.shareId}`)).toHaveCount(0)
@@ -1167,7 +1306,7 @@ test('registry nguồn có ba điểm nối và 357 không được gắn vào d
 })
 
 test('tiến độ và hash route được lưu, còn đặt lại trả cả hai hồ sơ về ban đầu', async ({ page }) => {
-  await matchAndRequestRepresentation(page, CASES.developer)
+  await requestRepresentation(page, CASES.developer)
   const persistedUrl = page.url()
   await page.reload()
   await expect(page).toHaveURL(persistedUrl)
@@ -1184,10 +1323,10 @@ test('tiến độ và hash route được lưu, còn đặt lại trả cả ha
   await dialog.getByTestId('confirm-reset').click()
 
   await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
-  await expect(page.getByTestId('case-row-sun-grand-thuy-khue')).toContainText('Chờ đối chiếu')
+  await expect(page.getByTestId('case-row-sun-grand-thuy-khue')).toContainText('Chờ gửi')
   await expect(page.getByText(CASES.developer.plid, { exact: true })).toHaveCount(0)
   await page.reload()
-  await expect(page.getByTestId('case-row-sun-grand-thuy-khue')).toContainText('Chờ đối chiếu')
+  await expect(page.getByTestId('case-row-sun-grand-thuy-khue')).toContainText('Chờ gửi')
 })
 
 test('bàn phím, focus dialog và reduced motion hoạt động trong app shell', async ({ page }) => {

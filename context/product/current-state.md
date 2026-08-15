@@ -49,7 +49,7 @@ Role switching is a preview of distinct authorized workspaces. It is not a numbe
 
 | Role | Primary operational job |
 |---|---|
-| Môi giới | Match the seller request to the correct Bất động sản, prepare the representation request, record the buyer, and monitor work assigned to the dossier |
+| Môi giới | Enter the existing Bất động sản identifier, send the representation request to the seller, record the buyer, and monitor work assigned to the dossier |
 | Sàn môi giới | Review representation status, current blockers, ownership of the next task, and due dates across the brokerage scope |
 | Người bán | Review and confirm representation; provide a requested missing document |
 | Người mua | Confirm readiness and, on the HĐMB route, acknowledge receipt of the new contract |
@@ -63,7 +63,7 @@ Role switching is a preview of distinct authorized workspaces. It is not a numbe
 
 The workspace does not use one global presentation stage as the source of truth. It tracks separate operational state for:
 
-- Bất động sản matching;
+- Bất động sản identity received through its existing `NPID`;
 - Representation request and confirmation;
 - Tin bán creation and distribution;
 - buyer/readiness information;
@@ -88,14 +88,14 @@ For S2-12A, `69,2 m² thông thủy` and `82,3 m² tim tường` remain separate
 The normal operational sequence is:
 
 ```text
-Môi giới chọn đúng NPID và nguồn
-→ Môi giới gửi yêu cầu đại diện có phạm vi và thời hạn
+Môi giới nhập NPID, phạm vi và thời hạn
+→ Môi giới gửi thông tin đến Người bán
 → Người bán xác nhận
 → hệ thống cấp PLID với trạng thái “Đã khởi tạo”
 → Môi giới ghi nhận Người mua
-→ Người mua xác nhận danh mục sẵn sàng
+→ Người mua kiểm tra thông tin hợp đồng và xác nhận danh mục sẵn sàng
 → VPCC tiếp nhận hồ sơ và xử lý bổ sung nếu có
-→ VPCC trả kết quả ký
+→ VPCC trả mã hợp đồng và thời điểm ký
 → hệ thống cấp PTID, ghi sự kiện tích hợp và xác định tuyến
 → VPĐKĐĐ trả kết quả đăng ký biến động
    hoặc Chủ đầu tư tiếp nhận, xác nhận chuyển nhượng và Người mua nhận HĐMB mới

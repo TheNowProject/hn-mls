@@ -15,7 +15,7 @@
 | Old step(s) | v2 decision | Revised behavior |
 |---|---|---|
 | 01 | Removed as a screen | Agent demand is the kickoff event. |
-| 02 | New 01 | Agent enters seller and Property data in one VMLS screen. |
+| 02 | New 01 | Agent enters the existing NPID, representation scope and effective period, then sends the request to the seller. Property candidate matching is upstream of this flow. |
 | 03 | New 02 | Seller confirms representation through VNeID; no complex VMLS login. |
 | 04 | New 03 | Result-only VMLS status after prerequisites complete; PLID is generated automatically. |
 | 05–06 | New 04 | Dossier creation and submission happen in VPCC software. |
@@ -32,9 +32,7 @@
 
 ## Common screens
 
-### 01 — Môi giới nhập khách bán và BĐS
-
-![01 — Môi giới nhập khách bán và BĐS](./assets/vmls-process-v2/01-agent-enter-seller-property.png)
+### 01 — Môi giới nhập mã định danh BĐS và gửi thông tin đến Người bán
 
 ### 02 — Người bán xác nhận qua VNeID
 

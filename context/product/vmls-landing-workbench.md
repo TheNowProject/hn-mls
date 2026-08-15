@@ -122,8 +122,8 @@ The drawers contain no login, OTP, biometric, confirmation, connection, synchron
 |---|---|
 | Relationship | `Điểm xác nhận người bán` |
 | Direction | `Nhận kết quả xác nhận` |
-| Data sent | `Mã yêu cầu`, `NPID`, `Phạm vi đại diện`, `Thời hạn hiệu lực` |
-| Data received | `Mã xác nhận`, `Kết quả`, `Thời điểm xác nhận` |
+| Data sent | `Mã yêu cầu`, `Mã định danh Bất động sản`, `Phạm vi đại diện`, `Thời hạn hiệu lực` |
+| Data received | `Kết quả`, `Thời điểm xác nhận` |
 | Status | `Chưa kết nối` |
 | Read action | `Xem dữ liệu bàn giao` |
 | Local visual | Dated official Google Play listing capture |

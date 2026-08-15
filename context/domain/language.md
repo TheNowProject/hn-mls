@@ -29,6 +29,14 @@ _Avoid_: NPID, PLID, Closing Record, official transaction identifier
 The branch automatically derived from configured dossier data: VPĐKĐĐ for the synthetic landed Property or Chủ đầu tư/HĐMB for the supplied apartment case. The user does not select the branch, and implementation does not make either route approved Vietnam policy.
 _Avoid_: user-selected destination, legal determination, universal Vietnam workflow
 
+**Mã định danh Bất động sản**:
+The Vietnamese interface label for the configured `NPID` supplied to the representation request. In this demo the Property is already identified before the Agent starts the request; this field is not a candidate-matching control.
+_Avoid_: Mã BĐS, candidate ID, source-record ID
+
+**Mã định danh Người bán / Người mua / Người đại diện**:
+The Vietnamese interface labels for the configured `Party.reference` values used across the operational workflow. They remain distinct from the masked identity-document reference such as CCCD shown separately when permitted.
+_Avoid_: Mã Người mua, Mã Người bán, Tham chiếu Người mua, CCCD as the Party record ID
+
 ## Asset identity
 
 **Property**:

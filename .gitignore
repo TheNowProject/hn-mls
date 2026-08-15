@@ -21,6 +21,7 @@ output/pdf/
 output/playwright/
 output/qa/vmls-interactive-demo/
 output/qa/vmls-data-product-redesign/
+output/qa/vmls-workflow-v3/
 
 # Common generated artifacts
 build/

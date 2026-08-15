@@ -22,18 +22,14 @@ function advanceToNotarySubmission(caseId) {
   assert.ok(dossier)
 
   let state = createInitialState(caseId)
-  state = apply(state, ACTIONS.MATCH_PROPERTY, 'agent', {
-    candidateId: dossier.property.id,
-    sourceIds: dossier.property.sourceRecords.map(({ id }) => id),
-  })
   state = apply(state, ACTIONS.REQUEST_SELLER_CONFIRMATION, 'agent', {
+    propertyId: dossier.property.id,
     scope: 'Độc quyền',
     startsOn: dossier.actionTimes.request_seller_confirmation.slice(0, 10),
     expiresOn: '2026-11-11',
   })
   state = apply(state, ACTIONS.CONFIRM_REPRESENTATION, 'seller', {
     accepted: true,
-    confirmationRef: `XN-${dossier.representation.id}`,
   })
   state = apply(state, ACTIONS.RECORD_BUYER, 'agent', {
     buyerRef: dossier.parties.buyer.reference,
@@ -76,9 +72,8 @@ function advanceToTransaction(caseId) {
   }
 
   return apply(state, ACTIONS.RECORD_NOTARY_SIGNING, 'notary', {
-    resultRef: `KQ-${dossier.notary.id}`,
+    contractId: dossier.notary.contractId,
     signedAt: dossier.actionTimes.record_notary_signing,
-    documentDigest: 'a1b2c3d4e5f60718',
   })
 }
 
@@ -135,29 +130,25 @@ test('public projection is a strict nested allowlist and withholds unborn identi
   assert.equal(projected.latestMaterialAt, null)
   assert.equal(projected.property.parcelRef, null)
   assert.equal(projected.title, 'Căn hộ S2-12A · Thụy Khuê')
+  assert.deepEqual(projected.status, {
+    code: 'representation_request_pending',
+    label: 'Chờ gửi thông tin đến Người bán',
+    tone: 'neutral',
+  })
 })
 
 test('public projection exposes PLID and PTID only after their lifecycle creation', () => {
   const dossier = getDemoCase(DEVELOPER_CASE_ID)
   assert.ok(dossier)
   let state = createInitialState(DEVELOPER_CASE_ID)
-  state = apply(state, ACTIONS.MATCH_PROPERTY, 'agent', {
-    candidateId: dossier.property.id,
-    sourceIds: dossier.property.sourceRecords.map(({ id }) => id),
-  })
-  const afterMatch = projectStateForPublic(state)
-  assert.equal(afterMatch.listing, null)
-  assert.equal(afterMatch.transaction, null)
-  assert.equal(afterMatch.latestMaterialAt, dossier.actionTimes.match_property)
-
   state = apply(state, ACTIONS.REQUEST_SELLER_CONFIRMATION, 'agent', {
+    propertyId: dossier.property.id,
     scope: 'Độc quyền',
     startsOn: '2026-08-10',
     expiresOn: '2026-11-11',
   })
   state = apply(state, ACTIONS.CONFIRM_REPRESENTATION, 'seller', {
     accepted: true,
-    confirmationRef: `XN-${dossier.representation.id}`,
   })
   const afterListing = projectStateForPublic(state)
   assert.deepEqual(afterListing.listing, { id: 'PLID-HN-00125', status: 'Đã khởi tạo' })
@@ -223,7 +214,6 @@ test('public transfer projections cover both routes without operational referenc
   const completedLand = apply(routedLand, ACTIONS.APPROVE_LAND_REGISTRY, 'landRegistry', {
     resultRef: dossier.transfer.resultRef,
     approvedAt: dossier.actionTimes.approve_land_registry,
-    newOwnerRef: dossier.parties.buyer.reference,
   })
   const land = projectStateForPublic(completedLand)
   assert.deepEqual(land.transfer, {
@@ -289,6 +279,7 @@ test('private state, references and event histories cannot cross the public boun
     'actionLog',
     'correlationId',
     'confirmationRef',
+    'contractId',
     'resultRef',
     'receiptRef',
   ]) {

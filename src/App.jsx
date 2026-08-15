@@ -147,8 +147,7 @@ const DETAIL_TABS = [
 ]
 
 const ACTION_LABELS = {
-  [ACTIONS.MATCH_PROPERTY]: 'Khớp Bất động sản',
-  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Gửi yêu cầu xác nhận',
+  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Gửi thông tin đến Người bán',
   [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận quyền đại diện',
   [ACTIONS.RECORD_BUYER]: 'Ghi nhận Người mua',
   [ACTIONS.VERIFY_READINESS]: 'Xác nhận thông tin',
@@ -163,16 +162,15 @@ const ACTION_LABELS = {
 }
 
 const ACTION_ERROR_MESSAGES = {
-  [ACTIONS.MATCH_PROPERTY]: 'Chọn đúng Bất động sản và đủ nguồn dùng để đối chiếu.',
-  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Kiểm tra phạm vi và thời hạn của quyền đại diện.',
-  [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận nội dung và kiểm tra mã xác nhận.',
-  [ACTIONS.RECORD_BUYER]: 'Kiểm tra mã Người mua, giá và ngày dự kiến ký.',
+  [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Kiểm tra mã định danh Bất động sản, phạm vi và thời hạn của quyền đại diện.',
+  [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận thông tin Bất động sản, người đại diện, phạm vi và thời hạn.',
+  [ACTIONS.RECORD_BUYER]: 'Kiểm tra mã định danh Người mua, giá và ngày dự kiến ký.',
   [ACTIONS.VERIFY_READINESS]: 'Xác nhận đủ ba nội dung sẵn sàng trước công chứng.',
   [ACTIONS.SUBMIT_NOTARY_DOSSIER]: 'Mã tiếp nhận và toàn bộ tài liệu bắt buộc phải đầy đủ.',
   [ACTIONS.REQUEST_SUPPLEMENT]: 'Kiểm tra loại tài liệu, lý do và hạn bổ sung.',
   [ACTIONS.PROVIDE_SUPPLEMENT]: 'Tài liệu phải đúng yêu cầu và có tên tệp PDF hợp lệ.',
-  [ACTIONS.RECORD_NOTARY_SIGNING]: 'Kiểm tra mã kết quả, thời điểm ký và mã kiểm tra tài liệu.',
-  [ACTIONS.APPROVE_LAND_REGISTRY]: 'Kiểm tra mã kết quả, thời điểm hiệu lực và tham chiếu chủ mới.',
+  [ACTIONS.RECORD_NOTARY_SIGNING]: 'Kiểm tra mã hợp đồng và thời điểm ký.',
+  [ACTIONS.APPROVE_LAND_REGISTRY]: 'Kiểm tra mã kết quả và thời điểm hiệu lực.',
   [ACTIONS.DEVELOPER_INTAKE]: 'Kiểm tra mã tiếp nhận, thời điểm và số tài liệu.',
   [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'Kiểm tra mã và thời điểm xác nhận chuyển nhượng.',
   [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'Kiểm tra biên nhận và xác nhận đã nhận đúng HĐMB mới.',
@@ -453,7 +451,7 @@ function App() {
       JSON.parse(serializeDemoState(state)),
     ]))
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 2,
+      version: 3,
       cases,
       landingRoleId,
       lastWorkspaceRoute: route.page === 'landing' ? savedWorkspaceRoute : hash,
@@ -889,7 +887,7 @@ function OverviewTab({ role, demoCase, state, records, onAction }) {
     ['Khu vực', records.property?.location],
     ['Dự án', records.property?.project],
     ['Căn / thửa', records.property?.unit ?? records.property?.parcelRef],
-    ['Trạng thái đối chiếu', records.property?.status],
+    ['Trạng thái định danh', records.property?.status],
   ].filter(([, value]) => value !== undefined && value !== null && value !== '')
   return (
     <div className="overview-layout">
@@ -939,16 +937,8 @@ function ActionForm({ actionTypes, role, demoCase, state, onAction }) {
 }
 
 function ActionFields({ actionType, role, demoCase, state, onAction }) {
-  const candidates = demoCase.property.candidates ?? [{
-    id: demoCase.property.id,
-    title: demoCase.title,
-    location: demoCase.property.location,
-    sourceIds: (demoCase.property.sourceRecords ?? []).map((item) => item.id),
-    matchSignals: ['Đúng dự án hoặc thửa đất', 'Đúng loại Bất động sản', 'Diện tích được giữ theo từng nguồn'],
-  }]
-  const sourceRecords = demoCase.property.sourceRecords ?? []
   const requiredDocuments = demoCase.notary?.documents ?? []
-  const [form, setForm] = useState(() => defaultActionForm(actionType, demoCase, state, candidates, requiredDocuments))
+  const [form, setForm] = useState(() => defaultActionForm(actionType, demoCase, state, requiredDocuments))
   const [formError, setFormError] = useState('')
   function update(name, value) { setForm((current) => ({ ...current, [name]: value })) }
   function submit(event) {
@@ -966,25 +956,22 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
   const formErrorNode = formError ? <p className="form-error" role="alert"><WarningCircle weight="fill" aria-hidden="true" />{formError}</p> : null
   const submitControl = (secondary = false) => <>{formErrorNode}<ActionButton type="submit" formNoValidate secondary={secondary} testId={`action-${actionType}`}>{ACTION_LABELS[actionType]}</ActionButton></>
 
-  if (actionType === ACTIONS.MATCH_PROPERTY) {
-    return <form className="task-form" onSubmit={submit}><p className="form-instruction">Chọn một bản ghi sau khi kiểm tra các tín hiệu nhận dạng.</p><div className="candidate-list">{candidates.map((candidate) => <label key={candidate.id} className={form.candidateId === candidate.id ? 'is-selected' : ''}><input type="radio" name="candidate" value={candidate.id} checked={form.candidateId === candidate.id} onChange={() => update('candidateId', candidate.id)} required /><span><strong>{candidate.id}</strong><small>{candidate.label ?? candidate.title ?? candidate.name ?? demoCase.title}</small><small>{candidate.location ?? demoCase.property.location}</small></span><ul>{(candidate.matchSignals ?? []).map((signal) => <li key={signal}>{signal}</li>)}</ul></label>)}</div><fieldset className="document-checks"><legend>Nguồn dùng để đối chiếu</legend>{sourceRecords.map((source) => <label key={source.id}><input type="checkbox" checked={form.sourceIds.includes(source.id)} onChange={(event) => update('sourceIds', event.target.checked ? [...form.sourceIds, source.id] : form.sourceIds.filter((item) => item !== source.id))} /><span>{source.label}</span><small className="mono">{source.id}</small></label>)}</fieldset>{submitControl()}</form>
-  }
-
   if (actionType === ACTIONS.REQUEST_SELLER_CONFIRMATION) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormSelect label="Phạm vi đại diện" value={form.scope} onChange={(value) => update('scope', value)} options={['Độc quyền', 'Không độc quyền']} /><FormInput label="Ngày hiệu lực" name="startsOn" type="date" value={form.startsOn} onChange={(value) => update('startsOn', value)} /><FormInput label="Ngày hết hạn" name="expiresOn" type="date" value={form.expiresOn} onChange={(value) => update('expiresOn', value)} /></div><div className="form-readonly"><span>Người bán</span><strong>{demoCase.parties?.seller?.displayName}</strong><span>Bất động sản</span><strong className="mono">{state.records.property.id}</strong></div>{submitControl()}</form>
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã định danh Bất động sản" name="propertyId" value={form.propertyId} onChange={(value) => update('propertyId', value)} /><FormSelect label="Phạm vi đại diện" value={form.scope} onChange={(value) => update('scope', value)} options={['Độc quyền', 'Không độc quyền']} /><FormInput label="Ngày hiệu lực" name="startsOn" type="date" value={form.startsOn} onChange={(value) => update('startsOn', value)} /><FormInput label="Ngày hết hạn" name="expiresOn" type="date" value={form.expiresOn} onChange={(value) => update('expiresOn', value)} /></div><div className="form-readonly"><span>Người bán</span><strong>{demoCase.parties?.seller?.displayName}</strong><span>Mã định danh Người bán</span><strong className="mono">{demoCase.parties?.seller?.reference}</strong><span>Người đại diện (Môi giới)</span><strong>{demoCase.parties?.agent?.displayName}</strong><span>Sàn môi giới</span><strong>{demoCase.parties?.agent?.organization}</strong></div>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.CONFIRM_REPRESENTATION) {
-    return <form className="task-form" onSubmit={submit}><div className="confirmation-summary"><FieldGrid><Field label="Môi giới" value={demoCase.parties?.agent?.displayName} /><Field label="Sàn" value={demoCase.parties?.agent?.organization} /><Field label="Phạm vi" value={state.records.representation.request?.scope} /><Field label="Hiệu lực" value={`${formatDate(state.records.representation.request?.startsOn, false)} — ${formatDate(state.records.representation.request?.expiresOn, false)}`} /></FieldGrid></div><FormInput label="Mã xác nhận" name="confirmationRef" value={form.confirmationRef} onChange={(value) => update('confirmationRef', value)} /><label className="checkbox-field"><input type="checkbox" checked={form.accepted} onChange={(event) => update('accepted', event.target.checked)} required /><span>Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn.</span></label>{submitControl()}</form>
+    return <form className="task-form" onSubmit={submit}><div className="confirmation-summary"><FieldGrid><Field label="Mã bản ghi xác nhận" value={state.records.representation.confirmation?.id} mono /><Field label="Mã định danh Bất động sản" value={state.records.property.id} mono /><Field label="Người đại diện (Môi giới)" value={demoCase.parties?.agent?.displayName} /><Field label="Sàn môi giới" value={demoCase.parties?.agent?.organization} /><Field label="Phạm vi" value={state.records.representation.request?.scope} /><Field label="Hiệu lực" value={`${formatDate(state.records.representation.request?.startsOn, false)} — ${formatDate(state.records.representation.request?.expiresOn, false)}`} /></FieldGrid></div><label className="checkbox-field"><input type="checkbox" checked={form.accepted} onChange={(event) => update('accepted', event.target.checked)} required /><span>Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn.</span></label>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.RECORD_BUYER) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã Người mua" value={form.buyerRef} onChange={(value) => update('buyerRef', value)} /><FormInput label="Giá đã thống nhất (VND)" type="number" min="1" value={form.agreedPrice} onChange={(value) => update('agreedPrice', value)} /><FormInput label="Ngày dự kiến ký" type="date" value={form.expectedSigningOn} onChange={(value) => update('expectedSigningOn', value)} /></div>{submitControl()}</form>
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã định danh Người mua" value={form.buyerRef} onChange={(value) => update('buyerRef', value)} /><FormInput label="Giá đã thống nhất (VND)" type="number" min="1" value={form.agreedPrice} onChange={(value) => update('agreedPrice', value)} /><FormInput label="Ngày dự kiến ký" type="date" value={form.expectedSigningOn} onChange={(value) => update('expectedSigningOn', value)} /></div>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.VERIFY_READINESS) {
     const checklist = [['identityReviewed', 'Thông tin định danh của tôi'], ['paymentPlanReviewed', 'Phương án thanh toán'], ['documentsReviewed', 'Danh mục tài liệu được chia sẻ']]
-    return <form className="task-form" onSubmit={submit}><fieldset className="readiness-checks"><legend>Nội dung Người mua xác nhận</legend>{checklist.map(([key, label]) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(event) => update(key, event.target.checked)} required /><span>{label}</span></label>)}</fieldset><label className="checkbox-field optional"><input type="checkbox" checked={form.bankConsent} onChange={(event) => update('bankConsent', event.target.checked)} /><span>Chia sẻ giá, Bất động sản và lịch dự kiến với Ngân hàng</span></label>{submitControl()}</form>
+    const contract = state.records.readiness.contractConfirmation ?? {}
+    return <form className="task-form" onSubmit={submit}><section className="confirmation-summary contract-confirmation" aria-labelledby="contract-confirmation-title"><h3 id="contract-confirmation-title">Thông tin hợp đồng cần xác nhận</h3><FieldGrid><Field label="Họ tên Người mua" value={contract.buyer?.displayName ?? state.records.readiness.buyer?.displayName} /><Field label="Mã định danh Người mua" value={contract.buyer?.reference ?? state.records.readiness.buyer?.reference} mono /><Field label="Mã định danh Bất động sản" value={contract.property?.id ?? state.records.property.id} mono /><Field label="Loại giao dịch" value={contract.transactionType ?? state.records.listing?.transactionType} /><Field label="Giá đã thống nhất" value={formatMoney(contract.agreedPrice ?? state.records.readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(contract.expectedSigningOn ?? state.records.readiness.expectedSigningOn, false)} /></FieldGrid></section><fieldset className="readiness-checks"><legend>Nội dung Người mua xác nhận</legend>{checklist.map(([key, label]) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(event) => update(key, event.target.checked)} required /><span>{label}</span></label>)}</fieldset><label className="checkbox-field optional"><input type="checkbox" checked={form.bankConsent} onChange={(event) => update('bankConsent', event.target.checked)} /><span>Chia sẻ giá, Bất động sản và lịch dự kiến với Ngân hàng</span></label>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.SUBMIT_NOTARY_DOSSIER) {
@@ -1000,11 +987,11 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
   }
 
   if (actionType === ACTIONS.RECORD_NOTARY_SIGNING) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã kết quả công chứng" value={form.resultRef} onChange={(value) => update('resultRef', value)} /><FormInput label="Thời điểm ký" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.signedAt} onChange={(value) => update('signedAt', value)} /><FormInput label="Mã kiểm tra tài liệu" value={form.documentDigest} onChange={(value) => update('documentDigest', value)} minLength="12" pattern="[0-9a-fA-F]{12,}" /></div>{submitControl()}</form>
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã hợp đồng" value={form.contractId} onChange={(value) => update('contractId', value)} /><FormInput label="Thời điểm ký" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.signedAt} onChange={(value) => update('signedAt', value)} /></div>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.APPROVE_LAND_REGISTRY) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã kết quả" value={form.resultRef} onChange={(value) => update('resultRef', value)} /><FormInput label="Thời điểm hiệu lực" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.approvedAt} onChange={(value) => update('approvedAt', value)} /><FormInput label="Tham chiếu chủ mới" value={form.newOwnerRef} onChange={(value) => update('newOwnerRef', value)} /></div>{submitControl()}</form>
+    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã kết quả" value={form.resultRef} onChange={(value) => update('resultRef', value)} /><FormInput label="Thời điểm hiệu lực" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.approvedAt} onChange={(value) => update('approvedAt', value)} /></div>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.DEVELOPER_INTAKE) {
@@ -1018,21 +1005,19 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
   return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã biên nhận" value={form.receiptRef} onChange={(value) => update('receiptRef', value)} /><FormInput label="Thời điểm nhận" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.receivedAt} onChange={(value) => update('receivedAt', value)} /></div><label className="checkbox-field"><input type="checkbox" checked={form.acknowledged} onChange={(event) => update('acknowledged', event.target.checked)} required /><span>Tôi xác nhận đã nhận đúng HĐMB mới.</span></label>{submitControl()}</form>
 }
 
-function defaultActionForm(type, demoCase, state, candidates, documents) {
+function defaultActionForm(type, demoCase, state, documents) {
   const actionTimes = demoCase.actionTimes ?? {}
   const representationStart = dateInputValue(actionTimes[ACTIONS.REQUEST_SELLER_CONFIRMATION])
-  const confirmationDate = dateInputValue(actionTimes[ACTIONS.CONFIRM_REPRESENTATION]).replaceAll('-', '')
   const defaults = {
-    [ACTIONS.MATCH_PROPERTY]: { candidateId: candidates[0]?.id ?? '', sourceIds: demoCase.property.sourceRecords?.map((item) => item.id) ?? [] },
-    [ACTIONS.REQUEST_SELLER_CONFIRMATION]: { scope: 'Độc quyền', startsOn: representationStart, expiresOn: addDays(representationStart, 30) },
-    [ACTIONS.CONFIRM_REPRESENTATION]: { accepted: false, confirmationRef: `XN-${demoCase.representation.id}-${confirmationDate}` },
+    [ACTIONS.REQUEST_SELLER_CONFIRMATION]: { propertyId: demoCase.property.id, scope: 'Độc quyền', startsOn: representationStart, expiresOn: addDays(representationStart, 30) },
+    [ACTIONS.CONFIRM_REPRESENTATION]: { accepted: false },
     [ACTIONS.RECORD_BUYER]: { buyerRef: demoCase.parties?.buyer?.reference ?? `BUYER-${demoCase.id}`, agreedPrice: demoCase.listing?.askingPrice?.value ?? 1, expectedSigningOn: dateInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]) },
     [ACTIONS.VERIFY_READINESS]: { confirmed: true, identityReviewed: false, paymentPlanReviewed: false, documentsReviewed: false, bankConsent: demoCase.id === 'sun-grand-thuy-khue' },
     [ACTIONS.SUBMIT_NOTARY_DOSSIER]: { submissionRef: demoCase.notary?.id, documentIds: documents.map((item) => typeof item === 'string' ? item : item.id) },
     [ACTIONS.REQUEST_SUPPLEMENT]: { reasonCode: demoCase.notary?.supplement?.reasonCode ?? 'missing-document', documentType: demoCase.notary?.supplement?.documentType ?? 'Tài liệu bổ sung', dueOn: dateInputValue(actionTimes[ACTIONS.PROVIDE_SUPPLEMENT]) },
     [ACTIONS.PROVIDE_SUPPLEMENT]: { documentId: 'TLBS-HN-00044', documentType: state.records.notaryDossier.supplement?.documentType ?? 'Xác nhận tình trạng hôn nhân', fileName: 'xac-nhan-tinh-trang-hon-nhan.pdf' },
-    [ACTIONS.RECORD_NOTARY_SIGNING]: { resultRef: demoCase.notary?.resultRef ?? `KQCC-${demoCase.id}`, signedAt: dateTimeInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]), documentDigest: demoCase.id === 'sun-grand-thuy-khue' ? 'a9048b2e113f' : 'c1729d8f482e' },
-    [ACTIONS.APPROVE_LAND_REGISTRY]: { resultRef: 'KQ-ĐKBĐ-260828-044', approvedAt: dateTimeInputValue(actionTimes[ACTIONS.APPROVE_LAND_REGISTRY]), newOwnerRef: demoCase.parties?.buyer?.reference ?? 'PARTY-BUYER-044' },
+    [ACTIONS.RECORD_NOTARY_SIGNING]: { contractId: demoCase.notary?.contractId ?? demoCase.transfer?.contractReference ?? `HD-${demoCase.id}`, signedAt: dateTimeInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]) },
+    [ACTIONS.APPROVE_LAND_REGISTRY]: { resultRef: 'KQ-ĐKBĐ-260828-044', approvedAt: dateTimeInputValue(actionTimes[ACTIONS.APPROVE_LAND_REGISTRY]) },
     [ACTIONS.DEVELOPER_INTAKE]: { intakeRef: demoCase.transfer?.intakeRef ?? 'TNCĐT-S2-12A-2026', receivedAt: dateTimeInputValue(actionTimes[ACTIONS.DEVELOPER_INTAKE]), documentCount: Math.max(4, demoCase.notary?.requiredDocumentIds?.length ?? 4) },
     [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: { confirmationRef: `XN-${demoCase.transfer?.intakeRef ?? 'CDT-S2-12A'}`, confirmedAt: dateTimeInputValue(actionTimes[ACTIONS.DEVELOPER_CONFIRM_TRANSFER]) },
     [ACTIONS.BUYER_RECEIVE_CONTRACT]: { receiptRef: demoCase.transfer?.resultRef ?? 'HDMB-MOI-S2-12A/2026', receivedAt: dateTimeInputValue(actionTimes[ACTIONS.BUYER_RECEIVE_CONTRACT]), acknowledged: false },
@@ -1041,9 +1026,7 @@ function defaultActionForm(type, demoCase, state, candidates, documents) {
 }
 
 function payloadFor(type, form) {
-  if (type === ACTIONS.MATCH_PROPERTY) {
-    return { candidateId: form.candidateId, sourceIds: form.sourceIds ?? [] }
-  }
+  if (type === ACTIONS.REQUEST_SELLER_CONFIRMATION) return { ...form, propertyId: String(form.propertyId ?? '').trim().toUpperCase() }
   if (type === ACTIONS.RECORD_BUYER) return { buyerRef: form.buyerRef, agreedPrice: Number(form.agreedPrice), expectedSigningOn: form.expectedSigningOn }
   if (type === ACTIONS.VERIFY_READINESS) return { confirmed: true, checklist: { identityReviewed: form.identityReviewed, paymentPlanReviewed: form.paymentPlanReviewed, documentsReviewed: form.documentsReviewed }, bankConsent: form.bankConsent }
   if (type === ACTIONS.SUBMIT_NOTARY_DOSSIER) return { submissionRef: form.submissionRef, documentIds: form.documentIds ?? [] }
@@ -1072,7 +1055,7 @@ function PropertyTab({ property }) {
     ['Khu vực', property.location],
     ['Dự án', hasOwn(property, 'project') ? property.project ?? 'Không thuộc dự án' : undefined],
     ['Căn / thửa', property.unit ?? property.parcelRef],
-    ['Trạng thái đối chiếu', property.status],
+    ['Trạng thái định danh', property.status],
   ].filter(([, value]) => value !== undefined && value !== null && value !== '')
   return (
     <div className="two-column-grid">
@@ -1084,27 +1067,38 @@ function PropertyTab({ property }) {
 }
 
 function RepresentationTab({ parties, record }) {
-  const identityFields = [
-    ['Người bán', parties.seller?.displayName],
-    ['Môi giới', parties.agent?.displayName],
-    ['Sàn', parties.agent?.organization],
-    ['Kênh xác nhận', record.confirmationChannel],
-    ['Trạng thái', record.status],
+  const representationParties = record.parties ?? {}
+  const seller = representationParties.seller ?? parties.seller
+  const representative = representationParties.representative ?? representationParties.agent ?? parties.agent
+  const sellerFields = [
+    ['Họ tên', seller?.displayName],
+    ['Mã định danh Người bán', seller?.reference],
+    ['Giấy tờ định danh', seller?.identityRef],
+    ['Liên hệ', seller?.phone],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '')
+  const representativeFields = [
+    ['Họ tên', representative?.displayName],
+    ['Mã định danh Người đại diện', representative?.reference],
+    ['Sàn môi giới', representative?.organization],
+    ['Liên hệ', representative?.phone],
   ].filter(([, value]) => value !== undefined && value !== null && value !== '')
   const hasScope = hasOwn(record, 'scope') || hasOwn(record, 'request')
   const hasStart = hasOwn(record, 'startsOn') || hasOwn(record.request, 'startsOn')
   const hasExpiry = hasOwn(record, 'expiresOn') || hasOwn(record.request, 'expiresOn')
-  const hasConfirmation = hasOwn(record, 'confirmationRef') || hasOwn(record, 'confirmation')
-  const detailFields = [
+  const hasConfirmation = hasOwn(record, 'confirmation')
+  const authorityFields = [
+    ['Kênh xác nhận', record.confirmationChannel, false],
+    ['Trạng thái', record.status, false],
     hasScope ? ['Phạm vi', record.scope ?? record.request?.scope, false] : null,
     hasStart ? ['Ngày bắt đầu', formatDate(record.startsOn ?? record.request?.startsOn, false), false] : null,
     hasExpiry ? ['Ngày hết hạn', formatDate(record.expiresOn ?? record.request?.expiresOn, false), false] : null,
-    hasConfirmation ? ['Mã xác nhận', record.confirmationRef ?? record.confirmation?.reference, true] : null,
+    hasConfirmation ? ['Mã bản ghi xác nhận', record.confirmation?.id, true] : null,
   ].filter(Boolean)
   return (
     <div className="two-column-grid">
-      <section className="record-panel"><PanelHeading icon={IdentificationCard} title="Quyền đại diện" meta={record.id} /><FieldGrid>{identityFields.map(([label, value]) => <Field key={label} label={label} value={value} />)}</FieldGrid></section>
-      {detailFields.length ? <section className="record-panel"><PanelHeading icon={CalendarCheck} title="Phạm vi và hiệu lực" /><FieldGrid>{detailFields.map(([label, value, mono]) => <Field key={label} label={label} value={value} mono={mono} />)}</FieldGrid></section> : null}
+      <section className="record-panel"><PanelHeading icon={House} title="Thông tin Người bán" meta={seller?.reference} /><FieldGrid>{sellerFields.map(([label, value]) => <Field key={label} label={label} value={value} mono={label.startsWith('Mã định danh')} />)}</FieldGrid></section>
+      <section className="record-panel"><PanelHeading icon={IdentificationCard} title="Thông tin Người đại diện (Môi giới)" meta={representative?.reference} /><FieldGrid>{representativeFields.map(([label, value]) => <Field key={label} label={label} value={value} mono={label.startsWith('Mã định danh')} />)}</FieldGrid></section>
+      <section className="record-panel full-span"><PanelHeading icon={CalendarCheck} title="Phạm vi và hiệu lực" meta={record.id} /><FieldGrid>{authorityFields.map(([label, value, mono]) => <Field key={label} label={label} value={value} mono={mono} />)}</FieldGrid></section>
     </div>
   )
 }
@@ -1125,7 +1119,9 @@ function ListingTab({ listing }) {
 }
 
 function BuyerTab({ readiness }) {
-  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={User} title="Người mua" meta={readiness.buyer?.reference} /><FieldGrid><Field label="Tham chiếu" value={readiness.buyer?.reference} mono /><Field label="Giá đã thống nhất" value={formatMoney(readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(readiness.expectedSigningOn, false)} /><Field label="Trạng thái" value={readiness.status} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={ListChecks} title="Nội dung đã kiểm tra" /><Checklist items={Object.entries(readiness.checklist ?? {}).map(([key, value]) => ({ id: key, label: { identityReviewed: 'Thông tin định danh', paymentPlanReviewed: 'Phương án thanh toán', documentsReviewed: 'Danh mục tài liệu' }[key] ?? key, state: value ? 'done' : 'pending' }))} /></section>{hasOwn(readiness, 'financeSharing') ? <section className="record-panel full-span"><PanelHeading icon={Bank} title="Chia sẻ với Ngân hàng" /><FieldGrid><Field label="Trạng thái" value={readiness.financeSharing?.status} /><Field label="Mục đích" value={readiness.financeSharing?.purpose} /><Field label="Trường dữ liệu" value={readiness.financeSharing?.visibleFields?.join(', ')} /></FieldGrid></section> : null}</div>
+  const contract = readiness.contractConfirmation ?? {}
+  const buyer = contract.buyer ?? readiness.buyer
+  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={User} title="Người mua" meta={buyer?.reference} /><FieldGrid><Field label="Họ tên" value={buyer?.displayName} /><Field label="Mã định danh Người mua" value={buyer?.reference} mono /><Field label="Giấy tờ định danh" value={buyer?.identityRef} /><Field label="Giá đã thống nhất" value={formatMoney(contract.agreedPrice ?? readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(contract.expectedSigningOn ?? readiness.expectedSigningOn, false)} /><Field label="Trạng thái" value={readiness.status} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={FileText} title="Thông tin hợp đồng" /><FieldGrid><Field label="Mã định danh Bất động sản" value={contract.property?.id} mono /><Field label="Bất động sản" value={contract.property?.name} /><Field label="Loại giao dịch" value={contract.transactionType} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={ListChecks} title="Nội dung đã kiểm tra" /><Checklist items={Object.entries(readiness.checklist ?? {}).map(([key, value]) => ({ id: key, label: { identityReviewed: 'Thông tin định danh', paymentPlanReviewed: 'Phương án thanh toán', documentsReviewed: 'Danh mục tài liệu' }[key] ?? key, state: value ? 'done' : 'pending' }))} /></section>{hasOwn(readiness, 'financeSharing') ? <section className="record-panel full-span"><PanelHeading icon={Bank} title="Chia sẻ với Ngân hàng" /><FieldGrid><Field label="Trạng thái" value={readiness.financeSharing?.status} /><Field label="Mục đích" value={readiness.financeSharing?.purpose} /><Field label="Trường dữ liệu" value={readiness.financeSharing?.visibleFields?.join(', ')} /></FieldGrid></section> : null}</div>
 }
 
 function NotaryTab({ dossier }) {
@@ -1134,7 +1130,7 @@ function NotaryTab({ dossier }) {
     hasOwn(dossier, 'office') ? ['Văn phòng', dossier.office, false] : null,
     hasOwn(dossier, 'submission') ? ['Mã tiếp nhận', dossier.submission?.reference, true] : null,
     ['Trạng thái', dossier.status, false],
-    hasOwn(dossier, 'signedResult') ? ['Kết quả ký', dossier.signedResult?.reference, true] : null,
+    hasOwn(dossier, 'signedResult') ? ['Mã hợp đồng', dossier.signedResult?.contractId, true] : null,
   ].filter(Boolean)
   return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={SealCheck} title="Hồ sơ công chứng" meta={dossier.id} /><FieldGrid>{dossierFields.map(([label, value, mono]) => <Field key={label} label={label} value={value} mono={mono} />)}</FieldGrid></section>{docs.length ? <section className="record-panel"><PanelHeading icon={FileText} title="Thành phần hồ sơ" /><Checklist items={docs.map((document) => typeof document === 'string' ? document : ({ id: document.id, label: document.label, state: document.status === 'Thiếu' ? 'warning' : document.status === 'Chưa nộp' ? 'pending' : 'done', stateLabel: document.status }))} /></section> : null}{dossier.supplement ? <section className="record-panel full-span issue-panel"><PanelHeading icon={WarningCircle} title="Yêu cầu bổ sung" meta={dossier.supplement.status} /><FieldGrid><Field label="Loại tài liệu" value={dossier.supplement.documentType} /><Field label="Lý do" value={dossier.supplement.reasonLabel ?? dossier.supplement.reasonCode} /><Field label="Người cung cấp" value="Người bán" /><Field label="Hạn bổ sung" value={formatDate(dossier.supplement.dueOn, false)} /><Field label="Tệp đã gửi" value={dossier.supplement.document?.fileName} /></FieldGrid></section> : null}</div>
 }
@@ -1151,7 +1147,6 @@ function TransferTab({ transaction, transfer, integrations }) {
     : [
         ['Mã kết quả đăng ký', transfer.resultRef ?? transfer.result?.reference],
         ['Thời điểm hiệu lực', formatDate(transfer.resultAt ?? transfer.result?.approvedAt)],
-        ['Tham chiếu chủ mới', transfer.newOwnerRef],
       ]
   return (
     <div className="two-column-grid">

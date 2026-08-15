@@ -14,9 +14,9 @@ import {
   workspaceDefinitions,
 } from '../src/demo/demoData.js'
 
-test('the operational fixture has a v2 storage contract and nine explicit roles', () => {
-  assert.equal(DEMO_VERSION, 'vmls-operations-2026-08-v2')
-  assert.equal(STORAGE_KEY, 'vmls:operations:2026-08:v2')
+test('the operational fixture has a v3 storage contract and nine explicit roles', () => {
+  assert.equal(DEMO_VERSION, 'vmls-operations-2026-08-v3')
+  assert.equal(STORAGE_KEY, 'vmls:operations:2026-08:v3')
   assert.deepEqual(
     roles.map(({ id }) => id),
     ['agent', 'brokerage', 'seller', 'buyer', 'bank', 'developer', 'vmls', 'notary', 'landRegistry'],
@@ -101,10 +101,9 @@ test('Phú Thượng uses the normalized land and total floor areas', () => {
   )
 })
 
-test('each dossier has consistent candidates, sources, documents, parties and transfer references', () => {
+test('each dossier starts from one identified NPID with consistent sources, contracts and parties', () => {
   for (const dossier of demoCases) {
-    assert.ok(dossier.property.candidates.length >= 2)
-    assert.ok(dossier.property.candidates.some(({ id }) => id === dossier.property.id))
+    assert.equal('candidates' in dossier.property, false)
 
     const sourceIds = new Set(dossier.property.sourceRecords.map(({ id }) => id))
     assert.ok(dossier.property.areas.every(({ sourceId }) => sourceIds.has(sourceId)))
@@ -115,9 +114,15 @@ test('each dossier has consistent candidates, sources, documents, parties and tr
 
     assert.ok(dossier.transfer.intakeRef)
     assert.ok(dossier.transfer.resultRef)
+    assert.match(dossier.representation.confirmationId, /^XND-/)
+    assert.match(dossier.notary.contractId, /^HDCC-/)
+    assert.ok(dossier.readiness.agreement.reference)
+    assert.ok(dossier.readiness.agreement.type)
     for (const party of Object.values(dossier.parties)) {
       assert.equal(party.masked, true)
       assert.match(`${party.displayName} ${party.phone} ${party.identityRef}`, /[•]/)
+      assert.equal(party.displayNameLabel, 'Họ tên')
+      assert.match(party.referenceLabel, /^Mã định danh /)
     }
   }
 })
@@ -125,7 +130,6 @@ test('each dossier has consistent candidates, sources, documents, parties and tr
 test('each configured August chronology is strictly ordered and finishes before its SLA', () => {
   const paths = {
     developer: [
-      'match_property',
       'request_seller_confirmation',
       'confirm_representation',
       'record_buyer',
@@ -137,7 +141,6 @@ test('each configured August chronology is strictly ordered and finishes before 
       'buyer_receive_contract',
     ],
     landRegistry: [
-      'match_property',
       'request_seller_confirmation',
       'confirm_representation',
       'record_buyer',
@@ -223,6 +226,9 @@ test('external touchpoints have explicit data contracts and local reference capt
     ecosystemConnections.find(({ id }) => id === 'housenow')?.url,
     'https://www.housenow.com.vn/can-ho-chung-cu',
   )
+  const vneid = ecosystemConnections.find(({ id }) => id === 'vneid')
+  assert.ok(vneid.inputFields.includes('Mã định danh Bất động sản'))
+  assert.equal(vneid.outputFields.includes('Mã xác nhận'), false)
 })
 
 test('all public identities remain masked', () => {
