@@ -910,6 +910,170 @@ export function getNextWorkItem(state) {
   return null
 }
 
+const publicString = (value) => typeof value === 'string' ? value : null
+
+function getPublicLifecycle(state) {
+  const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
+  const dueAt = getDemoCase(state.caseId)?.slaDueAt ?? null
+
+  if (transfer.status === 'Đã sang tên' || transfer.status === 'Đã bàn giao HĐMB mới') {
+    return {
+      status: { code: 'transfer_complete', label: 'Hoàn tất chuyển quyền', tone: 'success' },
+      nextWork: null,
+    }
+  }
+  if (transfer.status === 'Chờ người mua nhận HĐMB') {
+    return {
+      status: { code: 'contract_delivery_pending', label: 'Chờ bàn giao HĐMB mới', tone: 'warning' },
+      nextWork: { label: 'Bàn giao HĐMB mới', ownerLabel: 'Các bên giao dịch', dueAt },
+    }
+  }
+  if (transfer.status === 'Chủ đầu tư đang xử lý') {
+    return {
+      status: { code: 'developer_processing', label: 'Đang xử lý chuyển nhượng', tone: 'info' },
+      nextWork: { label: 'Xác nhận chuyển nhượng', ownerLabel: 'Chủ đầu tư', dueAt },
+    }
+  }
+  if (transfer.status === 'Chờ chủ đầu tư tiếp nhận') {
+    return {
+      status: { code: 'developer_intake_pending', label: 'Chờ tiếp nhận chuyển nhượng', tone: 'warning' },
+      nextWork: { label: 'Tiếp nhận hồ sơ chuyển nhượng', ownerLabel: 'Chủ đầu tư', dueAt },
+    }
+  }
+  if (transfer.status === 'Chờ đăng ký biến động') {
+    return {
+      status: { code: 'land_registry_pending', label: 'Chờ đăng ký biến động', tone: 'warning' },
+      nextWork: { label: 'Đăng ký biến động', ownerLabel: 'Văn phòng đăng ký đất đai', dueAt },
+    }
+  }
+  if (transaction) {
+    return {
+      status: { code: 'transaction_created', label: 'Đã tạo giao dịch', tone: 'info' },
+      nextWork: { label: 'Xử lý chuyển quyền', ownerLabel: 'Đơn vị tiếp nhận', dueAt },
+    }
+  }
+  if (notaryDossier.status !== 'Chưa nộp') {
+    return {
+      status: { code: 'notary_processing', label: 'Đang xử lý công chứng', tone: 'info' },
+      nextWork: { label: 'Hoàn tất công chứng', ownerLabel: 'Văn phòng công chứng', dueAt },
+    }
+  }
+  if (readiness.status === 'Đã sẵn sàng công chứng') {
+    return {
+      status: { code: 'notary_submission_pending', label: 'Sẵn sàng công chứng', tone: 'success' },
+      nextWork: { label: 'Tiếp nhận hồ sơ công chứng', ownerLabel: 'Văn phòng công chứng', dueAt },
+    }
+  }
+  if (readiness.buyer) {
+    return {
+      status: { code: 'transaction_readiness', label: 'Đang chuẩn bị công chứng', tone: 'warning' },
+      nextWork: { label: 'Hoàn tất điều kiện công chứng', ownerLabel: 'Các bên giao dịch', dueAt },
+    }
+  }
+  if (listing) {
+    return {
+      status: { code: 'listing_created', label: 'Tin bán đã khởi tạo', tone: 'info' },
+      nextWork: { label: 'Ghi nhận người mua', ownerLabel: 'Đơn vị môi giới', dueAt },
+    }
+  }
+  if (representation.status === 'Chờ xác nhận') {
+    return {
+      status: { code: 'representation_pending', label: 'Đang thiết lập quyền đại diện', tone: 'warning' },
+      nextWork: { label: 'Hoàn tất quyền đại diện', ownerLabel: 'Các bên đại diện', dueAt },
+    }
+  }
+  if (property.status === 'Đã đối chiếu') {
+    return {
+      status: { code: 'property_matched', label: 'Đã đối chiếu Bất động sản', tone: 'info' },
+      nextWork: { label: 'Thiết lập quyền đại diện', ownerLabel: 'Đơn vị môi giới', dueAt },
+    }
+  }
+  return {
+    status: { code: 'property_match_pending', label: 'Chờ đối chiếu', tone: 'neutral' },
+    nextWork: { label: 'Đối chiếu Bất động sản', ownerLabel: 'Đơn vị môi giới', dueAt },
+  }
+}
+
+function latestPublicMaterialTime(records) {
+  const candidates = [
+    records.property?.matchedAt,
+    records.listing?.createdAt,
+    records.transaction?.createdAt,
+    records.transfer?.intakeAt,
+    records.transfer?.confirmedAt,
+    records.transfer?.resultAt,
+    records.transfer?.receivedAt,
+  ]
+    .filter((value) => typeof value === 'string' && Number.isFinite(Date.parse(value)))
+
+  if (!candidates.length) return null
+  return candidates.reduce((latest, value) => (
+    Date.parse(value) > Date.parse(latest) ? value : latest
+  ))
+}
+
+/**
+ * Return the deliberately small, public-safe projection used by the landing page.
+ *
+ * This is an allowlist, not a clone-and-delete sanitizer. In particular, it never
+ * exposes dossier, party, representation, readiness, notary, document, finance,
+ * audit, integration, command, reference or correlation data from the operational
+ * state. New operational fields therefore stay private unless explicitly added
+ * here and covered by the projection contract tests.
+ */
+export function projectStateForPublic(state) {
+  const dossier = getDemoCase(state?.caseId)
+  const records = state?.records
+  if (!dossier || !records?.property || !records?.transfer) return null
+
+  const publicLifecycle = getPublicLifecycle(state)
+
+  return {
+    caseId: dossier.id,
+    title: dossier.title,
+    property: {
+      id: publicString(records.property.id),
+      status: publicString(records.property.status),
+      name: publicString(records.property.name),
+      type: publicString(records.property.type),
+      project: publicString(records.property.project),
+      unit: publicString(records.property.unit),
+      parcelRef: publicString(records.property.parcelRef),
+      location: publicString(records.property.location),
+    },
+    listing: records.listing
+      ? {
+          id: publicString(records.listing.id),
+          status: publicString(records.listing.status),
+        }
+      : null,
+    transaction: records.transaction
+      ? {
+          id: publicString(records.transaction.id),
+          status: publicString(records.transaction.status),
+        }
+      : null,
+    transfer: {
+      route: publicString(records.transfer.route),
+      basis: publicString(records.transfer.basis),
+      status: publicString(records.transfer.status),
+    },
+    status: {
+      code: publicString(publicLifecycle.status.code),
+      label: publicString(publicLifecycle.status.label),
+      tone: publicString(publicLifecycle.status.tone),
+    },
+    nextWork: publicLifecycle.nextWork
+      ? {
+          label: publicString(publicLifecycle.nextWork.label),
+          ownerLabel: publicString(publicLifecycle.nextWork.ownerLabel),
+          dueAt: publicString(publicLifecycle.nextWork.dueAt),
+        }
+      : null,
+    latestMaterialAt: latestPublicMaterialTime(records),
+  }
+}
+
 function isVisibleToRole(state, roleId) {
   if (!roleIds.has(roleId)) return false
   if (['agent', 'brokerage', 'vmls'].includes(roleId)) return true

@@ -9,7 +9,7 @@ last_reviewed: 2026-08-15
 
 ## Purpose
 
-`PROPOSAL`: The public pre-MVP should behave like a usable data and operations product. A stakeholder should understand VMLS by searching records, inspecting linked identities, completing role-owned work, and observing state changes. The interface must not rely on a marketing landing page, a guided narrative, numbered presentation stages, or policy disclaimers to explain the product.
+`PROPOSAL`: The public pre-MVP should behave like a usable data and operations product. Its landing is a registry workbench: a stakeholder understands VMLS by searching records, inspecting linked identities and external touchpoints, then entering role-owned work and observing state changes. The interface must not rely on marketing-only sections, a guided narrative, numbered presentation stages, or policy disclaimers to explain the product.
 
 This document uses [v2](./vmls-process-v2.md) as the proposed business sequence and [v3](./vmls-process-v3.md) as the list/detail navigation reference. It does not approve the legal, tax, identity, notarization, land-registration, Developer, or integration contracts represented by those sources.
 
@@ -24,9 +24,11 @@ This document uses [v2](./vmls-process-v2.md) as the proposed business sequence 
 7. Keep `NPID`, `PLID`, `PTID`, representation ID, VPCC dossier ID, source record IDs, and external result IDs visibly distinct.
 8. Preserve brand through typography, color, spacing, and status semantics. Decorative elements must not displace working data.
 
-## Default screen contract
+## Default entry contract
 
-The default hash route is the Môi giới work queue. It must be usable without reading introductory prose.
+The root route is the public registry workbench. Its first viewport must provide real search across configured dossier data, one selected record, the NPID/PLID/PTID relationship, current work, and a direct workspace entry. Counts and statuses are derived from reducer state; no market-scale KPI is invented.
+
+The Môi giới queue remains the default operational workspace. `Mở không gian làm việc` enters that queue unless the viewer selects another role. Existing direct hash routes remain valid and bypass the public landing.
 
 ### Header
 
@@ -178,13 +180,17 @@ It must not be listed as a source record for either NPID unless a future verifie
 
 ### HouseNow
 
-HouseNow is a row in the Tin bán `Kênh phân phối` table with the supplied icon, permitted field scope, delivery state, and update time when available. It must not be a hero, endorsement, or separate transaction stage.
+HouseNow is a row in the Tin bán `Kênh phân phối` table with the supplied icon, permitted field scope, delivery state, and update time when available. The connection registry may also show a dated, read-only capture of the public apartment category next to the outbound field mapping. It must not become an endorsement or separate transaction stage.
+
+### VNeID
+
+VNeID is a representation-confirmation touchpoint. Its connection record describes the request fields prepared by VMLS and the result fields VMLS would record. A dated capture from the official app listing may be shown read-only; the application must not reproduce login, OTP, face verification, or confirmation controls.
 
 ## UI content exclusions
 
 The operational interface excludes:
 
-- landing-page headlines and product slogans;
+- marketing-only hero sections, unsupported KPIs, or product slogans without a data function;
 - “journey”, “explore”, presentation-step, pilot, and completion-story calls to action;
 - `FACT`, `SOURCE CLAIM`, `INFERENCE`, `PROPOSAL`, and `OPEN QUESTION` badges;
 - repeated statements that the screen is simulated, proposed, fictional, or not legally authoritative;
@@ -205,6 +211,6 @@ Repository documentation and QA reports continue to preserve evidence labels and
 7. Role switching changes navigation, records, fields, and allowed actions—not only explanatory wording.
 8. The Sàn view provides an operational coordination queue. The Bank view contains only consented records and permitted fields.
 9. NPID, PLID, PTID, source IDs, dossier IDs, result references, timestamps, and correlation IDs are data, not decoration.
-10. HouseNow and 357 appear only in the contextual surfaces defined above.
+10. VNeID, 357, and HouseNow appear only in the contextual surfaces defined above; all external captures are local and read-only.
 11. Every material accepted command appends an audit event; prior submissions and supplement events remain visible.
 12. No product-story or evidence-governance wording is rendered in the UI.

@@ -8,6 +8,7 @@ const protectedPreviewOrigin = process.env.VERCEL_AUTOMATION_BYPASS_SECRET && pr
 const CASES = {
   developer: {
     id: 'sun-grand-thuy-khue',
+    title: 'Căn hộ S2-12A · Thụy Khuê',
     npid: 'NPID-HN-09876',
     plid: 'PLID-HN-00125',
     ptid: 'PTID-HN-00031',
@@ -24,6 +25,7 @@ const CASES = {
   },
   landRegistry: {
     id: 'phu-thuong-landed-home',
+    title: 'Nhà ở · Phú Thượng',
     npid: 'NPID-HN-10421',
     plid: 'PLID-HN-00208',
     ptid: 'PTID-HN-00044',
@@ -39,6 +41,35 @@ const CASES = {
     sourceIds: ['SRC-GCN-PTH-118', 'SRC-HS-BAN-PTH-118'],
   },
 }
+
+const LANDING_CONNECTIONS = [
+  {
+    id: 'vneid',
+    label: 'VNeID',
+    action: 'Xem dữ liệu bàn giao',
+    asset: '/assets/demo/vneid-google-play-2026-08-15.png',
+    href: /https:\/\/play\.google\.com\/store\/apps\/details\?[^#]*id=com\.vnid/i,
+    visibleUrl: 'play.google.com',
+  },
+  {
+    id: 'source-357',
+    label: 'Hệ thống thông tin về nhà ở và thị trường bất động sản',
+    action: 'Xem ảnh chụp',
+    asset: '/assets/demo/357-homepage-2026-08-15.png',
+    href: 'https://thongtinbds.moc.gov.vn/',
+    visibleUrl: 'thongtinbds.moc.gov.vn',
+  },
+  {
+    id: 'housenow',
+    label: 'HouseNow',
+    action: 'Xem phạm vi phân phối',
+    asset: '/assets/demo/housenow-can-ho-2026-08-15.png',
+    href: 'https://www.housenow.com.vn/can-ho-chung-cu',
+    visibleUrl: 'housenow.com.vn/can-ho-chung-cu',
+  },
+]
+
+const FORBIDDEN_LANDING_ACTIONS = /^(?:đăng nhập(?: VNeID)?|xác nhận(?: qua VNeID)?|kết nối (?:VNeID|357|HouseNow)|mở ứng dụng VNeID|đăng tin|đăng bán|phát hành Tin bán|gửi (?:sang|lên) (?:VNeID|357|HouseNow))$/i
 
 const FORBIDDEN_UI_WORDING = [
   /mô phỏng/i,
@@ -105,6 +136,73 @@ async function startFresh(page, route = '#/vai-tro/agent/cong-viec') {
   await page.goto(`/${route}`)
   await expect(page).toHaveTitle(/VMLS/)
   await expect(page.getByTestId('app-shell')).toBeVisible()
+}
+
+async function openLanding(page, route = '/') {
+  await page.goto(route)
+  await expect(page).toHaveTitle(/VMLS/)
+  await expect(page.getByTestId('landing-page')).toBeVisible()
+  await expect(page.getByTestId('app-shell')).toHaveCount(0)
+}
+
+async function searchLanding(page, query, expectedCase, otherCase) {
+  const search = page.getByTestId('landing-search')
+  await search.fill(query)
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId(`landing-case-${expectedCase.id}`)).toBeVisible()
+  await expect(page.getByTestId(`landing-case-${otherCase.id}`)).toBeHidden()
+}
+
+function landingIdentity(page, kind) {
+  return page.getByRole('region', { name: 'Tra cứu và điều phối hồ sơ' })
+    .getByTestId(`landing-identity-${kind}`)
+}
+
+async function expectLandingIdentityChain(
+  page,
+  demoCase,
+  { listingExists = false, transactionExists = false } = {},
+) {
+  const property = landingIdentity(page, 'npid')
+  const listing = landingIdentity(page, 'plid')
+  const transaction = landingIdentity(page, 'ptid')
+
+  await expect(property).toContainText('Bất động sản')
+  await expect(property).toContainText(demoCase.npid)
+  await expect(property).not.toContainText(demoCase.plid)
+  await expect(property).not.toContainText(demoCase.ptid)
+
+  await expect(listing).toContainText('Tin bán')
+  await expect(listing).not.toContainText(demoCase.npid)
+  await expect(listing).not.toContainText(demoCase.ptid)
+  if (listingExists) {
+    await expect(listing).toContainText(demoCase.plid)
+  } else {
+    await expect(listing).toContainText('Chưa có')
+    await expect(listing).not.toContainText(demoCase.plid)
+    await expect(listing.getByRole('link')).toHaveCount(0)
+    await expect(listing.getByRole('button')).toHaveCount(0)
+  }
+
+  await expect(transaction).toContainText('Giao dịch')
+  await expect(transaction).not.toContainText(demoCase.npid)
+  await expect(transaction).not.toContainText(demoCase.plid)
+  if (transactionExists) {
+    await expect(transaction).toContainText(demoCase.ptid)
+  } else {
+    await expect(transaction).toContainText('Chưa có')
+    await expect(transaction).not.toContainText(demoCase.ptid)
+    await expect(transaction.getByRole('link')).toHaveCount(0)
+    await expect(transaction.getByRole('button')).toHaveCount(0)
+  }
+}
+
+async function focusByKeyboard(page, locator, maxTabs = 24) {
+  for (let index = 0; index < maxTabs; index += 1) {
+    await page.keyboard.press('Tab')
+    if (await locator.evaluate((element) => element === document.activeElement)) return
+  }
+  throw new Error(`Không thể đưa focus tới ${await locator.getAttribute('data-testid')} bằng phím Tab`)
 }
 
 async function expectNoNarrativeInjection(page) {
@@ -320,6 +418,367 @@ test.beforeEach(async ({ page }) => {
   await startFresh(page)
 })
 
+test('đường dẫn công khai mở landing còn CTA và hash workspace vào đúng hàng đợi', async ({ page }) => {
+  for (const route of ['/', '/#/']) {
+    await openLanding(page, route)
+    await expect(page.getByTestId('enter-workspace')).toBeVisible()
+    await expect(page.getByTestId('work-queue')).toHaveCount(0)
+  }
+
+  await openLanding(page)
+  await page.getByTestId('enter-workspace').click()
+  await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
+  await expect(page.getByTestId('app-shell')).toBeVisible()
+  await expect(page.getByTestId('work-queue')).toBeVisible()
+  await expect(page.getByTestId('landing-page')).toHaveCount(0)
+
+  await page.goto('/#/vai-tro/agent/cong-viec')
+  await expect(page.getByTestId('app-shell')).toBeVisible()
+  await expect(page.getByTestId('work-queue')).toBeVisible()
+  await expect(page.getByTestId('landing-page')).toHaveCount(0)
+})
+
+test('route tra cứu giữ query qua reload, browser Back và mở trực tiếp case-key', async ({ page }) => {
+  await openLanding(page)
+
+  const search = page.getByTestId('landing-search')
+  await search.fill(CASES.developer.npid)
+  await page.keyboard.press('Enter')
+  await expect.poll(() => new URL(page.url()).hash).toBe(
+    `#/tra-cuu?q=${CASES.developer.npid}`,
+  )
+  await expect(search).toHaveValue(CASES.developer.npid)
+  await expect(page.getByTestId(`landing-case-${CASES.developer.id}`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expectLandingIdentityChain(page, CASES.developer)
+
+  await page.reload()
+  await expect.poll(() => new URL(page.url()).hash).toBe(
+    `#/tra-cuu?q=${CASES.developer.npid}`,
+  )
+  await expect(page.getByTestId('landing-search')).toHaveValue(CASES.developer.npid)
+  await expect(page.getByTestId(`landing-case-${CASES.developer.id}`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expectLandingIdentityChain(page, CASES.developer)
+
+  const publicResult = page.getByRole('region', { name: 'Tra cứu và điều phối hồ sơ' })
+  await publicResult.getByRole('button', { name: 'Mở hồ sơ · Môi giới', exact: true }).click()
+  await expect(page).toHaveURL(
+    new RegExp(`#\/vai-tro\/agent\/ho-so\/${CASES.developer.id}\/tong-quan$`),
+  )
+  await expect(page.getByTestId('app-shell')).toBeVisible()
+
+  await page.goBack()
+  await expect.poll(() => new URL(page.url()).hash).toBe(
+    `#/tra-cuu?q=${CASES.developer.npid}`,
+  )
+  await expect(page.getByTestId('landing-page')).toBeVisible()
+  await expect(page.getByTestId('landing-search')).toHaveValue(CASES.developer.npid)
+  await expectLandingIdentityChain(page, CASES.developer)
+
+  await page.goto(`/#/tra-cuu/${CASES.landRegistry.id}`)
+  await expect(page.getByTestId('landing-page')).toBeVisible()
+  await expect(page.getByTestId(`landing-case-${CASES.landRegistry.id}`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expectLandingIdentityChain(page, CASES.landRegistry)
+  await expect(
+    page.getByRole('region', { name: 'Tra cứu và điều phối hồ sơ' })
+      .getByRole('heading', { name: CASES.landRegistry.title, exact: true }),
+  ).toBeFocused()
+
+  await page.goto('/#/tra-cuu/%E0%A4%A')
+  await expect(page.getByText('Không tìm thấy hồ sơ', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Xóa nội dung tìm kiếm' }).click()
+  await expect.poll(() => new URL(page.url()).hash).toBe('#/')
+})
+
+test('landing tìm theo state hiện tại và chỉ mở PLID, PTID sau đúng lifecycle', async ({ page }) => {
+  await openLanding(page)
+
+  for (const query of [CASES.developer.npid, 'S2-12A']) {
+    await searchLanding(page, query, CASES.developer, CASES.landRegistry)
+    await expectLandingIdentityChain(page, CASES.developer)
+  }
+
+  for (const query of [CASES.landRegistry.npid, 'Phú Thượng']) {
+    await searchLanding(page, query, CASES.landRegistry, CASES.developer)
+    await expectLandingIdentityChain(page, CASES.landRegistry)
+  }
+
+  const search = page.getByTestId('landing-search')
+  for (const futureId of [
+    CASES.developer.plid,
+    CASES.developer.ptid,
+    CASES.landRegistry.plid,
+    CASES.landRegistry.ptid,
+  ]) {
+    await search.fill(futureId)
+    await page.keyboard.press('Enter')
+    await expect(page.getByText('Không tìm thấy hồ sơ', { exact: true })).toBeVisible()
+    await expect(page.getByText(futureId, { exact: true })).toHaveCount(0)
+  }
+
+  await matchAndRequestRepresentation(page, CASES.developer)
+  await confirmRepresentation(page, CASES.developer)
+  await openLanding(page)
+  await searchLanding(page, CASES.developer.plid, CASES.developer, CASES.landRegistry)
+  await expectLandingIdentityChain(page, CASES.developer, { listingExists: true })
+
+  await page.goto('/#/vai-tro/agent/cong-viec')
+  await recordBuyer(page, CASES.developer)
+  await verifyBuyerReadiness(page, CASES.developer, { shareWithBank: false })
+  await submitNotaryDossier(page, CASES.developer)
+  await recordNotarySigning(page, CASES.developer)
+  await openLanding(page)
+  await searchLanding(page, CASES.developer.ptid, CASES.developer, CASES.landRegistry)
+  await expectLandingIdentityChain(page, CASES.developer, {
+    listingExists: true,
+    transactionExists: true,
+  })
+})
+
+test('landing chỉ tìm trường công khai và xóa query khỏi URL', async ({ page }) => {
+  await openLanding(page)
+
+  for (const query of ['Sun Grand City Thụy Khuê Residence', 'Căn hộ thuộc dự án', 'S2-12A']) {
+    await searchLanding(page, query, CASES.developer, CASES.landRegistry)
+  }
+
+  const search = page.getByTestId('landing-search')
+  await search.fill('HS-KB-HN-00031')
+  await page.keyboard.press('Enter')
+  await expect(page.getByText('Không tìm thấy hồ sơ', { exact: true })).toBeVisible()
+  await expect(page.locator('body')).not.toContainText('HS-KB-HN-00031')
+
+  await page.getByRole('button', { name: 'Xóa nội dung tìm kiếm' }).click()
+  await expect.poll(() => new URL(page.url()).hash).toBe('#/')
+  await expect(page.getByTestId('landing-search')).toHaveValue('')
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(2)
+
+  const markup = await page.locator('body').evaluate((element) => element.outerHTML)
+  for (const restrictedValue of [
+    'HS-KB-HN-00031',
+    CASES.developer.customerLabel,
+    'NM-HN-0031',
+    'REP-HN-00031',
+    CASES.developer.shareId,
+    'correlationId',
+    'auditEvents',
+    'integrationEvents',
+  ]) {
+    expect(markup).not.toContain(restrictedValue)
+  }
+})
+
+test('vai trò landing được giữ qua tra cứu và không fallback sang hồ sơ Môi giới', async ({ page }) => {
+  await openLanding(page)
+  const role = page.getByLabel('Vai trò vào không gian làm việc')
+  await role.selectOption('bank')
+  await expect(role).toHaveValue('bank')
+
+  await searchLanding(page, CASES.developer.npid, CASES.developer, CASES.landRegistry)
+  await expect(page.getByLabel('Vai trò vào không gian làm việc')).toHaveValue('bank')
+  await page.reload()
+  await expect(page.getByLabel('Vai trò vào không gian làm việc')).toHaveValue('bank')
+
+  const publicResult = page.getByRole('region', { name: 'Tra cứu và điều phối hồ sơ' })
+  await publicResult.getByRole('button', { name: 'Xem hàng đợi · Ngân hàng', exact: true }).click()
+  await expect(page).toHaveURL(/#\/vai-tro\/bank\/cong-viec$/)
+  await expect(page.getByTestId('work-queue')).toBeVisible()
+  await expect(page).not.toHaveURL(/#\/vai-tro\/agent\/ho-so\//)
+})
+
+test('landing tiếp tục đúng không gian vận hành đã dùng gần nhất', async ({ page }) => {
+  await openCase(page, 'agent', CASES.landRegistry)
+  await expect(page).toHaveURL(
+    new RegExp(`#\/vai-tro\/agent\/ho-so\/${CASES.landRegistry.id}\/tong-quan$`),
+  )
+
+  await openLanding(page)
+  await expect(page.getByTestId('enter-workspace')).toContainText('Tiếp tục công việc')
+  await page.getByTestId('enter-workspace').click()
+  await expect(page).toHaveURL(
+    new RegExp(`#\/vai-tro\/agent\/ho-so\/${CASES.landRegistry.id}\/tong-quan$`),
+  )
+})
+
+test('landing hạ route hồ sơ hết quyền về đúng hàng đợi vai trò', async ({ page }) => {
+  await openLanding(page)
+  await page.evaluate(({ storageKey, staleRoute }) => {
+    const envelope = JSON.parse(window.localStorage.getItem(storageKey))
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      ...envelope,
+      landingRoleId: 'bank',
+      lastWorkspaceRoute: staleRoute,
+    }))
+  }, {
+    storageKey: 'vmls:operations:2026-08:v2',
+    staleRoute: `#/vai-tro/bank/ho-so/${CASES.developer.shareId}/tong-quan`,
+  })
+  await page.reload()
+
+  await expect(page.getByLabel('Vai trò vào không gian làm việc')).toHaveValue('bank')
+  await expect(page.getByTestId('enter-workspace')).toContainText('Tiếp tục công việc')
+  await page.getByTestId('enter-workspace').click()
+  await expect(page).toHaveURL(/#\/vai-tro\/bank\/cong-viec$/)
+  await expect(page.getByRole('heading', { name: 'Chưa có hồ sơ được chia sẻ' })).toBeVisible()
+})
+
+test('landing mở đúng token chia sẻ khi Ngân hàng đã được đồng ý', async ({ page }) => {
+  await matchAndRequestRepresentation(page, CASES.developer)
+  await confirmRepresentation(page, CASES.developer)
+  await recordBuyer(page, CASES.developer)
+  await verifyBuyerReadiness(page, CASES.developer, { shareWithBank: true })
+
+  await openLanding(page)
+  await page.getByLabel('Vai trò vào không gian làm việc').selectOption('bank')
+  await searchLanding(page, CASES.developer.npid, CASES.developer, CASES.landRegistry)
+  const publicResult = page.getByRole('region', { name: 'Tra cứu và điều phối hồ sơ' })
+  await publicResult.getByRole('button', { name: 'Mở hồ sơ · Ngân hàng', exact: true }).click()
+
+  await expect(page).toHaveURL(
+    new RegExp(`#\/vai-tro\/bank\/ho-so\/${CASES.developer.shareId}\/tong-quan$`),
+  )
+  await expect(page.getByRole('heading', { name: 'Căn hộ thuộc dự án' })).toBeVisible()
+  await expect(page.getByText(CASES.developer.npid, { exact: true })).toHaveCount(0)
+})
+
+test('landing chỉ trình bày bản chụp local và metadata đọc cho VNeID, 357, HouseNow', async ({ page }) => {
+  await openLanding(page)
+
+  await expect(page.getByRole('button', { name: FORBIDDEN_LANDING_ACTIONS })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: FORBIDDEN_LANDING_ACTIONS })).toHaveCount(0)
+
+  for (const connection of LANDING_CONNECTIONS) {
+    const card = page.getByTestId(`landing-connection-${connection.id}`)
+    await expect(card).toBeVisible()
+    await expect(card).toContainText(connection.label)
+    await expect(card).not.toContainText(/Đã kết nối|Đã đồng bộ|Thành công/i)
+
+    const trigger = card.getByRole('button', { name: connection.action, exact: true })
+    await trigger.click()
+
+    const drawer = page.getByTestId('landing-connection-drawer')
+    await expect(drawer).toBeVisible()
+    await expect(drawer).toContainText(connection.label)
+    await expect(drawer).toContainText(connection.visibleUrl)
+    await expect(drawer).toContainText('15/08/2026')
+    await expect(drawer.locator('form, input, select, textarea, [contenteditable="true"]')).toHaveCount(0)
+    await expect(drawer.getByRole('button', { name: FORBIDDEN_LANDING_ACTIONS })).toHaveCount(0)
+    await expect(drawer.getByRole('link', { name: FORBIDDEN_LANDING_ACTIONS })).toHaveCount(0)
+
+    const sourceLink = drawer.locator('a[href]').first()
+    await expect(sourceLink).toHaveAttribute('href', connection.href)
+
+    const screenshot = drawer.locator(`img[src="${connection.asset}"]`)
+    await expect(screenshot).toBeVisible()
+    await expect(screenshot).toHaveAttribute('alt', /\S+/)
+    await expect.poll(
+      () => screenshot.evaluate((image) => image.complete && image.naturalWidth > 0),
+    ).toBe(true)
+
+    await expect(drawer.getByRole('heading').first()).toBeFocused()
+    await expect(drawer.getByRole('button', { name: 'Đóng' })).toBeVisible()
+    await expect(drawer.getByRole('button')).toHaveCount(1)
+    await page.keyboard.press('Shift+Tab')
+    await expect(drawer.locator(':focus')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(drawer).toBeHidden()
+    await expect(trigger).toBeFocused()
+  }
+})
+
+test('landing thao tác được bằng bàn phím và hiển thị focus rõ ràng', async ({ page }) => {
+  await openLanding(page)
+
+  const search = page.getByTestId('landing-search')
+  await focusByKeyboard(page, search)
+  await expect(search).toBeFocused()
+  expect(await search.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none')
+
+  await page.keyboard.type(CASES.developer.npid)
+  await page.keyboard.press('Enter')
+  const result = page.getByTestId(`landing-case-${CASES.developer.id}`)
+  await expect(result).toBeVisible()
+  await expect(page.getByRole('heading', { name: CASES.developer.title, exact: true })).toBeFocused()
+
+  const connectionTrigger = page.getByTestId('landing-connection-vneid')
+    .getByRole('button', { name: 'Xem dữ liệu bàn giao', exact: true })
+  await connectionTrigger.focus()
+  await page.keyboard.press('Enter')
+  const drawer = page.getByTestId('landing-connection-drawer')
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByRole('heading').first()).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(drawer).toBeHidden()
+  await expect(connectionTrigger).toBeFocused()
+
+  const enterWorkspace = page.getByTestId('enter-workspace')
+  await enterWorkspace.focus()
+  expect(await enterWorkspace.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
+  await expect(page.getByTestId('work-queue')).toBeVisible()
+})
+
+for (const viewport of [
+  { name: '1440×900', width: 1440, height: 900 },
+  { name: '1024×768', width: 1024, height: 768 },
+  { name: '390×844', width: 390, height: 844 },
+]) {
+  test(`landing không tràn ngang và giữ control chính ở ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await openLanding(page)
+    await searchLanding(page, CASES.developer.npid, CASES.developer, CASES.landRegistry)
+
+    for (const testId of ['landing-search', 'enter-workspace']) {
+      await expect(page.getByTestId(testId)).toBeVisible()
+    }
+    for (const kind of ['npid', 'plid', 'ptid']) {
+      await expect(landingIdentity(page, kind)).toBeVisible()
+    }
+
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1)
+
+    for (const locator of [page.getByTestId('landing-search'), page.getByTestId('enter-workspace')]) {
+      const bounds = await locator.boundingBox()
+      expect(bounds).not.toBeNull()
+      expect(bounds.x).toBeGreaterThanOrEqual(-1)
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1)
+    }
+
+    if (viewport.width === 390) {
+      const searchBounds = await page.getByTestId('landing-search').boundingBox()
+      const ctaBounds = await page.getByTestId('enter-workspace').boundingBox()
+      expect(searchBounds.height).toBeGreaterThanOrEqual(44)
+      expect(ctaBounds.height).toBeGreaterThanOrEqual(44)
+
+      const propertyBounds = await landingIdentity(page, 'npid').boundingBox()
+      const listingBounds = await landingIdentity(page, 'plid').boundingBox()
+      const transactionBounds = await landingIdentity(page, 'ptid').boundingBox()
+      expect(listingBounds.y).toBeGreaterThan(propertyBounds.y)
+      expect(transactionBounds.y).toBeGreaterThan(listingBounds.y)
+    } else {
+      await expect(page.getByTestId('landing-search')).toBeInViewport()
+      await expect(landingIdentity(page, 'npid')).toBeInViewport()
+      await expect(landingIdentity(page, 'plid')).toBeInViewport()
+      await expect(landingIdentity(page, 'ptid')).toBeInViewport()
+      await expect(page.getByTestId('enter-workspace')).toBeInViewport()
+    }
+  })
+}
+
 test('mở thẳng hàng đợi dữ liệu, tìm kiếm và lọc bằng số liệu thật', async ({ page }) => {
   await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
   await expect(page.getByTestId('work-queue')).toBeVisible()
@@ -386,6 +845,64 @@ test('biểu mẫu giải thích payload nghiệp vụ sai và vai trò sai khô
   await expect(page.getByTestId('task-panel')).toContainText('Đang chờ cập nhật')
   await expect(page.locator('[data-testid^="action-"]')).toHaveCount(0)
   await expectNoNarrativeInjection(page)
+})
+
+test('Người mua bỏ trống checklist nhận lỗi tiếng Việt mà không đổi trạng thái', async ({ page }) => {
+  await matchAndRequestRepresentation(page, CASES.developer)
+  await confirmRepresentation(page, CASES.developer)
+  await recordBuyer(page, CASES.developer)
+  await switchRole(page, 'buyer')
+  await openCase(page, 'buyer', CASES.developer)
+
+  const checklist = page.getByRole('group', { name: 'Nội dung Người mua xác nhận' })
+  const requiredChecks = checklist.getByRole('checkbox')
+  await expect(requiredChecks).toHaveCount(3)
+  for (const checkbox of await requiredChecks.all()) {
+    await expect(checkbox).not.toBeChecked()
+  }
+  await expect(page.getByText('Chờ người mua xác nhận', { exact: true }).first()).toBeVisible()
+
+  const storageBefore = await page.evaluate((storageKey) => (
+    window.localStorage.getItem(storageKey)
+  ), 'vmls:operations:2026-08:v2')
+  expect(storageBefore).not.toBeNull()
+
+  async function observeNativeInvalidEvents() {
+    const form = page.getByTestId('action-verify_readiness').locator('xpath=ancestor::form[1]')
+    await form.evaluate((element) => {
+      window.__vmlsNativeInvalidEvents = []
+      element.addEventListener('invalid', (event) => {
+        window.__vmlsNativeInvalidEvents.push(event.target.type)
+      }, true)
+    })
+  }
+
+  async function expectVietnameseApplicationError() {
+    const alert = page.getByRole('alert')
+    await expect(alert).toHaveText('Xác nhận đủ ba nội dung sẵn sàng trước công chứng.')
+    expect(await alert.innerText()).not.toMatch(/please|fill out|check this box|required field/i)
+    expect(await page.evaluate(() => window.__vmlsNativeInvalidEvents)).toEqual([])
+    await expect(page.getByTestId('action-verify_readiness')).toBeVisible()
+    await expect(page.getByText('Chờ người mua xác nhận', { exact: true }).first()).toBeVisible()
+    for (const checkbox of await requiredChecks.all()) {
+      await expect(checkbox).not.toBeChecked()
+    }
+    expect(await page.evaluate((storageKey) => (
+      window.localStorage.getItem(storageKey)
+    ), 'vmls:operations:2026-08:v2')).toBe(storageBefore)
+  }
+
+  await observeNativeInvalidEvents()
+  await page.getByTestId('action-verify_readiness').click()
+  await expectVietnameseApplicationError()
+
+  await page.reload()
+  await expect(page.getByTestId('action-verify_readiness')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await observeNativeInvalidEvents()
+  await page.getByTestId('action-verify_readiness').focus()
+  await page.keyboard.press('Enter')
+  await expectVietnameseApplicationError()
 })
 
 test('Sàn điều phối bằng cột nghiệp vụ và bộ lọc có tác dụng', async ({ page }) => {
@@ -590,7 +1107,7 @@ test('Ngân hàng không thấy dữ liệu VPCC, blocker, owner hoặc định 
   expect(page.url()).not.toContain(CASES.landRegistry.npid)
 })
 
-test('357 chỉ nằm trong danh mục nguồn và mở ảnh trang chủ có xuất xứ', async ({ page }) => {
+test('registry nguồn có ba điểm nối và 357 không được gắn vào dossier', async ({ page }) => {
   await expect(page.getByTestId('source-357')).toHaveCount(0)
   await switchRole(page, 'vmls')
   await page.getByRole('navigation', { name: 'Phân hệ nghiệp vụ' })
@@ -598,20 +1115,47 @@ test('357 chỉ nằm trong danh mục nguồn và mở ảnh trang chủ có xu
     .click()
   await expect(page).toHaveURL(/#\/vai-tro\/vmls\/nguon-du-lieu$/)
 
+  await expect(page.getByText('3 điểm nối', { exact: true })).toBeVisible()
+  await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(3)
+
+  const vneid = page.getByTestId('vneid')
+  await expect(vneid).toContainText('VNeID')
+  await expect(vneid).toContainText('Trung tâm dữ liệu quốc gia về dân cư')
+  await expect(vneid).toContainText('Điểm xác nhận người bán')
+  await expect(vneid).toContainText('Chưa kết nối')
+  await expect(vneid).toContainText('15/08/2026')
+
+  const housenow = page.getByTestId('housenow')
+  await expect(housenow).toContainText('HouseNow')
+  await expect(housenow).toContainText('Kênh phân phối Tin bán')
+  await expect(housenow).toContainText('Chưa phát hành')
+  await expect(housenow).toContainText('15/08/2026')
+  await expect(housenow.getByRole('link')).toHaveAttribute(
+    'href',
+    'https://www.housenow.com.vn/can-ho-chung-cu',
+  )
+
   const source = page.getByTestId('source-357')
   await expect(source).toBeVisible()
   await expect(source).toContainText('Bộ Xây dựng')
-  await expect(source).toContainText('Thông tin nhà ở và thị trường bất động sản')
-  await expect(source).toContainText('không có bản ghi thuộc hai hồ sơ đang xử lý')
+  await expect(source).toContainText('Nguồn tham chiếu công khai')
   await expect(source).toContainText('Chưa cấu hình')
+  await expect(source).toContainText('15/08/2026')
   await expect(source.getByRole('link')).toHaveAttribute('href', 'https://thongtinbds.moc.gov.vn/')
+  for (const demoCase of Object.values(CASES)) {
+    await expect(source).not.toContainText(demoCase.npid)
+  }
 
-  const previewTrigger = source.getByRole('button', { name: 'Xem ảnh trang chủ' })
+  const previewTrigger = source.getByRole('button', { name: 'Xem bản chụp' })
   await previewTrigger.click()
   const drawer = page.getByTestId('source-preview')
   await expect(drawer).toBeVisible()
   await expect(drawer.getByRole('button', { name: 'Đóng' })).toBeFocused()
-  const screenshot = drawer.getByRole('img', { name: /Trang chủ .* chụp ngày 15\/08\/2026/ })
+  await expect(drawer).toContainText('Chưa có dữ liệu cấp hồ sơ')
+  for (const demoCase of Object.values(CASES)) {
+    await expect(drawer).not.toContainText(demoCase.npid)
+  }
+  const screenshot = drawer.getByRole('img', { name: /chụp ngày 15\/08\/2026/ })
   await expect(screenshot).toHaveAttribute('src', '/assets/demo/357-homepage-2026-08-15.png')
   await expect.poll(() => screenshot.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true)
 

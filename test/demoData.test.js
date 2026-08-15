@@ -4,6 +4,7 @@ import {
   DEMO_VERSION,
   STORAGE_KEY,
   demoCases,
+  ecosystemConnections,
   externalRoles,
   getActionTime,
   getDemoCase,
@@ -199,6 +200,31 @@ test('the 357 capture is registered as a source, not attached to either dossier'
   assert.doesNotMatch(dossiers, /thongtinbds\.moc\.gov\.vn|357-homepage/)
 })
 
+test('external touchpoints have explicit data contracts and local reference captures', () => {
+  assert.deepEqual(
+    ecosystemConnections.map(({ id }) => id),
+    ['vneid', 'source-357', 'housenow'],
+  )
+
+  for (const connection of ecosystemConnections) {
+    assert.match(connection.url, /^https:\/\//)
+    assert.equal(connection.capturedOn, '15/08/2026')
+    assert.match(connection.screenshot, /^\/assets\/demo\/.+\.png$/)
+    assert.ok(connection.inputFields.length > 0)
+    assert.ok(connection.outputFields.length > 0)
+    assert.ok(['Chưa kết nối', 'Chưa cấu hình', 'Chưa phát hành'].includes(connection.status))
+  }
+
+  assert.equal(
+    ecosystemConnections.find(({ id }) => id === 'source-357')?.url,
+    'https://thongtinbds.moc.gov.vn/',
+  )
+  assert.equal(
+    ecosystemConnections.find(({ id }) => id === 'housenow')?.url,
+    'https://www.housenow.com.vn/can-ho-chung-cu',
+  )
+})
+
 test('all public identities remain masked', () => {
   const serialized = JSON.stringify(demoCases)
   assert.doesNotMatch(serialized, /Trần Thị Minh Anh|Nguyễn Văn An|Nguyễn Hoàng Nam/)
@@ -219,6 +245,7 @@ test('visible operational copy excludes presentation and evidence-label vocabula
     roles,
     workspaces: workspaceDefinitions,
     sources: sourceRegistry,
+    connections: ecosystemConnections,
     dossiers: demoCases,
   }).join(' ')
 

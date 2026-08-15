@@ -54,11 +54,13 @@ export function ActionButton({
   icon: Icon = ArrowRight,
   type = 'button',
   testId,
+  formNoValidate = false,
 }) {
   return (
     <button
       className={`action-button${secondary ? ' action-secondary' : ''}${danger ? ' action-danger' : ''}`}
       type={type}
+      formNoValidate={formNoValidate}
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}

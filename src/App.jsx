@@ -30,12 +30,13 @@ import {
   X,
 } from '@phosphor-icons/react'
 import BrandMark from './components/BrandMark.jsx'
+import LandingPage from './components/LandingPage.jsx'
 import { ActionButton, Checklist, Field, FieldGrid, StatusPill } from './components/RegistryPrimitives.jsx'
 import {
   STORAGE_KEY,
   demoCases,
+  ecosystemConnections,
   roles,
-  sourceRegistry,
 } from './demo/demoData.js'
 import {
   ACTION_META,
@@ -45,6 +46,7 @@ import {
   getCaseStatus,
   getNextWorkItem,
   journeyReducer,
+  projectStateForPublic,
   projectStateForRole,
   restoreDemoState,
   serializeDemoState,
@@ -190,7 +192,7 @@ function subscribeToHash(callback) {
 }
 
 function getHash() {
-  return window.location.hash || '#/vai-tro/agent/cong-viec'
+  return window.location.hash || '#/'
 }
 
 function navigate(path) {
@@ -198,9 +200,27 @@ function navigate(path) {
   window.location.hash = path
 }
 
+function decodeRoutePart(value) {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return null
+  }
+}
+
 function parseRoute(hash) {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
-  if (parts[0] !== 'vai-tro') return { roleId: 'agent', page: 'cong-viec' }
+  const [path, search = ''] = hash.replace(/^#\/?/, '').split('?')
+  const parts = path.split('/').filter(Boolean)
+  if (parts[0] !== 'vai-tro') {
+    const rawCaseId = parts[0] === 'tra-cuu' ? parts[1] : null
+    const decodedCaseId = rawCaseId ? decodeRoutePart(rawCaseId) : null
+    return {
+      roleId: 'agent',
+      page: 'landing',
+      caseId: rawCaseId ? decodedCaseId ?? '__invalid_public_case__' : null,
+      query: parts[0] === 'tra-cuu' ? new URLSearchParams(search).get('q') ?? '' : '',
+    }
+  }
   const roleId = ROLE_LABELS[parts[1]] ? parts[1] : 'agent'
   if (parts[2] === 'ho-so' && parts[3]) {
     return { roleId, page: 'ho-so', caseId: parts[3], tab: parts[4] || 'tong-quan' }
@@ -214,6 +234,15 @@ function rolePath(roleId, page = 'cong-viec') {
 
 function casePath(roleId, caseId, tab = 'tong-quan') {
   return `#/vai-tro/${roleId}/ho-so/${caseId}/${tab}`
+}
+
+function publicSearchPath(query) {
+  const value = query.trim()
+  return value ? `#/tra-cuu?q=${encodeURIComponent(value)}` : '#/'
+}
+
+function publicCasePath(caseId) {
+  return `#/tra-cuu/${encodeURIComponent(caseId)}`
 }
 
 function caseRouteToken(roleId, demoCase, projected) {
@@ -297,6 +326,45 @@ function initialStates() {
   }
 }
 
+function storedWorkspaceRoute() {
+  try {
+    const candidate = JSON.parse(window.localStorage.getItem(STORAGE_KEY))?.lastWorkspaceRoute
+    if (typeof candidate !== 'string' || !candidate.startsWith('#/vai-tro/')) return null
+    return parseRoute(candidate).page === 'landing' ? null : candidate
+  } catch {
+    return null
+  }
+}
+
+function storedLandingRoleId() {
+  try {
+    const roleId = JSON.parse(window.localStorage.getItem(STORAGE_KEY))?.landingRoleId
+    return ROLE_LABELS[roleId] ? roleId : null
+  } catch {
+    return null
+  }
+}
+
+function validatedWorkspaceRoute(caseStates) {
+  const candidate = storedWorkspaceRoute()
+  if (!candidate) return null
+
+  const parsed = parseRoute(candidate)
+  if (!candidate.startsWith(`#/vai-tro/${parsed.roleId}/`)) return null
+
+  if (parsed.page !== 'ho-so') {
+    const allowedPages = (NAV_ITEMS[parsed.roleId] ?? []).map(([page]) => page)
+    return allowedPages.includes(parsed.page) ? candidate : rolePath(parsed.roleId)
+  }
+
+  const caseId = resolveRouteCaseId(parsed, caseStates)
+  const state = caseId ? caseStates[caseId] : null
+  const demoCase = demoCases.find((item) => item.id === caseId)
+  const projected = state ? projectStateForRole(state, parsed.roleId) : null
+  const routeToken = caseRouteToken(parsed.roleId, demoCase, projected)
+  return projected && routeToken === parsed.caseId ? candidate : rolePath(parsed.roleId)
+}
+
 function actorWithWork(state) {
   return Object.keys(ROLE_LABELS).find((roleId) => allowedActionsFor(state, roleId).length > 0) ?? null
 }
@@ -367,25 +435,30 @@ function searchableText(row) {
 }
 
 function App() {
-  const hash = useSyncExternalStore(subscribeToHash, getHash, () => '#/vai-tro/agent/cong-viec')
+  const hash = useSyncExternalStore(subscribeToHash, getHash, () => '#/')
   const route = parseRoute(hash)
   const [caseStates, setCaseStates] = useState(initialStates)
+  const [landingRoleId, setLandingRoleId] = useState(() => (
+    storedLandingRoleId() ?? (storedWorkspaceRoute() ? parseRoute(storedWorkspaceRoute()).roleId : 'agent')
+  ))
   const [query, setQuery] = useState('')
   const [announcement, setAnnouncement] = useState('')
   const [toast, setToast] = useState(null)
   const [showReset, setShowReset] = useState(false)
+  const savedWorkspaceRoute = route.page === 'landing' ? validatedWorkspaceRoute(caseStates) : null
 
   useEffect(() => {
     const cases = Object.fromEntries(Object.entries(caseStates).map(([caseId, state]) => [
       caseId,
       JSON.parse(serializeDemoState(state)),
     ]))
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, cases }))
-  }, [caseStates])
-
-  useEffect(() => {
-    if (!window.location.hash) navigate('#/vai-tro/agent/cong-viec')
-  }, [])
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 2,
+      cases,
+      landingRoleId,
+      lastWorkspaceRoute: route.page === 'landing' ? savedWorkspaceRoute : hash,
+    }))
+  }, [caseStates, hash, landingRoleId, route.page, savedWorkspaceRoute])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -424,33 +497,77 @@ function App() {
   const rows = demoCases.map((item) => rowFor(item, caseStates[item.id], role.id)).filter(Boolean)
   const activeCaseId = resolveRouteCaseId(route, caseStates)
   const activeDemoCase = demoCases.find((item) => item.id === activeCaseId)
+  const publicRecords = demoCases
+    .map((item) => projectStateForPublic(caseStates[item.id]))
+    .filter(Boolean)
+  const landingRoleRows = demoCases
+    .map((item) => rowFor(item, caseStates[item.id], landingRoleId))
+    .filter(Boolean)
+  const landingRoleSummary = {
+    visibleDossiers: landingRoleRows.length,
+    actionable: landingRoleRows.filter(({ bucket }) => bucket === 'mine').length,
+    blocked: landingRoleRows.filter(({ bucket }) => bucket === 'blocked').length,
+  }
+  const resumeRoute = savedWorkspaceRoute
+  const resumeRoleId = resumeRoute ? parseRoute(resumeRoute).roleId : null
 
   return (
-    <div className="app-root" data-testid="app-shell">
-      <button className="skip-link" type="button" onClick={() => document.getElementById('noi-dung-chinh')?.focus()}>Bỏ qua điều hướng</button>
-      <AppHeader role={role} query={query} onQuery={setQuery} onSearch={() => navigate(rolePath(role.id))} onReset={() => setShowReset(true)} />
-      <div className="app-frame">
-        <Sidebar role={role} activePage={route.page} />
-        <main id="noi-dung-chinh" tabIndex="-1">
-          {route.page === 'ho-so' ? (
-            <DossierPage
-              role={role}
-              demoCase={activeDemoCase}
-              state={caseStates[activeCaseId]}
-              tab={route.tab}
-              onAction={(action) => dispatch(activeCaseId, action)}
-            />
-          ) : route.page === 'cong-viec' ? (
-            <WorkQueue key={role.id} role={role} rows={rows} query={query} />
-          ) : route.page === 'nguon-du-lieu' ? (
-            <SourcesWorkspace />
-          ) : route.page === 'nhat-ky' ? (
-            <AuditWorkspace rows={rows} />
-          ) : (
-            <CollectionWorkspace role={role} page={route.page} rows={rows} query={query} />
-          )}
-        </main>
-      </div>
+    <div className="app-root" data-testid={route.page === 'landing' ? 'landing-shell' : 'app-shell'}>
+      {route.page === 'landing' ? (
+        <LandingPage
+          key={`${route.caseId ?? 'all'}:${route.query ?? ''}`}
+          publicRecords={publicRecords}
+          connections={ecosystemConnections}
+          routeCaseId={route.caseId}
+          routeQuery={route.query}
+          selectedRoleId={landingRoleId}
+          resumeRoleId={resumeRoleId}
+          roleSummary={landingRoleSummary}
+          onEnterWorkspace={(roleId = 'agent') => navigate(rolePath(roleId))}
+          canOpenDossier={(caseId) => Boolean(projectStateForRole(caseStates[caseId], landingRoleId))}
+          onOpenDossier={(caseId, tab = 'tong-quan') => {
+            const demoCase = demoCases.find((item) => item.id === caseId)
+            const projected = projectStateForRole(caseStates[caseId], landingRoleId)
+            const routeToken = caseRouteToken(landingRoleId, demoCase, projected)
+            if (projected && routeToken) {
+              navigate(casePath(landingRoleId, routeToken, tab))
+              return
+            }
+            navigate(rolePath(landingRoleId))
+          }}
+          onResumeWorkspace={() => { if (resumeRoute) navigate(resumeRoute) }}
+          onRoleChange={setLandingRoleId}
+          onSearchRoute={(value) => navigate(publicSearchPath(value))}
+          onSelectRecord={(caseId) => navigate(publicCasePath(caseId))}
+        />
+      ) : (
+        <>
+          <button className="skip-link" type="button" onClick={() => document.getElementById('noi-dung-chinh')?.focus()}>Bỏ qua điều hướng</button>
+          <AppHeader role={role} query={query} onQuery={setQuery} onSearch={() => navigate(rolePath(role.id))} onReset={() => setShowReset(true)} />
+          <div className="app-frame">
+            <Sidebar role={role} activePage={route.page} />
+            <main id="noi-dung-chinh" tabIndex="-1">
+              {route.page === 'ho-so' ? (
+                <DossierPage
+                  role={role}
+                  demoCase={activeDemoCase}
+                  state={caseStates[activeCaseId]}
+                  tab={route.tab}
+                  onAction={(action) => dispatch(activeCaseId, action)}
+                />
+              ) : route.page === 'cong-viec' ? (
+                <WorkQueue key={role.id} role={role} rows={rows} query={query} />
+              ) : route.page === 'nguon-du-lieu' ? (
+                <SourcesWorkspace />
+              ) : route.page === 'nhat-ky' ? (
+                <AuditWorkspace rows={rows} />
+              ) : (
+                <CollectionWorkspace role={role} page={route.page} rows={rows} query={query} />
+              )}
+            </main>
+          </div>
+        </>
+      )}
       <div className="sr-only" aria-live="polite">{announcement}</div>
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
       {showReset ? <ResetDialog onCancel={() => setShowReset(false)} onConfirm={resetData} /> : null}
@@ -465,7 +582,7 @@ function AppHeader({ role, query, onQuery, onSearch, onReset }) {
   }
   return (
     <header className="app-header">
-      <div className="header-brand"><BrandMark compact inverse /><span>Không gian dữ liệu Hà Nội</span></div>
+      <div className="header-brand"><BrandMark compact /><span>Không gian dữ liệu Hà Nội</span></div>
       <form className="global-search" role="search" aria-label="Tìm trong không gian làm việc" onSubmit={(event) => { event.preventDefault(); onSearch() }}>
         <MagnifyingGlass aria-hidden="true" />
         <label className="sr-only" htmlFor="global-search-input">Tìm trong không gian làm việc</label>
@@ -847,7 +964,7 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
   }
 
   const formErrorNode = formError ? <p className="form-error" role="alert"><WarningCircle weight="fill" aria-hidden="true" />{formError}</p> : null
-  const submitControl = (secondary = false) => <>{formErrorNode}<ActionButton type="submit" secondary={secondary} testId={`action-${actionType}`}>{ACTION_LABELS[actionType]}</ActionButton></>
+  const submitControl = (secondary = false) => <>{formErrorNode}<ActionButton type="submit" formNoValidate secondary={secondary} testId={`action-${actionType}`}>{ACTION_LABELS[actionType]}</ActionButton></>
 
   if (actionType === ACTIONS.MATCH_PROPERTY) {
     return <form className="task-form" onSubmit={submit}><p className="form-instruction">Chọn một bản ghi sau khi kiểm tra các tín hiệu nhận dạng.</p><div className="candidate-list">{candidates.map((candidate) => <label key={candidate.id} className={form.candidateId === candidate.id ? 'is-selected' : ''}><input type="radio" name="candidate" value={candidate.id} checked={form.candidateId === candidate.id} onChange={() => update('candidateId', candidate.id)} required /><span><strong>{candidate.id}</strong><small>{candidate.label ?? candidate.title ?? candidate.name ?? demoCase.title}</small><small>{candidate.location ?? demoCase.property.location}</small></span><ul>{(candidate.matchSignals ?? []).map((signal) => <li key={signal}>{signal}</li>)}</ul></label>)}</div><fieldset className="document-checks"><legend>Nguồn dùng để đối chiếu</legend>{sourceRecords.map((source) => <label key={source.id}><input type="checkbox" checked={form.sourceIds.includes(source.id)} onChange={(event) => update('sourceIds', event.target.checked ? [...form.sourceIds, source.id] : form.sourceIds.filter((item) => item !== source.id))} /><span>{source.label}</span><small className="mono">{source.id}</small></label>)}</fieldset>{submitControl()}</form>
@@ -1057,11 +1174,11 @@ function IntegrationTable({ events = [] }) {
 
 function SourcesWorkspace() {
   const [preview, setPreview] = useState(null)
-  const sources = sourceRegistry?.length ? sourceRegistry : [{ id: 'source-357', name: 'Hệ thống thông tin về nhà ở và thị trường BĐS', owner: 'Bộ Xây dựng', url: 'https://thongtinbds.moc.gov.vn/', dataCategory: 'Thông tin nhà ở và thị trường bất động sản', connectionStatus: 'Chưa cấu hình', capturedOn: '15/08/2026', screenshot: '/assets/demo/357-homepage-2026-08-15.png' }]
+  const sources = ecosystemConnections
   return (
     <section className="page-shell sources-page">
-      <PageHeader title="Kết nối & nguồn dữ liệu" count={`${sources.length} nguồn`} icon={PlugsConnected} />
-      <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nguồn</th><th>Loại dữ liệu</th><th>Địa chỉ</th><th>Trạng thái kết nối</th><th>Ảnh chụp</th><th><span className="sr-only">Hành động</span></th></tr></thead><tbody>{sources.map((source) => <tr key={source.id} data-testid={source.id === 'source-357' ? 'source-357' : undefined}><td data-label="Nguồn"><strong>{source.name}</strong><small>{source.owner} · <span className="mono">{source.id}</span></small></td><td data-label="Loại dữ liệu">{source.dataCategory}<small>{source.recordCoverage}</small></td><td data-label="Địa chỉ"><a href={source.url} target="_blank" rel="noreferrer">{source.url} <LinkSimple aria-hidden="true" /></a></td><td data-label="Trạng thái"><StatusPill tone={statusTone(source.connectionStatus ?? source.status)}>{source.connectionStatus ?? source.status}</StatusPill></td><td data-label="Ảnh chụp">{source.capturedOn ?? 'Chưa có'}</td><td>{source.screenshot ? <button className="row-action" type="button" onClick={() => setPreview(source)}>Xem ảnh trang chủ</button> : <span className="empty-value">Không có ảnh</span>}</td></tr>)}</tbody></table></div>
+      <PageHeader title="Kết nối & nguồn dữ liệu" count={`${sources.length} điểm nối`} icon={PlugsConnected} />
+      <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Hệ thống</th><th>Vai trò dữ liệu</th><th>Phạm vi trao đổi</th><th>Địa chỉ</th><th>Trạng thái</th><th>Ảnh chụp</th><th><span className="sr-only">Hành động</span></th></tr></thead><tbody>{sources.map((source) => <tr key={source.id} data-testid={source.id}><td data-label="Hệ thống"><strong>{source.name}</strong><small>{source.owner} · <span className="mono">{source.id}</span></small></td><td data-label="Vai trò dữ liệu">{source.relationship}<small>{source.direction}</small></td><td data-label="Phạm vi trao đổi"><strong>{source.inputLabel}</strong><small>{source.inputFields.join(' · ')}</small></td><td data-label="Địa chỉ"><a href={source.url} target="_blank" rel="noreferrer">{source.url} <LinkSimple aria-hidden="true" /></a></td><td data-label="Trạng thái"><StatusPill tone={statusTone(source.status)}>{source.status}</StatusPill></td><td data-label="Ảnh chụp">{source.capturedOn}</td><td><button className="row-action" type="button" onClick={() => setPreview(source)}>Xem bản chụp</button></td></tr>)}</tbody></table></div>
       {preview ? <SourcePreview source={preview} onClose={() => setPreview(null)} /> : null}
     </section>
   )
@@ -1081,7 +1198,7 @@ function SourcePreview({ source, onClose }) {
     if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus() }
     if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus() }
   }
-  return <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><aside className="source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title" tabIndex="-1" ref={ref} onKeyDown={handleKeyDown} data-testid="source-preview"><header><div><small>Ảnh chụp {source.capturedOn}</small><h2 id="source-title">{source.name}</h2></div><button type="button" onClick={onClose} aria-label="Đóng"><X aria-hidden="true" /></button></header><img src={source.screenshot} alt={`Trang chủ ${source.name} chụp ngày ${source.capturedOn}`} /><dl><div><dt>Địa chỉ</dt><dd><a href={source.url} target="_blank" rel="noreferrer">{source.url}</a></dd></div><div><dt>Trạng thái kết nối</dt><dd>{source.connectionStatus ?? source.status}</dd></div></dl></aside></div>
+  return <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><aside className="source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title" tabIndex="-1" ref={ref} onKeyDown={handleKeyDown} data-testid="source-preview"><header><div><small>Ảnh chụp {source.capturedOn}</small><h2 id="source-title">{source.name}</h2></div><button type="button" onClick={onClose} aria-label="Đóng"><X aria-hidden="true" /></button></header><img src={source.screenshot} alt={`${source.name} chụp ngày ${source.capturedOn}`} /><dl><div><dt>Địa chỉ</dt><dd><a href={source.url} target="_blank" rel="noreferrer">{source.url}</a></dd></div><div><dt>Vai trò dữ liệu</dt><dd>{source.relationship}</dd></div><div><dt>{source.inputLabel}</dt><dd>{source.inputFields.join(' · ')}</dd></div><div><dt>{source.outputLabel}</dt><dd>{source.outputFields.join(' · ')}</dd></div><div><dt>Trạng thái</dt><dd>{source.status}</dd></div></dl></aside></div>
 }
 
 function AuditWorkspace({ rows }) {

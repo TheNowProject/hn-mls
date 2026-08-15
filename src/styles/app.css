@@ -11,7 +11,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #eef1ed;
+  background: var(--archive-ivory);
   color: var(--color-ink);
   font-family: var(--font-interface);
   font-size: 15px;
@@ -126,9 +126,11 @@ select:focus-visible,
   align-items: center;
   gap: 1.5rem;
   padding: 0.7rem 1.25rem;
-  border-bottom: 1px solid rgb(252 251 247 / 14%);
-  background: var(--registry-green);
-  color: var(--paper-white);
+  border-bottom: 1px solid var(--color-border);
+  background: rgb(252 251 247 / 96%);
+  box-shadow: 0 0.3rem 1.4rem rgb(23 33 29 / 5%);
+  color: var(--registry-green);
+  backdrop-filter: blur(14px);
 }
 
 .header-brand {
@@ -141,8 +143,8 @@ select:focus-visible,
 .header-brand > span {
   overflow: hidden;
   padding-left: 0.8rem;
-  border-left: 1px solid rgb(252 251 247 / 24%);
-  color: rgb(252 251 247 / 76%);
+  border-left: 1px solid var(--color-border);
+  color: var(--color-ink-muted);
   font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -160,9 +162,9 @@ select:focus-visible,
 }
 
 .global-search {
-  border-color: rgb(252 251 247 / 22%);
-  background: rgb(252 251 247 / 11%);
-  color: rgb(252 251 247 / 68%);
+  border-color: var(--color-border);
+  background: var(--archive-ivory);
+  color: var(--color-ink-muted);
 }
 
 .global-search svg,
@@ -184,11 +186,11 @@ select:focus-visible,
 }
 
 .global-search input {
-  color: var(--paper-white);
+  color: var(--ledger-ink);
 }
 
 .global-search input::placeholder {
-  color: rgb(252 251 247 / 60%);
+  color: #607169;
 }
 
 .header-context {
@@ -202,7 +204,7 @@ select:focus-visible,
 .header-context > svg {
   width: 1.25rem;
   height: 1.25rem;
-  color: var(--mint-trace);
+  color: var(--registry-green);
 }
 
 .header-context label {
@@ -217,7 +219,7 @@ select:focus-visible,
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--paper-white);
+  color: var(--registry-green);
   font-weight: 700;
 }
 
@@ -236,18 +238,19 @@ select:focus-visible,
   align-items: center;
   gap: 0.45rem;
   padding: 0.55rem 0.7rem;
-  border: 1px solid rgb(252 251 247 / 20%);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: rgb(252 251 247 / 78%);
+  color: var(--registry-green);
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .reset-button:hover {
-  border-color: rgb(252 251 247 / 42%);
-  color: var(--paper-white);
+  border-color: var(--registry-green);
+  background: var(--color-brand-soft);
+  color: var(--registry-green);
 }
 
 .reset-button svg {
@@ -271,20 +274,20 @@ select:focus-visible,
   height: calc(100vh - 68px);
   flex-direction: column;
   padding: 1.25rem 0.8rem 1rem;
-  border-right: 1px solid rgb(252 251 247 / 12%);
-  background: #0b473a;
-  color: var(--paper-white);
+  border-right: 1px solid var(--color-border);
+  background: #f8f5ed;
+  color: var(--ledger-ink);
 }
 
 .sidebar-context {
   padding: 0.2rem 0.8rem 1.1rem;
-  border-bottom: 1px solid rgb(252 251 247 / 12%);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .sidebar-context small,
 .sidebar-context span {
   display: block;
-  color: rgb(252 251 247 / 60%);
+  color: var(--color-ink-muted);
   font-size: 0.72rem;
 }
 
@@ -309,18 +312,18 @@ select:focus-visible,
   padding: 0.65rem 0.8rem;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: rgb(252 251 247 / 75%);
+  color: var(--color-ink-muted);
   text-align: left;
 }
 
 .app-sidebar nav button:hover,
 .app-sidebar nav button.is-active {
-  background: rgb(107 203 177 / 18%);
-  color: var(--paper-white);
+  background: var(--color-brand-soft);
+  color: var(--registry-green);
 }
 
 .app-sidebar nav button.is-active {
-  box-shadow: inset 3px 0 0 var(--mint-trace);
+  box-shadow: inset 3px 0 0 var(--registry-green);
   font-weight: 700;
 }
 
@@ -336,13 +339,13 @@ select:focus-visible,
   justify-content: space-between;
   margin-top: auto;
   padding: 0.8rem;
-  border-top: 1px solid rgb(252 251 247 / 12%);
-  color: rgb(252 251 247 / 60%);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-ink-muted);
   font-size: 0.75rem;
 }
 
 .sidebar-foot strong {
-  color: var(--paper-white);
+  color: var(--registry-green);
 }
 
 .page-shell,
@@ -1639,7 +1642,7 @@ select:focus-visible,
     height: auto;
     padding: 0.45rem 0.7rem;
     border-right: 0;
-    border-bottom: 1px solid rgb(252 251 247 / 12%);
+    border-bottom: 1px solid var(--color-border);
   }
 
   .sidebar-context,
@@ -1662,7 +1665,7 @@ select:focus-visible,
   }
 
   .app-sidebar nav button.is-active {
-    box-shadow: inset 0 -3px 0 var(--mint-trace);
+    box-shadow: inset 0 -3px 0 var(--registry-green);
   }
 
   .page-shell,

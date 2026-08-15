@@ -7,16 +7,17 @@ last_reviewed: 2026-08-15
 
 # Current product and implementation state
 
-The executable artifact is a Vietnamese, data-first VMLS operational workspace. It opens directly to a role-scoped work queue and lets the viewer inspect records, submit structured payloads, and observe resulting lifecycle and integration events. It is not a landing page, product narrative, legal-policy specification, or production system.
+The executable artifact is a Vietnamese, data-first VMLS product with an operational landing workbench and role-scoped workspaces. The public entry lets a viewer search the two configured dossiers, distinguish linked NPID/PLID/PTID records, inspect external data touchpoints, and enter the relevant work queue. The workspace then lets the viewer submit structured payloads and observe resulting lifecycle and integration events. It is not a product narrative, legal-policy specification, or production system.
 
-The detailed interaction contract is recorded in [VMLS operational workspace](./vmls-operational-workspace.md). The repeatable runbook is [VMLS operational workspace runbook](./vmls-demo-playbook.md).
+The public entry contract is recorded in [VMLS landing workbench](./vmls-landing-workbench.md), and the role-scoped interaction contract is recorded in [VMLS operational workspace](./vmls-operational-workspace.md). The repeatable runbook is [VMLS operational workspace runbook](./vmls-demo-playbook.md).
 
 ## Current artifact
 
 | Area | Current state | Evidence boundary |
 |---|---|---|
 | Interface | Persistent application shell with role-scoped sidebar, global search, work queue, collection tables, record detail tabs, forms, status, and audit views | `PROPOSAL` product surface; the repository build is directly inspectable |
-| Default workspace | Môi giới opens on `Công việc cần xử lý`; there is no introduction, story path, pilot page, or guided role handoff | `PROPOSAL` interaction contract |
+| Default entry | The root route opens a registry workbench with real dossier search, linked identities, current work, and read-only integration records | `PROPOSAL` interaction contract |
+| Operational entry | `Mở không gian làm việc` opens the selected role queue; direct hash routes continue to bypass the landing | `PROPOSAL` interaction contract |
 | Core records | Bất động sản/`NPID`, Tin bán/`PLID`, and Giao dịch/`PTID` are separate linked objects with separate lifecycles | Adopted domain invariant; exact identifiers are configured sample data |
 | Work management | Each role sees records within its projection, the current status, responsible role, due date, next work item, and allowed action | `PROPOSAL`; not an approved organization or SLA policy |
 | Commands | Actions collect required business payloads instead of advancing a generic presentation step | `PROPOSAL`; payload validation is implemented locally |
@@ -31,7 +32,7 @@ Historical Phase 5–6 plans and [ADR 0001](../decisions/0001-local-mvp-architec
 
 The application uses the v2 proposal for business sequence and [transaction screens v3](./vmls-process-v3.md) for list/detail navigation and application-shell grammar.
 
-The global header provides workspace context, search, the current role, and reset. The sidebar changes with the selected role. The main surfaces are:
+The public landing provides registry lookup, a selected-dossier identity trace, a work snapshot, and read-only external touchpoint records. Its controls deep-link to the operational product; it does not advance dossier state. Inside the workspace, the global header provides context, search, the current role, and reset. The sidebar changes with the selected role. The main surfaces are:
 
 - role work queue;
 - Bất động sản collection and detail;
@@ -100,16 +101,18 @@ Môi giới chọn đúng NPID và nguồn
    hoặc Chủ đầu tư tiếp nhận, xác nhận chuyển nhượng và Người mua nhận HĐMB mới
 ```
 
-## Contextual placement of supplied assets
+## Contextual placement of external captures
 
+- The VNeID capture comes from the official Google Play listing and is shown with the representation handoff contract. The VMLS UI never reproduces login, OTP, identity, or consent actions.
 - The dated 357 homepage capture belongs to the VMLS `Kết nối & nguồn dữ liệu` registry. Its record exposes owner, URL, capture date, coverage, and connection status. It is not presented as source evidence for either property.
-- The exact HouseNow icon belongs to the `Kênh phân phối` table on Tin bán detail. HouseNow is one channel record with a field scope and delivery status, not a promotional surface.
+- The HouseNow apartment-category capture documents the outbound market surface. The exact HouseNow icon remains on the Tin bán distribution-channel record with field scope and delivery status.
+- All three captures are local, read-only media. Opening them never calls or mutates an external system.
 
 ## Data, integration, and security boundary
 
 - `FACT`: The executable is client-only. There is no server, database, live API, authentication service, analytics, or real third-party connection.
 - `FACT`: Personal identities are masked in configured records. Browser progress contains only the configured sample command payloads.
-- `FACT`: The 357 asset is a dated capture of the public homepage and its configured status is `Chưa cấu hình`.
+- `FACT`: The VNeID, 357, and HouseNow assets are dated captures of public surfaces stored locally for deterministic display and recording.
 - `PROPOSAL`: VNeID, VPCC, tax, VPĐKĐĐ, Developer, and HouseNow events show the intended record contract and handoff shape.
 - `PROPOSAL`: The configured PTID is a VMLS transaction reference. Ownership and mapping to any official identifier remain unresolved.
 - `OPEN QUESTION`: Whether the tax flow is fully automated or requires an authority decision remains unresolved. The current workspace records events but does not establish an approved tax workflow.
