@@ -2,7 +2,7 @@
 title: VMLS operational workspace contract
 status: proposal
 authority: working
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-16
 ---
 
 # VMLS operational workspace contract
@@ -41,6 +41,8 @@ The Môi giới queue remains the default operational workspace. `Mở không gi
 ### Queue toolbar
 
 The toolbar supports search plus filters for actionable state, current status, route, responsible role, and priority where the active role may use them.
+
+The Môi giới queue also reserves a disabled `Khởi tạo` entry point for the presentation. It does not issue a command or create state; the two configured dossiers in the table are already-created sample drafts.
 
 Summary metrics are derived from the same visible rows and act as filters:
 

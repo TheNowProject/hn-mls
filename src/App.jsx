@@ -21,6 +21,7 @@ import {
   MagnifyingGlass,
   MapPin,
   PlugsConnected,
+  Plus,
   SealCheck,
   Signpost,
   Storefront,
@@ -659,7 +660,13 @@ function WorkQueue({ role, rows, query }) {
 
   return (
     <section className="page-shell work-queue" aria-labelledby="workspace-title" data-testid="work-queue">
-      <PageHeader title={WORKSPACE_TITLES[role.id]} count={`${filtered.length} hồ sơ`} />
+      <PageHeader
+        title={WORKSPACE_TITLES[role.id]}
+        count={`${filtered.length} hồ sơ`}
+        action={role.id === 'agent'
+          ? <ActionButton icon={Plus} disabled testId="create-dossier">Khởi tạo</ActionButton>
+          : null}
+      />
       <div className="queue-controls queue-controls-meta">
         <span className="filter-summary"><Funnel aria-hidden="true" /> Dữ liệu cập nhật đến 28/08/2026</span>
       </div>
@@ -792,10 +799,11 @@ function CollectionTable({ page, rows, role }) {
   )
 }
 
-function PageHeader({ title, count, icon: Icon }) {
+function PageHeader({ title, count, icon: Icon, action = null }) {
   return (
     <header className="page-header">
       <div>{Icon ? <Icon weight="duotone" aria-hidden="true" /> : null}<div><h1 id="workspace-title">{title}</h1><p>{count}</p></div></div>
+      {action}
     </header>
   )
 }

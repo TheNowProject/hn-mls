@@ -2,7 +2,7 @@
 title: Test strategy
 status: current
 authority: supporting
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-16
 ---
 
 # Test strategy
@@ -16,6 +16,7 @@ This strategy covers the static VMLS operational workspace described by the [ope
 - Reducer tests cover actor, state, and payload guards; exact NPID submission; independent record lifecycles; automatic PLID/PTID creation; the recoverable VPCC supplement; append-oriented histories; both automatically selected transfer routes; derived work queues; invalid-action atomicity; and versioned persistence/replay.
 - Projection tests cover role-specific record and field visibility, including complete dossier omission before Ngân hàng consent and the minimized projection after consent.
 - Playwright tests cover the queue, computed metric filters, global search, collection/list and dossier-detail surfaces, structured forms and validation, privacy behavior, both transfer outcomes, source/channel placement, hash-route restoration, local persistence, and `Đặt lại dữ liệu`.
+- The Môi giới queue check keeps the presentation-only `Khởi tạo` entry point disabled and verifies that it cannot change the two pre-created sample dossiers, the route, or persisted state.
 - Lint, prototype-contract type checking, unit tests, production build, and browser tests are required release gates.
 
 Run:

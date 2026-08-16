@@ -910,6 +910,36 @@ test('mở thẳng hàng đợi dữ liệu, tìm kiếm và lọc bằng số l
   await expectNoNarrativeInjection(page)
 })
 
+test('Môi giới có điểm Khởi tạo không làm thay đổi hai hồ sơ tạo sẵn', async ({ page }) => {
+  const createAction = page.getByRole('button', { name: 'Khởi tạo', exact: true })
+  const caseRows = page.locator('[data-testid^="case-row-"]')
+
+  await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
+  await expect(createAction).toBeVisible()
+  await expect(createAction).toBeDisabled()
+  await expect(caseRows).toHaveCount(2)
+  await expect(page.getByTestId(`case-row-${CASES.developer.id}`)).toBeVisible()
+  await expect(page.getByTestId(`case-row-${CASES.landRegistry.id}`)).toBeVisible()
+
+  const beforeAttempt = await page.evaluate(() => ({
+    hash: window.location.hash,
+    storage: { ...window.localStorage },
+  }))
+  await createAction.evaluate((element) => element.click())
+  const afterAttempt = await page.evaluate(() => ({
+    hash: window.location.hash,
+    storage: { ...window.localStorage },
+  }))
+
+  expect(afterAttempt).toEqual(beforeAttempt)
+  await expect(caseRows).toHaveCount(2)
+  await expect(page.getByTestId(`case-row-${CASES.developer.id}`)).toBeVisible()
+  await expect(page.getByTestId(`case-row-${CASES.landRegistry.id}`)).toBeVisible()
+
+  await switchRole(page, 'brokerage')
+  await expect(page.getByRole('button', { name: 'Khởi tạo', exact: true })).toHaveCount(0)
+})
+
 for (const demoCase of Object.values(CASES)) {
   test(`quyền đại diện dùng mã định danh và luôn đủ hai bên · ${demoCase.title}`, async ({ page }) => {
     await openCase(page, 'agent', demoCase)
@@ -1386,6 +1416,16 @@ for (const viewport of [
     await page.setViewportSize({ width: viewport.width, height: viewport.height })
     await page.reload()
     await expect(page.getByTestId('work-queue')).toBeVisible()
+
+    const createAction = page.getByRole('button', { name: 'Khởi tạo', exact: true })
+    await expect(createAction).toBeVisible()
+    await expect(createAction).toBeDisabled()
+    await expect(createAction).toBeInViewport()
+
+    const createActionBounds = await createAction.boundingBox()
+    expect(createActionBounds).not.toBeNull()
+    expect(createActionBounds.x).toBeGreaterThanOrEqual(-1)
+    expect(createActionBounds.x + createActionBounds.width).toBeLessThanOrEqual(viewport.width + 1)
 
     let dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,

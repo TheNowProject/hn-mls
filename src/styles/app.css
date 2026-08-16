@@ -362,6 +362,7 @@ select:focus-visible,
   min-height: 3.8rem;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -386,6 +387,17 @@ select:focus-visible,
   margin: 0.18rem 0 0;
   color: var(--color-ink-muted);
   font-size: 0.82rem;
+}
+
+.page-header > .action-button {
+  width: auto;
+  flex: 0 0 auto;
+  justify-self: auto;
+  opacity: 1;
+}
+
+.page-header > .action-button:disabled:hover {
+  filter: none;
 }
 
 .queue-controls {
