@@ -1,13 +1,13 @@
 ---
-title: HouseNow MLS domain language
+title: VMLS domain language
 status: current
 authority: canonical
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-17
 ---
 
-# HouseNow MLS domain language
+# VMLS domain language
 
-HouseNow MLS standardizes the language used to describe durable real-estate identities, market offerings, participating parties, and traceable data. Terms marked as unresolved in specifications do not become approved policy merely by appearing in this glossary.
+VMLS standardizes the language used to describe durable real-estate identities, market offerings, participating parties, and traceable data. Terms marked as unresolved in specifications do not become approved policy merely by appearing in this glossary.
 
 ## Operational workspace vocabulary
 
@@ -154,6 +154,22 @@ _Avoid_: permanent admin access, silent override
 **Representation**:
 The time-bounded authority for an Agent or Organization to act for a Party in a defined transaction or distribution scope.
 _Avoid_: Ownership, Membership
+
+**Đăng ký cùng bán / CoBrokerRegistration**:
+A separate, time-bounded record that an eligible Agent has joined the permitted cooperation scope of an existing Listing. It never creates, replaces, or extends the seller's Representation and never grants access to Restricted seller data.
+_Avoid_: Representation, Listing Agreement, seller consent, ownership of the Listing
+
+**Nguồn hàng được đại diện / Represented Listing Inventory**:
+An Industry projection of Listings that have an existing PLID, a confirmed and effective Representation, and an explicit cooperation scope. It is a searchable inventory view, not a Property registry or a list of every created Listing.
+_Avoid_: all Properties, every `Đã khởi tạo` Listing, public portal inventory
+
+**Phân phối Tin bán / Listing Distribution**:
+The guarded delivery of an approved Public projection of one Listing to a named downstream channel under an effective channel consent. It is independent from Representation and CoBrokerRegistration.
+_Avoid_: publishing the full Listing record, confirming a live integration, transferring ownership
+
+**Distribution Event**:
+An append-oriented record of an outbound delivery attempt for a Listing and channel, including actor, time, projection version, delivery status, and channel acknowledgement state.
+_Avoid_: Listing Status Event, live-channel success without acknowledgement, mutable sync flag
 
 **Distribution Assignment**:
 The authority granted by a Developer or authorized Party to an Organization to distribute specified Project or Unit inventory.

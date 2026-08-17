@@ -2,7 +2,7 @@
 title: Permission model baseline
 status: proposal
 authority: working
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-17
 ---
 
 # Permission model baseline
@@ -50,6 +50,9 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 | Listing / approve Active | No | Configured organization scope | Configured own inventory | No | No | No | Quality co-review only | Override/supervision only |
 | Listing / transition | Allowed own transitions | Allowed organization transitions | Own inventory transitions | No | No | Request only | Correction only | Authorized override |
 | Listing / restricted fields | Need-to-know subset | Organization policy | Own inventory subset | Explicit purpose/consent only | No | Own authority/consent projection only | Assigned investigation scope | Statutory scope |
+| Represented inventory / search | Industry projection when entitled | Organization/market scope | Own inventory projection | No | No | Own Listing summary only | Quality scope | Jurisdiction scope |
+| Co-broker registration / create | Eligible Listing and own Membership | Organization policy/supervision | No | No | No | No direct action | No | No |
+| Listing distribution / send | Responsible Listing or active CoBrokerRegistration plus channel consent | Organization policy/supervision | Own inventory scope | No | No | Grant/revoke own channel consent | Verification only | Supervision by authority |
 | Representation / create | Propose | Validate organization party | Create distribution basis | No | No | Grant/renew/revoke own authority | Verify evidence | Inspect by authority |
 | Distribution consent / decide | Propose scope | Validate and execute | Own-unit distribution scope | No | Own buyer consent only | Grant/revoke own Listing channels | Verify assigned case | Inspect by authority |
 | Project/Unit / maintain | No | Assigned distribution subset | Own Project scope | No | No | No; view owned Unit projection | Identity/quality correction | Override by authority |

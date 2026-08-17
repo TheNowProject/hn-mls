@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
-  Clock,
   Database,
   IdentificationCard,
   LinkSimple,
   MagnifyingGlass,
   Signpost,
+  SquaresFour,
   Storefront,
   X,
 } from '@phosphor-icons/react'
@@ -33,25 +33,18 @@ function preferredScrollBehavior() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
-function formatDate(value, includeTime = false) {
-  if (!value) return 'Chưa có'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    ...(includeTime ? { hour: '2-digit', minute: '2-digit' } : {}),
-    timeZone: 'Asia/Ho_Chi_Minh',
-  }).format(date)
-}
-
 function connectionTone(status) {
   const normalized = normalizeText(status)
-  if (normalized.includes('phat hanh') || normalized.includes('cau hinh') || normalized.includes('cho')) {
-    return 'pending'
-  }
+  if (normalized.includes('phat hanh') || normalized.includes('cau hinh') || normalized.includes('cho')) return 'pending'
   if (normalized.includes('da ') || normalized.includes('san sang')) return 'ready'
+  return 'neutral'
+}
+
+function recordTone(status) {
+  if (typeof status === 'object' && status?.tone) return status.tone
+  const normalized = normalizeText(typeof status === 'object' ? status?.label : status)
+  if (normalized.includes('hoan tat') || normalized.includes('xac nhan') || normalized.includes('du dieu kien')) return 'success'
+  if (normalized.includes('cho') || normalized.includes('bo sung')) return 'pending'
   return 'neutral'
 }
 
@@ -62,18 +55,64 @@ function connectionActionLabel(connectionId) {
   return 'Xem phạm vi dữ liệu'
 }
 
-function routeLabel(route) {
-  if (route === 'developer') return 'Chủ đầu tư · HĐMB'
-  if (route === 'landRegistry') return 'VPĐKĐĐ'
-  return 'Chưa xác định'
+function uniqueOptions(records, getter) {
+  return [...new Set(records.map(getter).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, 'vi'))
+}
+
+function normalizeRecord(record, index) {
+  const sourceProperty = record.property ?? {}
+  const property = {
+    ...sourceProperty,
+    id: sourceProperty.id ?? record.id ?? null,
+    name: sourceProperty.name ?? record.title ?? 'Bất động sản',
+    type: sourceProperty.type ?? 'Bất động sản',
+    location: sourceProperty.location ?? sourceProperty.region ?? 'Chưa có',
+    region: sourceProperty.region ?? sourceProperty.location ?? null,
+    project: sourceProperty.project ?? null,
+    developer: sourceProperty.developer ?? null,
+  }
+  const workspaceCaseId = record.caseId ?? record.demoCase?.id ?? null
+  const resultId = workspaceCaseId ?? record.id ?? property.id ?? `lookup-${index}`
+  const title = record.title ?? record.demoCase?.title ?? property.name
+  const listing = record.listing ?? (record.listingId ? { id: record.listingId } : null)
+  const transaction = record.transaction ?? (record.transactionId ? { id: record.transactionId } : null)
+  const status = typeof record.status === 'object'
+    ? { label: record.status?.label ?? 'Chưa có trạng thái', tone: recordTone(record.status) }
+    : { label: record.status ?? 'Chưa có trạng thái', tone: recordTone(record.status) }
+
+  return {
+    demoCase: { id: resultId, title },
+    workspaceCaseId,
+    status,
+    nextWork: record.nextWork ?? null,
+    property,
+    listing,
+    transaction,
+    transfer: record.transfer ?? null,
+    updatedAt: record.latestMaterialAt ?? record.updatedAt ?? null,
+    searchText: normalizeText([
+      title,
+      property.name,
+      property.type,
+      property.project,
+      property.developer,
+      property.region,
+      property.unit,
+      property.parcelRef,
+      property.location,
+      property.id,
+      listing?.id,
+      transaction?.id,
+    ].filter(Boolean).join(' ')),
+  }
 }
 
 function identityNode({ kind, label, value }) {
-  const testId = `landing-identity-${kind}`
   return (
     <div
       className={`landing-identity-node${value ? '' : ' is-empty'}`}
-      data-testid={testId}
+      data-testid={`landing-identity-${kind}`}
       aria-label={`${label}: ${value ?? 'Chưa có'}`}
     >
       <span>{label}</span>
@@ -91,7 +130,6 @@ function ConnectionDrawer({ connection, onClose }) {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     headingRef.current?.focus()
-
     return () => {
       document.body.style.overflow = previousOverflow
     }
@@ -154,18 +192,13 @@ function ConnectionDrawer({ connection, onClose }) {
               <h2 id={titleId} ref={headingRef} tabIndex="-1">{connection.name}</h2>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Đóng">
-            <X aria-hidden="true" />
-          </button>
+          <button type="button" onClick={onClose} aria-label="Đóng"><X aria-hidden="true" /></button>
         </header>
 
         <div className="landing-drawer-body">
           <figure className="landing-connection-figure">
             {connection.screenshot ? (
-              <img
-                src={connection.screenshot}
-                alt={`Ảnh chụp ${connection.name} ngày ${connection.capturedOn}`}
-              />
+              <img src={connection.screenshot} alt={`Ảnh chụp ${connection.name} ngày ${connection.capturedOn}`} />
             ) : (
               <div className="landing-preview-empty"><Icon aria-hidden="true" /><span>Chưa có ảnh chụp</span></div>
             )}
@@ -208,146 +241,142 @@ function SelectedDossierCard({
   selectedRecord,
   headingRef,
   onOpenDossier,
+  onOpenLookupRecord,
+  canOpenLookupRecord,
   canOpenDossier,
   selectedRoleLabel,
 }) {
-  const canOpen = selectedRecord ? canOpenDossier(selectedRecord.demoCase.id) : false
+  const canOpen = selectedRecord?.workspaceCaseId
+    ? canOpenDossier(selectedRecord.workspaceCaseId)
+    : false
+
   return (
     <aside id="landing-selected-dossier" className="landing-selected-card" aria-live="polite">
       {selectedRecord ? (
         <>
           <header>
             <div>
-              <span className="landing-record-kind">{selectedRecord.property.type}</span>
+              <span className="landing-record-kind">Bản ghi đang chọn</span>
               <h2 ref={headingRef} tabIndex="-1">{selectedRecord.demoCase.title}</h2>
               <p>{selectedRecord.property.location}</p>
             </div>
             <span className={`landing-status is-${selectedRecord.status.tone}`}>{selectedRecord.status.label}</span>
           </header>
 
-          <div className="landing-identity-trace" aria-label="Các định danh liên kết">
-            {identityNode({
-              kind: 'npid',
-              label: 'Bất động sản · NPID',
-              value: selectedRecord.property.id,
-            })}
-            {identityNode({
-              kind: 'plid',
-              label: 'Tin bán · PLID',
-              value: selectedRecord.listing?.id,
-            })}
-            {identityNode({
-              kind: 'ptid',
-              label: 'Giao dịch · PTID',
-              value: selectedRecord.transaction?.id,
-            })}
+          <div className="landing-identity-trace" aria-label="Quan hệ định danh">
+            {identityNode({ kind: 'npid', label: 'Bất động sản · NPID', value: selectedRecord.property.id })}
+            {identityNode({ kind: 'plid', label: 'Tin bán · PLID', value: selectedRecord.listing?.id })}
+            {identityNode({ kind: 'ptid', label: 'Giao dịch · PTID', value: selectedRecord.transaction?.id })}
           </div>
 
           <dl className="landing-dossier-facts">
-            <div><dt>Việc tiếp theo</dt><dd>{selectedRecord.nextWork?.label ?? 'Không có việc đang chờ'}</dd></div>
-            <div><dt>Phụ trách</dt><dd>{selectedRecord.nextWork?.ownerLabel ?? '—'}</dd></div>
-            <div><dt>Căn cứ chuyển quyền</dt><dd>{selectedRecord.transfer?.basis ?? 'Chưa ghi nhận'}</dd></div>
-            <div><dt>Tuyến chuyển quyền</dt><dd>{routeLabel(selectedRecord.transfer?.route)}</dd></div>
-            <div><dt>Hạn xử lý</dt><dd>{formatDate(selectedRecord.nextWork?.dueAt, true)}</dd></div>
+            <div><dt>Khu vực</dt><dd>{selectedRecord.property.region ?? selectedRecord.property.location}</dd></div>
+            <div><dt>Chủ đầu tư</dt><dd>{selectedRecord.property.developer ?? 'Không áp dụng'}</dd></div>
+            <div><dt>Dự án</dt><dd>{selectedRecord.property.project ?? 'Không thuộc dự án'}</dd></div>
+            <div><dt>Loại bất động sản</dt><dd>{selectedRecord.property.type}</dd></div>
           </dl>
 
-          <button
-            className="landing-open-dossier"
-            type="button"
-            onClick={() => onOpenDossier(selectedRecord.demoCase.id, 'tong-quan')}
-          >
-            {canOpen ? `Mở hồ sơ · ${selectedRoleLabel}` : `Xem hàng đợi · ${selectedRoleLabel}`} <ArrowRight weight="bold" aria-hidden="true" />
-          </button>
+          {selectedRecord.workspaceCaseId ? (
+            <button
+              className="landing-open-dossier"
+              type="button"
+              onClick={() => onOpenDossier(selectedRecord.workspaceCaseId, 'tong-quan')}
+            >
+              {canOpen ? `Mở hồ sơ · ${selectedRoleLabel}` : `Xem hàng đợi · ${selectedRoleLabel}`} <ArrowRight weight="bold" aria-hidden="true" />
+            </button>
+          ) : selectedRecord.listing?.id ? (
+            <button
+              className="landing-open-dossier"
+              type="button"
+              onClick={() => onOpenLookupRecord(selectedRecord.listing.id)}
+              data-testid="landing-open-listing"
+            >
+              {canOpenLookupRecord ? 'Mở Tin bán' : `Xem ứng dụng · ${selectedRoleLabel}`} <ArrowRight weight="bold" aria-hidden="true" />
+            </button>
+          ) : null}
         </>
       ) : (
-        <div className="landing-selected-empty">Chọn một hồ sơ để xem định danh và việc cần xử lý.</div>
+        <div className="landing-selected-empty">Chọn một bản ghi trong kết quả tra cứu.</div>
       )}
-    </aside>
-  )
-}
-
-function OperationalSnapshot({ snapshot, latestUpdate }) {
-  return (
-    <aside className="landing-snapshot" aria-labelledby="landing-snapshot-title">
-      <div className="landing-section-heading is-compact">
-        <div>
-          <p>Trạng thái phiên làm việc</p>
-          <h2 id="landing-snapshot-title">Dữ liệu đang hiển thị</h2>
-        </div>
-        <span className="landing-updated"><Clock aria-hidden="true" /> {formatDate(latestUpdate, true)}</span>
-      </div>
-      <dl>
-        <div><dt>Hồ sơ</dt><dd>{snapshot.dossiers}</dd></div>
-        <div><dt>Việc đang chờ</dt><dd>{snapshot.workItems}</dd></div>
-        <div><dt>Đã có PLID</dt><dd>{snapshot.listings}</dd></div>
-        <div><dt>Đã có PTID</dt><dd>{snapshot.transactions}</dd></div>
-      </dl>
     </aside>
   )
 }
 
 export function LandingPage({
   publicRecords = [],
+  lookupRecords = [],
   connections = [],
   routeCaseId = null,
   routeQuery = '',
+  routeRegion = '',
+  routeDeveloper = '',
+  routeProject = '',
   selectedRoleId = 'agent',
   resumeRoleId = null,
-  roleSummary = { visibleDossiers: 0, actionable: 0, blocked: 0 },
   onEnterWorkspace = () => {},
   canOpenDossier = () => false,
   onOpenDossier = () => {},
   onResumeWorkspace = () => {},
+  onOpenLookupRecord = () => {},
+  canOpenLookupRecord = false,
+  onOpenApplications = () => {},
   onRoleChange = () => {},
   onSearchRoute = () => {},
   onSelectRecord = () => {},
 }) {
+  const sourceRecords = useMemo(() => {
+    if (!lookupRecords.length) return publicRecords
+    const representedPropertyIds = new Set(
+      lookupRecords.map((record) => record.property?.id ?? record.id).filter(Boolean),
+    )
+    return [
+      ...lookupRecords,
+      ...publicRecords.filter((record) => !representedPropertyIds.has(record.property?.id ?? record.id)),
+    ]
+  }, [lookupRecords, publicRecords])
   const [query, setQuery] = useState(routeQuery)
-  const [selectedCaseId, setSelectedCaseId] = useState(
-    publicRecords.some(({ caseId }) => caseId === routeCaseId)
-      ? routeCaseId
-      : publicRecords[0]?.caseId ?? null,
-  )
+  const [region, setRegion] = useState(routeRegion)
+  const [developer, setDeveloper] = useState(routeDeveloper)
+  const [project, setProject] = useState(routeProject)
+  const [selectedCaseId, setSelectedCaseId] = useState(() => {
+    const routed = sourceRecords.some((record) => (record.caseId ?? record.demoCase?.id ?? record.id) === routeCaseId)
+    return routed ? routeCaseId : sourceRecords[0]?.caseId ?? sourceRecords[0]?.demoCase?.id ?? sourceRecords[0]?.id ?? null
+  })
   const [previewConnection, setPreviewConnection] = useState(null)
   const previewTriggerRef = useRef(null)
   const selectedHeadingRef = useRef(null)
 
-  const records = useMemo(() => publicRecords.map((record) => {
-    const demoCase = { id: record.caseId, title: record.title }
-    const { status, nextWork, property, listing, transaction, transfer } = record
-    return {
-      demoCase,
-      status,
-      nextWork,
-      property,
-      listing,
-      transaction,
-      transfer,
-      updatedAt: record.latestMaterialAt,
-      searchText: normalizeText([
-        demoCase.title,
-        property.name,
-        property.type,
-        property.project,
-        property.unit,
-        property.parcelRef,
-        property.location,
-        property.id,
-        listing?.id,
-        transaction?.id,
-      ].filter(Boolean).join(' ')),
-    }
-  }), [publicRecords])
+  const records = useMemo(() => sourceRecords.map(normalizeRecord), [sourceRecords])
+  const regionOptions = useMemo(
+    () => uniqueOptions(records, (record) => record.property.region ?? record.property.location),
+    [records],
+  )
+  const developerOptions = useMemo(
+    () => uniqueOptions(records, (record) => record.property.developer),
+    [records],
+  )
+  const projectOptions = useMemo(
+    () => uniqueOptions(records, (record) => record.property.project),
+    [records],
+  )
 
   const normalizedQuery = normalizeText(query).trim()
-  const filteredRecords = useMemo(
-    () => records.filter(({ searchText }) => !normalizedQuery || searchText.includes(normalizedQuery)),
-    [normalizedQuery, records],
-  )
+  const filteredRecords = useMemo(() => records.filter((record) => {
+    const exactNpid = normalizedQuery.startsWith('npid-')
+    const matchesQuery = !normalizedQuery || (exactNpid
+      ? normalizeText(record.property.id) === normalizedQuery
+      : record.searchText.includes(normalizedQuery))
+    const matchesRegion = !region || (record.property.region ?? record.property.location) === region
+    const matchesDeveloper = !developer || record.property.developer === developer
+    const matchesProject = !project || record.property.project === project
+    return matchesQuery && matchesRegion && matchesDeveloper && matchesProject
+  }), [developer, normalizedQuery, project, records, region])
+
   const routedRecord = routeCaseId
-    ? records.find(({ demoCase }) => demoCase.id === routeCaseId)
+    ? records.find(({ demoCase, workspaceCaseId }) => workspaceCaseId === routeCaseId || demoCase.id === routeCaseId)
     : null
-  const displayedRecords = normalizedQuery
+  const hasStructuredFilter = Boolean(region || developer || project)
+  const displayedRecords = normalizedQuery || hasStructuredFilter
     ? filteredRecords
     : routeCaseId
       ? routedRecord ? [routedRecord] : []
@@ -357,22 +386,12 @@ export function LandingPage({
     ?? null
   const selectedRole = roles.find(({ id }) => id === selectedRoleId) ?? roles[0]
   const canResume = Boolean(resumeRoleId && resumeRoleId === selectedRole.id)
-  const snapshot = {
-    dossiers: displayedRecords.length,
-    workItems: displayedRecords.filter(({ nextWork }) => nextWork).length,
-    listings: displayedRecords.filter(({ listing }) => listing).length,
-    transactions: displayedRecords.filter(({ transaction }) => transaction).length,
-  }
-  const latestUpdate = displayedRecords
-    .map(({ updatedAt }) => updatedAt)
-    .filter(Boolean)
-    .sort((left, right) => Date.parse(right) - Date.parse(left))[0]
 
   useEffect(() => {
-    if (!routeCaseId && !routeQuery) return undefined
+    if (!routeCaseId && !routeQuery && !routeRegion && !routeDeveloper && !routeProject) return undefined
     const frame = window.requestAnimationFrame(() => selectedHeadingRef.current?.focus())
     return () => window.cancelAnimationFrame(frame)
-  }, [routeCaseId, routeQuery])
+  }, [routeCaseId, routeDeveloper, routeProject, routeQuery, routeRegion])
 
   function focusMain() {
     document.getElementById('landing-main')?.focus()
@@ -390,7 +409,7 @@ export function LandingPage({
   function submitSearch(event) {
     event.preventDefault()
     const first = filteredRecords[0]
-    onSearchRoute(query)
+    onSearchRoute({ query, region, developer, project })
     if (!first) return
     setSelectedCaseId(first.demoCase.id)
     window.requestAnimationFrame(() => {
@@ -418,8 +437,11 @@ export function LandingPage({
 
   function clearSearch() {
     setQuery('')
-    setSelectedCaseId(publicRecords[0]?.caseId ?? null)
-    onSearchRoute('')
+    setRegion('')
+    setDeveloper('')
+    setProject('')
+    setSelectedCaseId(records[0]?.demoCase.id ?? null)
+    onSearchRoute({ query: '', region: '', developer: '', project: '' })
   }
 
   return (
@@ -428,31 +450,40 @@ export function LandingPage({
 
       <header className="landing-header">
         <div className="landing-header-inner">
-          <button className="landing-brand-button" type="button" onClick={() => window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })} aria-label="Về đầu trang VMLS">
-            <BrandMark byline ariaLabel="VMLS" />
+          <button
+            className="landing-brand-button"
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })}
+            aria-label="Về đầu trang VMLS"
+          >
+            <BrandMark inverse ariaLabel="VMLS" />
           </button>
 
           <div className="landing-place" aria-label="Không gian dữ liệu Hà Nội">
-            <span>Không gian dữ liệu</span>
+            <span>Sổ bộ dữ liệu</span>
             <strong>Hà Nội</strong>
           </div>
 
-          <nav className="landing-nav" aria-label="Điều hướng trang tổng quan">
-            <button type="button" onClick={() => scrollToSection('landing-records')}>Hồ sơ</button>
-            <button type="button" onClick={() => scrollToSection('landing-connections')}>Điểm nối</button>
+          <nav className="landing-nav" aria-label="Điều hướng trang tra cứu">
+            <button type="button" onClick={() => scrollToSection('landing-records')}>Tra cứu</button>
+            <button type="button" onClick={() => scrollToSection('landing-connections')}>Nguồn dữ liệu</button>
           </nav>
 
           <div className="landing-role-entry">
+            <button
+              className="landing-applications-button"
+              type="button"
+              onClick={() => onOpenApplications(selectedRole.id)}
+              data-testid="landing-applications"
+            >
+              <SquaresFour aria-hidden="true" />
+              <span>Ứng dụng</span>
+            </button>
             <label htmlFor="landing-role"><span className="sr-only">Vai trò vào không gian làm việc</span></label>
             <select id="landing-role" value={selectedRoleId} onChange={(event) => onRoleChange(event.target.value)}>
               {roles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
             </select>
-            <button
-              className="landing-enter-button"
-              type="button"
-              onClick={enterWorkspace}
-              data-testid="enter-workspace"
-            >
+            <button className="landing-enter-button" type="button" onClick={enterWorkspace} data-testid="enter-workspace">
               <span>{canResume ? 'Tiếp tục công việc' : 'Mở không gian làm việc'}</span>
               <ArrowRight weight="bold" aria-hidden="true" />
             </button>
@@ -461,47 +492,65 @@ export function LandingPage({
       </header>
 
       <main id="landing-main" className="landing-main" tabIndex="-1">
-        <section className="landing-command" aria-labelledby="landing-title">
-          <div className="landing-command-copy">
-            <p className="landing-eyebrow">Hạ tầng dữ liệu thị trường bất động sản</p>
-            <h1 id="landing-title">Tra cứu và điều phối hồ sơ</h1>
-            <p className="landing-intro">Bất động sản, Tin bán và Giao dịch được quản lý theo các định danh riêng.</p>
-
-            <form className="landing-search-form" role="search" onSubmit={submitSearch}>
-              <MagnifyingGlass aria-hidden="true" />
-              <label className="sr-only" htmlFor="landing-search-input">Tìm hồ sơ</label>
-              <input
-                id="landing-search-input"
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Tìm theo địa chỉ, mã hồ sơ, NPID, PLID hoặc PTID"
-                autoComplete="off"
-                data-testid="landing-search"
-              />
-              <button type="submit">Tra cứu</button>
-            </form>
-            <p className="landing-result-count" role="status" aria-live="polite">
-              {displayedRecords.length} hồ sơ phù hợp
-            </p>
-          </div>
-
-          <SelectedDossierCard
-            selectedRecord={selectedRecord}
-            headingRef={selectedHeadingRef}
-            onOpenDossier={onOpenDossier}
-            canOpenDossier={canOpenDossier}
-            selectedRoleLabel={selectedRole.label}
-          />
-        </section>
-
-        <section id="landing-records" className="landing-records" aria-labelledby="landing-records-title">
-          <div className="landing-section-heading">
+        <section id="landing-records" className="landing-registry" aria-labelledby="landing-title">
+          <header className="landing-registry-heading">
             <div>
-              <p>Hồ sơ vận hành</p>
-              <h2 id="landing-records-title">Định danh và việc cần xử lý</h2>
+              <p className="landing-eyebrow">Tra cứu dữ liệu VMLS</p>
+              <h1 id="landing-title">Tra cứu và điều phối hồ sơ</h1>
             </div>
-            <span>{displayedRecords.length} / {records.length} hồ sơ</span>
+            <p>Bất động sản, Tin bán và Giao dịch có định danh riêng, liên kết trên cùng một hồ sơ vận hành.</p>
+          </header>
+
+          <form className="landing-search-form" role="search" onSubmit={submitSearch}>
+            <label className="landing-field is-query" htmlFor="landing-search-input">
+              <span>Mã định danh Bất động sản (NPID) / từ khóa</span>
+              <span className="landing-input-shell">
+                <MagnifyingGlass aria-hidden="true" />
+                <input
+                  id="landing-search-input"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="NPID-HN-…"
+                  autoComplete="off"
+                  data-testid="landing-search"
+                />
+              </span>
+            </label>
+
+            <label className="landing-field" htmlFor="landing-region-filter">
+              <span>Khu vực</span>
+              <select id="landing-region-filter" value={region} onChange={(event) => setRegion(event.target.value)} data-testid="landing-filter-region">
+                <option value="">Tất cả khu vực</option>
+                {regionOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+
+            <label className="landing-field" htmlFor="landing-developer-filter">
+              <span>Chủ đầu tư</span>
+              <select id="landing-developer-filter" value={developer} onChange={(event) => setDeveloper(event.target.value)} data-testid="landing-filter-developer">
+                <option value="">Tất cả chủ đầu tư</option>
+                {developerOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+
+            <label className="landing-field" htmlFor="landing-project-filter">
+              <span>Dự án</span>
+              <select id="landing-project-filter" value={project} onChange={(event) => setProject(event.target.value)} data-testid="landing-filter-project">
+                <option value="">Tất cả dự án</option>
+                {projectOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+
+            <button className="landing-search-submit" type="submit">Tra cứu</button>
+          </form>
+
+          <div className="landing-result-bar">
+            <div>
+              <strong>Kết quả tra cứu</strong>
+              <span role="status" aria-live="polite">{displayedRecords.length} / {records.length} bản ghi</span>
+            </div>
+            {normalizedQuery || hasStructuredFilter ? <button type="button" onClick={clearSearch}>Xóa bộ lọc</button> : null}
           </div>
 
           <div className="landing-workbench">
@@ -509,14 +558,7 @@ export function LandingPage({
               <div className="landing-table-scroll">
                 <table>
                   <thead>
-                    <tr>
-                      <th>Hồ sơ</th>
-                      <th>NPID</th>
-                      <th>PLID</th>
-                      <th>PTID</th>
-                      <th>Trạng thái</th>
-                      <th>Phụ trách</th>
-                    </tr>
+                    <tr><th>Bất động sản</th><th>NPID</th><th>PLID</th><th>PTID</th><th>Trạng thái</th></tr>
                   </thead>
                   <tbody>
                     {displayedRecords.map((record) => {
@@ -532,14 +574,13 @@ export function LandingPage({
                               aria-pressed={isSelected}
                             >
                               <strong>{record.demoCase.title}</strong>
-                              <small>{record.property.type} · {record.property.location}</small>
+                              <small>{record.property.project ?? record.property.type} · {record.property.location}</small>
                             </button>
                           </td>
                           <td><span className="landing-mono">{record.property.id}</span></td>
                           <td><span className={record.listing ? 'landing-mono' : 'landing-empty'}>{record.listing?.id ?? 'Chưa có'}</span></td>
                           <td><span className={record.transaction ? 'landing-mono' : 'landing-empty'}>{record.transaction?.id ?? 'Chưa có'}</span></td>
                           <td><span className={`landing-status is-${record.status.tone}`}>{record.status.label}</span></td>
-                          <td>{record.nextWork?.ownerLabel ?? 'Không có việc chờ'}</td>
                         </tr>
                       )
                     })}
@@ -550,82 +591,56 @@ export function LandingPage({
                 <div className="landing-empty-results">
                   <MagnifyingGlass aria-hidden="true" />
                   <h3>Không tìm thấy hồ sơ</h3>
-                  <span>Kiểm tra lại địa chỉ hoặc mã định danh.</span>
+                  <span>Kiểm tra lại NPID hoặc điều kiện tra cứu.</span>
                   <button type="button" onClick={clearSearch}>Xóa nội dung tìm kiếm</button>
                 </div>
               ) : null}
             </div>
 
-            <OperationalSnapshot snapshot={snapshot} latestUpdate={latestUpdate} />
+            <SelectedDossierCard
+              selectedRecord={selectedRecord}
+              headingRef={selectedHeadingRef}
+              onOpenDossier={onOpenDossier}
+              onOpenLookupRecord={onOpenLookupRecord}
+              canOpenLookupRecord={canOpenLookupRecord}
+              canOpenDossier={canOpenDossier}
+              selectedRoleLabel={selectedRole.label}
+            />
           </div>
         </section>
 
-        <section id="landing-connections" className="landing-connections" aria-labelledby="landing-connections-title">
-          <div className="landing-section-heading">
-            <div>
-              <p>Nguồn và kênh dữ liệu</p>
-              <h2 id="landing-connections-title">Điểm nối ngoài VMLS</h2>
+        {connections.length ? (
+          <section id="landing-connections" className="landing-connections" aria-labelledby="landing-connections-title">
+            <div className="landing-section-heading">
+              <div><p>Nguồn và kênh dữ liệu</p><h2 id="landing-connections-title">Điểm nối ngoài VMLS</h2></div>
+              <span>{connections.length} điểm nối</span>
             </div>
-            <span>{connections.length} điểm nối</span>
-          </div>
 
-          <div className="landing-connection-grid">
-            {connections.map((connection) => {
-              const Icon = CONNECTION_ICONS[connection.id] ?? Signpost
-              return (
-                <article
-                  className="landing-connection-card"
-                  key={connection.id}
-                  data-testid={`landing-connection-${connection.id}`}
-                >
-                  <header>
+            <div className="landing-connection-list">
+              {connections.map((connection) => {
+                const Icon = CONNECTION_ICONS[connection.id] ?? Signpost
+                return (
+                  <article className="landing-connection-card" key={connection.id} data-testid={`landing-connection-${connection.id}`}>
                     <div className="landing-connection-heading">
                       {connection.icon ? <img src={connection.icon} alt="" /> : <span className="landing-connection-icon"><Icon aria-hidden="true" /></span>}
                       <div><small>{connection.relationship}</small><h3>{connection.name}</h3></div>
                     </div>
+                    <div className="landing-connection-direction"><span>Chiều dữ liệu</span><strong>{connection.direction}</strong></div>
                     <span className={`landing-status is-${connectionTone(connection.status)}`}>{connection.status}</span>
-                  </header>
-                  <div className="landing-connection-direction">
-                    <span>Chiều dữ liệu</span>
-                    <strong>{connection.direction}</strong>
-                  </div>
-                  <dl>
-                    <div><dt>{connection.inputLabel}</dt><dd>{connection.inputFields?.join(' · ')}</dd></div>
-                    <div><dt>{connection.outputLabel}</dt><dd>{connection.outputFields?.join(' · ')}</dd></div>
-                  </dl>
-                  <button
-                    className="landing-preview-button"
-                    type="button"
-                    onClick={(event) => openConnection(connection, event.currentTarget)}
-                  >
-                    {connectionActionLabel(connection.id)} <ArrowRight weight="bold" aria-hidden="true" />
-                  </button>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="landing-role-band" aria-labelledby="landing-role-title">
-          <div>
-            <p>Không gian theo vai trò</p>
-            <h2 id="landing-role-title">{selectedRole.label}</h2>
-            <span>{selectedRole.purpose}</span>
-          </div>
-          <dl className="landing-role-summary" aria-label={`Khối lượng công việc của ${selectedRole.label}`}>
-            <div><dt>Trong phạm vi</dt><dd>{roleSummary.visibleDossiers}</dd></div>
-            <div><dt>Cần xử lý</dt><dd>{roleSummary.actionable}</dd></div>
-            <div><dt>Vướng mắc</dt><dd>{roleSummary.blocked}</dd></div>
-          </dl>
-          <button type="button" onClick={enterWorkspace}>
-            {canResume ? `Tiếp tục với ${selectedRole.label}` : `Vào hàng đợi ${selectedRole.label}`} <ArrowRight weight="bold" aria-hidden="true" />
-          </button>
-        </section>
+                    <button className="landing-preview-button" type="button" onClick={(event) => openConnection(connection, event.currentTarget)}>
+                      {connectionActionLabel(connection.id)} <ArrowRight weight="bold" aria-hidden="true" />
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
       </main>
 
       <footer className="landing-footer">
         <BrandMark compact ariaLabel="VMLS" />
-        <span>Không gian dữ liệu Hà Nội</span>
+        <span>Sổ bộ dữ liệu · Hà Nội</span>
         <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })}>Về đầu trang</button>
       </footer>
 

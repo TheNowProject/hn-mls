@@ -24,6 +24,7 @@ import {
   Plus,
   SealCheck,
   Signpost,
+  SquaresFour,
   Storefront,
   User,
   UsersThree,
@@ -31,8 +32,16 @@ import {
   X,
 } from '@phosphor-icons/react'
 import BrandMark from './components/BrandMark.jsx'
+import EcosystemHub from './components/EcosystemHub.jsx'
 import LandingPage from './components/LandingPage.jsx'
+import {
+  DistributionWorkspace,
+  EMPTY_MARKET_FILTERS,
+  RepresentedInventory,
+  RepresentedListingDetail,
+} from './components/MarketWorkspace.jsx'
 import { ActionButton, Checklist, Field, FieldGrid, StatusPill } from './components/RegistryPrimitives.jsx'
+import { projectCapabilitiesForRole } from './demo/capabilities.js'
 import {
   STORAGE_KEY,
   demoCases,
@@ -52,6 +61,17 @@ import {
   restoreDemoState,
   serializeDemoState,
 } from './demo/journey.js'
+import {
+  MARKET_ACTIONS,
+  MARKET_STORAGE_KEY,
+  createMarketState,
+  getListingDetail,
+  getMarketSummary,
+  getRepresentedListings,
+  marketplaceReducer,
+  restoreMarketState,
+  serializeMarketState,
+} from './demo/marketplace.js'
 
 const ROLE_ICONS = {
   agent: IdentificationCard,
@@ -94,39 +114,52 @@ const WORKSPACE_TITLES = {
 
 const NAV_ITEMS = {
   agent: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Công việc', FolderOpen],
+    ['nguon-hang', 'Nguồn hàng được đại diện', Storefront],
     ['bat-dong-san', 'Bất động sản', House],
     ['tin-ban', 'Tin bán', Signpost],
     ['giao-dich', 'Giao dịch', Handshake],
   ],
   brokerage: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Điều phối hồ sơ', UsersThree],
+    ['nguon-hang', 'Nguồn hàng được đại diện', Storefront],
     ['bat-dong-san', 'Bất động sản', House],
     ['tin-ban', 'Tin bán', Signpost],
   ],
   seller: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Yêu cầu và tài liệu', FolderOpen],
     ['bat-dong-san', 'Bất động sản', House],
     ['tin-ban', 'Tin bán', Signpost],
   ],
   buyer: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Hồ sơ mua', FolderOpen],
     ['giao-dich', 'Giao dịch', Handshake],
   ],
-  bank: [['cong-viec', 'Hồ sơ được chia sẻ', Bank]],
+  bank: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
+    ['cong-viec', 'Hồ sơ được chia sẻ', Bank],
+  ],
   notary: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Công việc', FolderOpen],
     ['cong-chung', 'Hồ sơ công chứng', SealCheck],
   ],
   developer: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Công việc', FolderOpen],
     ['chuyen-quyen', 'Chuyển nhượng HĐMB', Buildings],
   ],
   landRegistry: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Công việc', FolderOpen],
     ['chuyen-quyen', 'Đăng ký biến động', MapPin],
   ],
   vmls: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Theo dõi xử lý', FolderOpen],
     ['bat-dong-san', 'Bất động sản', House],
     ['tin-ban', 'Tin bán', Signpost],
@@ -185,6 +218,50 @@ const FILTERS = [
   ['done', 'Đã xong'],
 ]
 
+const DISTRIBUTION_CHANNELS = Object.freeze([
+  {
+    id: 'housenow',
+    name: 'HouseNow',
+    icon: '/assets/demo/housenow-icon.png',
+    description: 'Kênh căn hộ chung cư',
+    status: 'Có thể gửi',
+    mode: 'implemented',
+  },
+  {
+    id: 'partner-listing-platform',
+    name: 'Nền tảng tin đăng khác',
+    description: 'Chưa có hợp đồng dữ liệu trong phạm vi hiện tại',
+    status: 'Chưa cấu hình',
+    mode: 'unavailable',
+  },
+  {
+    id: 'brokerage-website',
+    name: 'Website của Sàn',
+    description: 'Kênh riêng theo chính sách của từng Sàn',
+    status: 'Chưa cấu hình',
+    mode: 'unavailable',
+  },
+])
+
+const DISTRIBUTION_SEND_FIELDS = Object.freeze([
+  'PLID và NPID',
+  'Tiêu đề Tin bán',
+  'Giá chào',
+  'Loại Bất động sản, Dự án và Chủ đầu tư',
+  'Khu vực được phép công khai',
+  'Diện tích, số phòng ngủ và phòng tắm',
+  'Số lượng ảnh công khai được chọn',
+  'Liên hệ nghiệp vụ của Môi giới hợp tác',
+])
+
+const DISTRIBUTION_EXCLUDED_FIELDS = Object.freeze([
+  'Danh tính và liên hệ Người bán',
+  'Bằng chứng quyền đại diện',
+  'Dữ liệu Người mua và tài chính',
+  'Hồ sơ công chứng và chuyển quyền',
+  'Ghi chú, tài liệu và mã tương quan nội bộ',
+])
+
 function subscribeToHash(callback) {
   window.addEventListener('hashchange', callback)
   return () => window.removeEventListener('hashchange', callback)
@@ -213,16 +290,34 @@ function parseRoute(hash) {
   if (parts[0] !== 'vai-tro') {
     const rawCaseId = parts[0] === 'tra-cuu' ? parts[1] : null
     const decodedCaseId = rawCaseId ? decodeRoutePart(rawCaseId) : null
+    const params = new URLSearchParams(search)
     return {
       roleId: 'agent',
       page: 'landing',
       caseId: rawCaseId ? decodedCaseId ?? '__invalid_public_case__' : null,
-      query: parts[0] === 'tra-cuu' ? new URLSearchParams(search).get('q') ?? '' : '',
+      query: parts[0] === 'tra-cuu' ? params.get('q') ?? '' : '',
+      region: parts[0] === 'tra-cuu' ? params.get('khu-vuc') ?? '' : '',
+      developer: parts[0] === 'tra-cuu' ? params.get('chu-dau-tu') ?? '' : '',
+      project: parts[0] === 'tra-cuu' ? params.get('du-an') ?? '' : '',
     }
   }
   const roleId = ROLE_LABELS[parts[1]] ? parts[1] : 'agent'
   if (parts[2] === 'ho-so' && parts[3]) {
     return { roleId, page: 'ho-so', caseId: parts[3], tab: parts[4] || 'tong-quan' }
+  }
+  if (parts[2] === 'nguon-hang' && parts[3]) {
+    return {
+      roleId,
+      page: 'nguon-hang-chi-tiet',
+      listingId: decodeRoutePart(parts[3]) ?? '__invalid_listing__',
+    }
+  }
+  if (parts[2] === 'phan-phoi' && parts[3]) {
+    return {
+      roleId,
+      page: 'phan-phoi',
+      listingId: decodeRoutePart(parts[3]) ?? '__invalid_listing__',
+    }
   }
   return { roleId, page: parts[2] || 'cong-viec' }
 }
@@ -235,9 +330,25 @@ function casePath(roleId, caseId, tab = 'tong-quan') {
   return `#/vai-tro/${roleId}/ho-so/${caseId}/${tab}`
 }
 
-function publicSearchPath(query) {
-  const value = query.trim()
-  return value ? `#/tra-cuu?q=${encodeURIComponent(value)}` : '#/'
+function representedListingPath(roleId, listingId) {
+  return `#/vai-tro/${roleId}/nguon-hang/${encodeURIComponent(listingId)}`
+}
+
+function distributionPath(roleId, listingId) {
+  return `#/vai-tro/${roleId}/phan-phoi/${encodeURIComponent(listingId)}`
+}
+
+function publicSearchPath(filters) {
+  const values = typeof filters === 'string'
+    ? { query: filters, region: '', developer: '', project: '' }
+    : { query: '', region: '', developer: '', project: '', ...filters }
+  const params = new URLSearchParams()
+  if (values.query.trim()) params.set('q', values.query.trim())
+  if (values.region) params.set('khu-vuc', values.region)
+  if (values.developer) params.set('chu-dau-tu', values.developer)
+  if (values.project) params.set('du-an', values.project)
+  const search = params.toString()
+  return search ? `#/tra-cuu?${search}` : '#/'
 }
 
 function publicCasePath(caseId) {
@@ -325,6 +436,10 @@ function initialStates() {
   }
 }
 
+function initialMarketState() {
+  return restoreMarketState(window.localStorage.getItem(MARKET_STORAGE_KEY))
+}
+
 function storedWorkspaceRoute() {
   try {
     const candidate = JSON.parse(window.localStorage.getItem(STORAGE_KEY))?.lastWorkspaceRoute
@@ -344,12 +459,21 @@ function storedLandingRoleId() {
   }
 }
 
-function validatedWorkspaceRoute(caseStates) {
+function validatedWorkspaceRoute(caseStates, marketState) {
   const candidate = storedWorkspaceRoute()
   if (!candidate) return null
 
   const parsed = parseRoute(candidate)
   if (!candidate.startsWith(`#/vai-tro/${parsed.roleId}/`)) return null
+
+  if (parsed.page === 'nguon-hang-chi-tiet' || parsed.page === 'phan-phoi') {
+    const roleAllowed = parsed.page === 'phan-phoi'
+      ? parsed.roleId === 'agent'
+      : ['agent', 'brokerage'].includes(parsed.roleId)
+    return roleAllowed && getListingDetail(marketState, parsed.listingId)
+      ? candidate
+      : rolePath(parsed.roleId)
+  }
 
   if (parsed.page !== 'ho-so') {
     const allowedPages = (NAV_ITEMS[parsed.roleId] ?? []).map(([page]) => page)
@@ -433,18 +557,85 @@ function searchableText(row) {
   ].filter(Boolean).join(' ').toLocaleLowerCase('vi')
 }
 
+function marketViewModel(record, roleId = 'agent') {
+  const readOnly = roleId === 'brokerage'
+  const ownRegistration = record.collaboration.ownRegistration
+  const ownDistribution = record.collaboration.distributions.at(-1) ?? null
+  const registration = readOnly
+    ? record.collaboration.activity.registrationCount > 0
+      ? { status: 'Có đăng ký hợp tác', count: record.collaboration.activity.registrationCount }
+      : null
+    : ownRegistration
+  const distribution = readOnly
+    ? record.collaboration.activity.distributionCount > 0
+      ? { status: 'Có sự kiện phân phối', count: record.collaboration.activity.distributionCount }
+      : null
+    : ownDistribution
+  return {
+    id: record.listingId,
+    listingId: record.listingId,
+    propertyId: record.property.id,
+    title: `${record.property.unitLabel} · ${record.project.name}`,
+    propertyType: record.property.type,
+    unitCode: record.property.unitLabel,
+    location: record.property.location.display,
+    marketArea: record.property.location.district,
+    developerName: record.project.developer.name,
+    projectName: record.project.name,
+    areaDisplay: `${record.property.area.value.toLocaleString('vi-VN')} ${record.property.area.unit} ${record.property.area.concept.toLocaleLowerCase('vi-VN')}`,
+    priceDisplay: formatMoney(record.listing.askingPrice.value),
+    askingPrice: record.listing.askingPrice.value,
+    representationStatus: record.representation.status,
+    representationValidUntil: formatDate(record.representation.expiresOn, false),
+    listingStatus: record.listing.status,
+    industryVisibility: record.listing.industryVisibility,
+    cooperationScope: 'Môi giới trong hệ thống',
+    responsibleAgent: record.responsibleAgent,
+    registration: registration ? {
+      id: registration.id,
+      status: registration.status,
+      registeredAt: registration.registeredAt,
+    } : null,
+    registrationStatus: registration?.status ?? (readOnly ? 'Chưa có đăng ký hợp tác' : 'Chưa đăng ký'),
+    distribution: distribution ? {
+      id: distribution.id,
+      status: distribution.status,
+      acknowledgement: distribution.acknowledgement,
+      sentAt: distribution.sentAt,
+    } : null,
+    distributionStatus: distribution
+      ? `${distribution.status} · ${distribution.acknowledgement}`
+      : readOnly ? 'Chưa có sự kiện phân phối' : 'Chưa phân phối',
+    isRegistered: Boolean(registration),
+    isDistributed: Boolean(distribution),
+    canRegister: roleId === 'agent' && !registration,
+    canDistribute: roleId === 'agent'
+      && Boolean(registration)
+      && record.collaboration.allowedChannels.length > 0,
+    publicNotes: [
+      `${record.property.bedrooms} phòng ngủ · ${record.property.bathrooms} phòng tắm`,
+      `${record.listing.mediaCount} ảnh được chọn cho phạm vi thị trường`,
+      `Nguồn: ${record.provenance.sourceSummary}`,
+    ],
+  }
+}
+
 function App() {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => '#/')
   const route = parseRoute(hash)
   const [caseStates, setCaseStates] = useState(initialStates)
+  const [marketState, setMarketState] = useState(initialMarketState)
   const [landingRoleId, setLandingRoleId] = useState(() => (
     storedLandingRoleId() ?? (storedWorkspaceRoute() ? parseRoute(storedWorkspaceRoute()).roleId : 'agent')
   ))
   const [query, setQuery] = useState('')
+  const [marketFilters, setMarketFilters] = useState({ ...EMPTY_MARKET_FILTERS })
+  const [marketTab, setMarketTab] = useState('all')
+  const [ecosystemPreview, setEcosystemPreview] = useState(null)
   const [announcement, setAnnouncement] = useState('')
   const [toast, setToast] = useState(null)
   const [showReset, setShowReset] = useState(false)
-  const savedWorkspaceRoute = route.page === 'landing' ? validatedWorkspaceRoute(caseStates) : null
+  const savedWorkspaceRoute = route.page === 'landing' ? validatedWorkspaceRoute(caseStates, marketState) : null
 
   useEffect(() => {
     const cases = Object.fromEntries(Object.entries(caseStates).map(([caseId, state]) => [
@@ -458,6 +649,10 @@ function App() {
       lastWorkspaceRoute: route.page === 'landing' ? savedWorkspaceRoute : hash,
     }))
   }, [caseStates, hash, landingRoleId, route.page, savedWorkspaceRoute])
+
+  useEffect(() => {
+    window.localStorage.setItem(MARKET_STORAGE_KEY, serializeMarketState(marketState))
+  }, [marketState])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -487,8 +682,11 @@ function App() {
 
   function resetData() {
     setCaseStates(Object.fromEntries(demoCases.map((item) => [item.id, createInitialState(item.id)])))
+    setMarketState(createMarketState())
+    setMarketFilters({ ...EMPTY_MARKET_FILTERS })
+    setMarketTab('all')
     setShowReset(false)
-    setToast({ tone: 'success', message: 'Đã đặt lại 2 hồ sơ.' })
+    setToast({ tone: 'success', message: 'Đã đặt lại dữ liệu mẫu.' })
     navigate('#/vai-tro/agent/cong-viec')
   }
 
@@ -509,16 +707,147 @@ function App() {
   }
   const resumeRoute = savedWorkspaceRoute
   const resumeRoleId = resumeRoute ? parseRoute(resumeRoute).roleId : null
+  const representedListings = getRepresentedListings(marketState)
+  const marketSummary = getMarketSummary(marketState)
+  const marketListing = route.listingId ? getListingDetail(marketState, route.listingId) : null
+  const capabilities = projectCapabilitiesForRole(role.id, {
+    represented: marketSummary.representedListings,
+    registered: marketSummary.registeredByCurrentAgent,
+    distributed: marketSummary.sentToHouseNow,
+  })
+  const lookupRecords = [
+    ...representedListings.map((record) => ({
+    id: record.listingId,
+    listingId: record.listingId,
+    title: `${record.property.unitLabel} · ${record.project.name}`,
+    property: {
+      id: record.property.id,
+      name: record.property.unitLabel,
+      type: record.property.type,
+      project: record.project.name,
+      developer: record.project.developer.name,
+      location: record.property.location.display,
+      region: record.property.location.district,
+      areaLabel: `${record.property.area.value.toLocaleString('vi-VN')} ${record.property.area.unit} ${record.property.area.concept.toLocaleLowerCase('vi-VN')}`,
+    },
+      status: 'Mở đăng ký cùng bán',
+    })),
+    ...publicRecords.map((record) => ({
+      ...record,
+      property: {
+        ...record.property,
+        region: record.property.location?.includes('Tây Hồ')
+          ? 'Tây Hồ'
+          : record.property.location,
+      },
+    })),
+  ]
+  const marketListings = representedListings.map((record) => marketViewModel(record, role.id))
+  const marketListingView = marketListing ? marketViewModel(marketListing, role.id) : null
+  const roleCapabilities = capabilities
+    .filter(({ group }) => group !== 'Kết nối theo hồ sơ')
+    .map((capability) => ({ ...capability, category: capability.group }))
+  const flowConnections = capabilities
+    .filter(({ group }) => group === 'Kết nối theo hồ sơ')
+    .map((capability) => ({
+      ...capability,
+      category: capability.group,
+      ...(ecosystemConnections.find(({ id }) => id === capability.connectionId) ?? {}),
+      mode: capability.mode,
+      status: capability.status,
+    }))
+  const distributionRecord = marketListing?.collaboration.distributions.at(-1) ?? null
+  const houseNowPermission = marketListing?.collaboration.allowedChannels.find(({ id }) => id === 'housenow')
+  const distributionPreflight = marketListing ? [
+    {
+      id: 'listing',
+      label: 'Tin bán đang hiệu lực',
+      detail: `${marketListing.listing.status} · ${marketListing.listing.industryVisibility}`,
+      state: marketListing.listing.status === 'Đang hiệu lực' ? 'done' : 'warning',
+    },
+    {
+      id: 'representation',
+      label: 'Quyền đại diện còn hiệu lực',
+      detail: `Đã xác nhận đến ${formatDate(marketListing.representation.expiresOn, false)}`,
+      state: marketListing.representation.status === 'Đã xác nhận' ? 'done' : 'warning',
+    },
+    {
+      id: 'registration',
+      label: 'Đăng ký cùng bán',
+      detail: marketListing.collaboration.ownRegistration?.id ?? 'Chưa đăng ký',
+      state: marketListing.collaboration.ownRegistration ? 'done' : 'warning',
+    },
+    {
+      id: 'consent',
+      label: 'Quyền phân phối theo kênh',
+      detail: houseNowPermission
+        ? `HouseNow · Mục đích: ${houseNowPermission.purpose}`
+        : 'Chưa có HouseNow trong phạm vi',
+      state: houseNowPermission ? 'done' : 'warning',
+    },
+    {
+      id: 'projection',
+      label: 'Dữ liệu công khai đầy đủ',
+      detail: 'Chỉ gồm trường được phép gửi ra kênh',
+      state: 'done',
+    },
+  ] : []
+  const distributionEvents = marketListing?.collaboration.distributions.map((event) => ({
+    id: event.id,
+    label: `${event.status} · ${event.channel.name}`,
+    detail: `${event.purpose} · ${event.acknowledgement} · Phiên bản dữ liệu ${event.projectionVersion}`,
+    at: event.sentAt,
+    displayAt: formatDate(event.sentAt),
+  })) ?? []
+  const distributionPreview = marketListing ? {
+    listingId: marketListing.listingId,
+    propertyId: marketListing.property.id,
+    title: `${marketListing.property.unitLabel} · ${marketListing.project.name}`,
+    propertyType: marketListing.property.type,
+    projectName: marketListing.project.name,
+    developerName: marketListing.project.developer.name,
+    location: `${marketListing.property.location.district}, ${marketListing.property.location.city}`,
+    area: `${marketListing.property.area.value.toLocaleString('vi-VN')} ${marketListing.property.area.unit} ${marketListing.property.area.concept.toLocaleLowerCase('vi-VN')}`,
+    rooms: `${marketListing.property.bedrooms} phòng ngủ · ${marketListing.property.bathrooms} phòng tắm`,
+    price: formatMoney(marketListing.listing.askingPrice.value),
+    mediaCount: marketListing.listing.mediaCount,
+    businessContact: `${marketState.currentAgent.displayName} · ${marketState.currentAgent.organizationName}`,
+  } : null
+
+  function dispatchMarket(action) {
+    const next = marketplaceReducer(marketState, action)
+    if (next === marketState) {
+      setToast({ tone: 'error', message: 'Không thể thực hiện thao tác với Tin bán này.' })
+      return false
+    }
+    setMarketState(next)
+    const message = action.type === MARKET_ACTIONS.REGISTER_CO_BROKER
+      ? 'Đã đăng ký cùng bán.'
+      : 'Đã gửi dữ liệu Tin bán đến kênh.'
+    setAnnouncement(message)
+    setToast({ tone: 'success', message })
+    return true
+  }
 
   return (
     <div className="app-root" data-testid={route.page === 'landing' ? 'landing-shell' : 'app-shell'}>
       {route.page === 'landing' ? (
         <LandingPage
-          key={`${route.caseId ?? 'all'}:${route.query ?? ''}`}
+          key={[
+            route.caseId ?? 'all',
+            route.query ?? '',
+            route.region ?? '',
+            route.developer ?? '',
+            route.project ?? '',
+          ].join(':')}
           publicRecords={publicRecords}
+          lookupRecords={lookupRecords}
           connections={ecosystemConnections}
           routeCaseId={route.caseId}
           routeQuery={route.query}
+          routeRegion={route.region}
+          routeDeveloper={route.developer}
+          routeProject={route.project}
           selectedRoleId={landingRoleId}
           resumeRoleId={resumeRoleId}
           roleSummary={landingRoleSummary}
@@ -536,15 +865,22 @@ function App() {
           }}
           onResumeWorkspace={() => { if (resumeRoute) navigate(resumeRoute) }}
           onRoleChange={setLandingRoleId}
-          onSearchRoute={(value) => navigate(publicSearchPath(value))}
+          onSearchRoute={(filters) => navigate(publicSearchPath(filters))}
           onSelectRecord={(caseId) => navigate(publicCasePath(caseId))}
+          onOpenLookupRecord={(listingId) => navigate(
+            ['agent', 'brokerage'].includes(landingRoleId)
+              ? representedListingPath(landingRoleId, listingId)
+              : rolePath(landingRoleId, 'ung-dung'),
+          )}
+          canOpenLookupRecord={['agent', 'brokerage'].includes(landingRoleId)}
+          onOpenApplications={(roleId = landingRoleId) => navigate(rolePath(roleId, 'ung-dung'))}
         />
       ) : (
         <>
           <button className="skip-link" type="button" onClick={() => document.getElementById('noi-dung-chinh')?.focus()}>Bỏ qua điều hướng</button>
           <AppHeader role={role} query={query} onQuery={setQuery} onSearch={() => navigate(rolePath(role.id))} onReset={() => setShowReset(true)} />
           <div className="app-frame">
-            <Sidebar role={role} activePage={route.page} />
+            <Sidebar role={role} activePage={['nguon-hang-chi-tiet', 'phan-phoi'].includes(route.page) ? 'nguon-hang' : route.page} />
             <main id="noi-dung-chinh" tabIndex="-1">
               {route.page === 'ho-so' ? (
                 <DossierPage
@@ -556,6 +892,64 @@ function App() {
                 />
               ) : route.page === 'cong-viec' ? (
                 <WorkQueue key={role.id} role={role} rows={rows} query={query} />
+              ) : route.page === 'ung-dung' ? (
+                <EcosystemHub
+                  role={role}
+                  capabilities={roleCapabilities}
+                  connections={flowConnections}
+                  onNavigate={(target) => navigate(target)}
+                  onPreviewConnection={(connectionId) => {
+                    const connection = ecosystemConnections.find(({ id }) => id === connectionId)
+                    if (connection) setEcosystemPreview(connection)
+                  }}
+                />
+              ) : route.page === 'nguon-hang' && ['agent', 'brokerage'].includes(role.id) ? (
+                <RepresentedInventory
+                  listings={marketListings}
+                  filters={marketFilters}
+                  onFiltersChange={setMarketFilters}
+                  activeTab={marketTab}
+                  onTabChange={setMarketTab}
+                  readOnly={role.id !== 'agent'}
+                  onSelectListing={(listing) => navigate(representedListingPath(role.id, listing.listingId))}
+                  onRegister={(listing) => navigate(representedListingPath(role.id, listing.listingId))}
+                  onOpenDistribution={(listing) => navigate(distributionPath(role.id, listing.listingId))}
+                />
+              ) : route.page === 'nguon-hang-chi-tiet' && ['agent', 'brokerage'].includes(role.id) ? (
+                marketListingView ? <RepresentedListingDetail
+                  listing={marketListingView}
+                  readOnly={role.id !== 'agent'}
+                  onBack={() => navigate(rolePath(role.id, 'nguon-hang'))}
+                  onRegister={() => dispatchMarket({
+                    type: MARKET_ACTIONS.REGISTER_CO_BROKER,
+                    actor: 'agent',
+                    payload: { listingId: marketListing.listingId },
+                  })}
+                  onOpenDistribution={() => navigate(distributionPath(role.id, marketListing.listingId))}
+                /> : <NotFound role={role} />
+              ) : route.page === 'phan-phoi' && role.id === 'agent' ? (
+                marketListingView ? <DistributionWorkspace
+                  listing={marketListingView}
+                  channels={DISTRIBUTION_CHANNELS}
+                  selectedChannelId="housenow"
+                  preflight={distributionPreflight}
+                  sendFields={DISTRIBUTION_SEND_FIELDS}
+                  excludedFields={DISTRIBUTION_EXCLUDED_FIELDS}
+                  events={distributionEvents}
+                  preview={distributionPreview}
+                  status={distributionRecord ? `${distributionRecord.status} · ${distributionRecord.acknowledgement}` : 'Chưa gửi'}
+                  canSubmit={Boolean(marketListing.collaboration.ownRegistration)
+                    && Boolean(houseNowPermission)
+                    && !distributionRecord}
+                  onSubmit={() => dispatchMarket({
+                    type: MARKET_ACTIONS.DISTRIBUTE_LISTING,
+                    actor: 'agent',
+                    payload: { listingId: marketListing.listingId, channelId: 'housenow' },
+                  })}
+                  onBack={() => navigate(representedListingPath(role.id, marketListing.listingId))}
+                /> : <NotFound role={role} />
+              ) : ['nguon-hang', 'nguon-hang-chi-tiet', 'phan-phoi'].includes(route.page) ? (
+                <NotFound role={role} restricted />
               ) : route.page === 'nguon-du-lieu' ? (
                 <SourcesWorkspace />
               ) : route.page === 'nhat-ky' ? (
@@ -570,6 +964,7 @@ function App() {
       <div className="sr-only" aria-live="polite">{announcement}</div>
       {toast ? <Toast {...toast} onClose={() => setToast(null)} /> : null}
       {showReset ? <ResetDialog onCancel={() => setShowReset(false)} onConfirm={resetData} /> : null}
+      {ecosystemPreview ? <SourcePreview source={ecosystemPreview} onClose={() => setEcosystemPreview(null)} /> : null}
     </div>
   )
 }
@@ -581,7 +976,7 @@ function AppHeader({ role, query, onQuery, onSearch, onReset }) {
   }
   return (
     <header className="app-header">
-      <div className="header-brand"><BrandMark compact /><span>Không gian dữ liệu Hà Nội</span></div>
+      <div className="header-brand"><BrandMark compact inverse /><span>Hà Nội</span></div>
       <form className="global-search" role="search" aria-label="Tìm trong không gian làm việc" onSubmit={(event) => { event.preventDefault(); onSearch() }}>
         <MagnifyingGlass aria-hidden="true" />
         <label className="sr-only" htmlFor="global-search-input">Tìm trong không gian làm việc</label>
@@ -1253,7 +1648,7 @@ function ResetDialog({ onCancel, onConfirm }) {
     if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus() }
     if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus() }
   }
-  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}><section className="reset-dialog" ref={ref} role="dialog" aria-modal="true" aria-labelledby="reset-title" onKeyDown={onKeyDown}><button className="dialog-close" type="button" onClick={onCancel} aria-label="Đóng"><X aria-hidden="true" /></button><ClockCounterClockwise className="dialog-icon" aria-hidden="true" /><h2 id="reset-title">Đặt lại 2 hồ sơ?</h2><p>Các thay đổi đã lưu trong trình duyệt sẽ trở về trạng thái ban đầu.</p><div><ActionButton secondary icon={null} onClick={onCancel}>Hủy</ActionButton><ActionButton danger icon={null} onClick={onConfirm} testId="confirm-reset">Đặt lại dữ liệu</ActionButton></div></section></div>
+  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}><section className="reset-dialog" ref={ref} role="dialog" aria-modal="true" aria-labelledby="reset-title" onKeyDown={onKeyDown}><button className="dialog-close" type="button" onClick={onCancel} aria-label="Đóng"><X aria-hidden="true" /></button><ClockCounterClockwise className="dialog-icon" aria-hidden="true" /><h2 id="reset-title">Đặt lại dữ liệu mẫu?</h2><p>Hai hồ sơ vận hành, nguồn hàng đại diện và lịch sử thao tác trong trình duyệt sẽ trở về trạng thái ban đầu.</p><div><ActionButton secondary icon={null} onClick={onCancel}>Hủy</ActionButton><ActionButton danger icon={null} onClick={onConfirm} testId="confirm-reset">Đặt lại dữ liệu</ActionButton></div></section></div>
 }
 
 export default App

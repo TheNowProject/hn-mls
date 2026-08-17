@@ -4,7 +4,7 @@ const deploymentProtectionSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
 
 export default defineConfig({
   testDir: './e2e',
-  outputDir: 'output/qa/vmls-data-product-redesign/playwright/results',
+  outputDir: 'output/qa/vmls-interactive-demo/playwright/results',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -13,7 +13,7 @@ export default defineConfig({
     ['line'],
     ['html', {
       open: 'never',
-      outputFolder: 'output/qa/vmls-data-product-redesign/playwright/report',
+      outputFolder: 'output/qa/vmls-interactive-demo/playwright/report',
     }],
   ],
   use: {

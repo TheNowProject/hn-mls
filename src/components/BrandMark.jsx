@@ -4,7 +4,6 @@ export function BrandMark({
   className = '',
   compact = false,
   inverse = false,
-  byline = false,
   ariaLabel = 'VMLS',
 }) {
   const classes = [
@@ -44,7 +43,6 @@ export function BrandMark({
 
       <span className="vmls-brand-mark__wordmark" aria-hidden="true">
         <strong>VMLS</strong>
-        {byline ? <small>by HouseNow</small> : null}
       </span>
     </span>
   )

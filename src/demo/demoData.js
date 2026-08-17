@@ -88,36 +88,57 @@ export const externalRoles = Object.freeze(
 
 export const workspaceDefinitions = Object.freeze({
   agent: [
+    { id: 'applications', label: 'Ứng dụng' },
     { id: 'sellerDossiers', label: 'Hồ sơ khách bán' },
+    { id: 'representedInventory', label: 'Nguồn hàng được đại diện' },
+    { id: 'coBrokerRegistrations', label: 'Đăng ký cùng bán' },
+    { id: 'listingDistribution', label: 'Phân phối Tin bán' },
     { id: 'properties', label: 'Bất động sản' },
     { id: 'listings', label: 'Tin bán' },
     { id: 'transactions', label: 'Giao dịch' },
   ],
   brokerage: [
+    { id: 'applications', label: 'Ứng dụng' },
     { id: 'coordination', label: 'Điều phối hồ sơ' },
+    { id: 'representedInventory', label: 'Nguồn hàng được đại diện' },
     { id: 'listings', label: 'Tin bán' },
     { id: 'dataQuality', label: 'Chất lượng dữ liệu' },
   ],
   seller: [
+    { id: 'applications', label: 'Ứng dụng' },
     { id: 'sellerRequests', label: 'Yêu cầu xác nhận' },
     { id: 'properties', label: 'Bất động sản' },
     { id: 'listings', label: 'Tin bán' },
   ],
   buyer: [
+    { id: 'applications', label: 'Ứng dụng' },
     { id: 'purchaseDossiers', label: 'Hồ sơ mua' },
     { id: 'contracts', label: 'Hợp đồng mua bán' },
   ],
-  bank: [{ id: 'sharedDossiers', label: 'Hồ sơ được chia sẻ' }],
-  developer: [{ id: 'contractTransfers', label: 'Chuyển nhượng HĐMB' }],
+  bank: [
+    { id: 'applications', label: 'Ứng dụng' },
+    { id: 'sharedDossiers', label: 'Hồ sơ được chia sẻ' },
+  ],
+  developer: [
+    { id: 'applications', label: 'Ứng dụng' },
+    { id: 'contractTransfers', label: 'Chuyển nhượng HĐMB' },
+  ],
   vmls: [
+    { id: 'applications', label: 'Ứng dụng' },
     { id: 'integrations', label: 'Tích hợp và nguồn' },
     { id: 'properties', label: 'Bất động sản' },
     { id: 'listings', label: 'Tin bán' },
     { id: 'transactions', label: 'Giao dịch' },
     { id: 'audit', label: 'Nhật ký' },
   ],
-  notary: [{ id: 'notaryDossiers', label: 'Hồ sơ công chứng' }],
-  landRegistry: [{ id: 'landTransfers', label: 'Đăng ký biến động' }],
+  notary: [
+    { id: 'applications', label: 'Ứng dụng' },
+    { id: 'notaryDossiers', label: 'Hồ sơ công chứng' },
+  ],
+  landRegistry: [
+    { id: 'applications', label: 'Ứng dụng' },
+    { id: 'landTransfers', label: 'Đăng ký biến động' },
+  ],
 })
 
 export const sourceRegistry = Object.freeze([

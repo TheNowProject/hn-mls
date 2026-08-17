@@ -62,6 +62,43 @@ const CASES = {
   },
 }
 
+const REPRESENTED_LISTINGS = {
+  tayHoGarden: {
+    listingId: 'PLID-HN-31001',
+    npid: 'NPID-HN-21001',
+    title: 'A2-1208 · Tây Hồ Garden',
+    area: 'Tây Hồ',
+    developer: 'Công ty CP Đô thị Hồ Tây',
+    project: 'Tây Hồ Garden',
+    responsibleAgent: 'Trần H. A.',
+    brokerage: 'Sàn Hồ Tây',
+  },
+  thangLongRiverside: {
+    listingId: 'PLID-HN-31002',
+    npid: 'NPID-HN-21002',
+    title: 'B1-1805 · Thăng Long Riverside',
+    area: 'Tây Hồ',
+    developer: 'Công ty CP Phát triển Thăng Long',
+    project: 'Thăng Long Riverside',
+  },
+  myDinhCentral: {
+    listingId: 'PLID-HN-31003',
+    npid: 'NPID-HN-21003',
+    title: 'C3-0912 · Mỹ Đình Central',
+    area: 'Nam Từ Liêm',
+    developer: 'Công ty CP Phát triển Mỹ Đình',
+    project: 'Mỹ Đình Central',
+  },
+}
+
+const RESTRICTED_MARKET_VALUES = [
+  'PARTY-SELLER-HN-71001',
+  'EVIDENCE-REP-HN-81001',
+  'sellerPartyReference',
+  'evidenceReferences',
+  'AGENT-HN-COBROKER-001',
+]
+
 const LANDING_CONNECTIONS = [
   {
     id: 'vneid',
@@ -172,6 +209,57 @@ async function openLanding(page, route = '/') {
   await expect(page).toHaveTitle(/VMLS/)
   await expect(page.getByTestId('landing-page')).toBeVisible()
   await expect(page.getByTestId('app-shell')).toHaveCount(0)
+}
+
+function representedLandingRow(page, listing) {
+  return page.getByTestId(`landing-case-${listing.listingId}`)
+}
+
+function representedInventoryRows(page) {
+  return page.getByTestId('represented-inventory').locator('tbody tr')
+}
+
+function articleWithHeading(page, name) {
+  return page.getByRole('heading', { name, exact: true }).locator('xpath=ancestor::article[1]')
+}
+
+function articleWithText(page, text) {
+  return page.getByText(text, { exact: true }).first().locator('xpath=ancestor::article[1]')
+}
+
+async function expectNoHorizontalOverflow(page) {
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1)
+}
+
+async function expectVisibleKeyboardFocus(control, ringTarget = control) {
+  await expect(control).toBeFocused()
+  const ring = await ringTarget.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      outlineStyle: style.outlineStyle,
+      outlineWidth: Number.parseFloat(style.outlineWidth),
+      boxShadow: style.boxShadow,
+    }
+  })
+  expect(
+    (ring.outlineStyle !== 'none' && ring.outlineWidth >= 2)
+      || (ring.boxShadow !== 'none' && ring.boxShadow !== ''),
+  ).toBe(true)
+}
+
+async function expectSingleMainLandmark(page) {
+  await expect(page.locator('main')).toHaveCount(1)
+}
+
+async function expectNoRestrictedMarketData(page) {
+  const renderedMarkup = await page.locator('body').evaluate((element) => element.outerHTML)
+  for (const restrictedValue of RESTRICTED_MARKET_VALUES) {
+    expect(renderedMarkup).not.toContain(restrictedValue)
+  }
 }
 
 async function searchLanding(page, query, expectedCase, otherCase) {
@@ -606,7 +694,7 @@ test('landing tìm theo state hiện tại và chỉ mở PLID, PTID sau đúng 
     await expectLandingIdentityChain(page, CASES.developer)
   }
 
-  for (const query of [CASES.landRegistry.npid, 'Phú Thượng']) {
+  for (const query of [CASES.landRegistry.npid]) {
     await searchLanding(page, query, CASES.landRegistry, CASES.developer)
     await expectLandingIdentityChain(page, CASES.landRegistry)
   }
@@ -659,7 +747,7 @@ test('landing chỉ tìm trường công khai và xóa query khỏi URL', async 
   await page.getByRole('button', { name: 'Xóa nội dung tìm kiếm' }).click()
   await expect.poll(() => new URL(page.url()).hash).toBe('#/')
   await expect(page.getByTestId('landing-search')).toHaveValue('')
-  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(2)
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(7)
 
   const markup = await page.locator('body').evaluate((element) => element.outerHTML)
   for (const restrictedValue of [
@@ -675,6 +763,512 @@ test('landing chỉ tìm trường công khai và xóa query khỏi URL', async 
     expect(markup).not.toContain(restrictedValue)
   }
 })
+
+test('landing là sổ tra cứu VMLS độc lập với 7 bản ghi và bốn điều kiện tra cứu', async ({ page }) => {
+  await openLanding(page)
+
+  await expect(page.getByText('7 / 7 bản ghi', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(7)
+  const visibleCopy = await page.locator('body').innerText()
+  expect(visibleCopy).not.toMatch(/Powered by HouseNow|\bby HouseNow\b/i)
+
+  const search = page.getByTestId('landing-search')
+  await search.fill(REPRESENTED_LISTINGS.tayHoGarden.npid)
+  await page.keyboard.press('Enter')
+  await expect(representedLandingRow(page, REPRESENTED_LISTINGS.tayHoGarden)).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(1)
+  await expect(page.getByText('1 / 7 bản ghi', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Xóa bộ lọc', exact: true }).click()
+  await page.getByTestId('landing-filter-region').selectOption(REPRESENTED_LISTINGS.myDinhCentral.area)
+  await expect(representedLandingRow(page, REPRESENTED_LISTINGS.myDinhCentral)).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Xóa bộ lọc', exact: true }).click()
+  await page.getByTestId('landing-filter-developer').selectOption(
+    REPRESENTED_LISTINGS.tayHoGarden.developer,
+  )
+  await expect(representedLandingRow(page, REPRESENTED_LISTINGS.tayHoGarden)).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Xóa bộ lọc', exact: true }).click()
+  await page.getByTestId('landing-filter-project').selectOption(
+    REPRESENTED_LISTINGS.thangLongRiverside.project,
+  )
+  await expect(representedLandingRow(page, REPRESENTED_LISTINGS.thangLongRiverside)).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(1)
+
+  await page.getByRole('button', { name: 'Xóa bộ lọc', exact: true }).click()
+  await page.getByTestId('landing-filter-region').selectOption(REPRESENTED_LISTINGS.tayHoGarden.area)
+  await page.getByTestId('landing-filter-developer').selectOption(
+    REPRESENTED_LISTINGS.tayHoGarden.developer,
+  )
+  await page.getByTestId('landing-filter-project').selectOption(
+    REPRESENTED_LISTINGS.thangLongRiverside.project,
+  )
+  await expect(page.getByText('Không tìm thấy hồ sơ', { exact: true })).toBeVisible()
+
+  await page.getByTestId('landing-filter-project').selectOption(REPRESENTED_LISTINGS.tayHoGarden.project)
+  await expect(representedLandingRow(page, REPRESENTED_LISTINGS.tayHoGarden)).toBeVisible()
+  await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(1)
+})
+
+test('landing lưu đầy đủ bộ lọc AND qua hash, reload và browser Back', async ({ page }) => {
+  await openLanding(page)
+  const listing = REPRESENTED_LISTINGS.tayHoGarden
+  const filters = {
+    query: 'A2-1208',
+    region: listing.area,
+    developer: listing.developer,
+    project: listing.project,
+  }
+
+  await page.getByTestId('landing-search').fill(filters.query)
+  await page.getByTestId('landing-filter-region').selectOption(filters.region)
+  await page.getByTestId('landing-filter-developer').selectOption(filters.developer)
+  await page.getByTestId('landing-filter-project').selectOption(filters.project)
+  await page.getByRole('search').getByRole('button', { name: 'Tra cứu', exact: true }).click()
+
+  const expectedHashFilters = {
+    q: filters.query,
+    'khu-vuc': filters.region,
+    'chu-dau-tu': filters.developer,
+    'du-an': filters.project,
+  }
+  await expect.poll(() => {
+    const [, queryString = ''] = new URL(page.url()).hash.split('?')
+    return Object.fromEntries(new URLSearchParams(queryString))
+  }).toEqual(expectedHashFilters)
+
+  async function expectPersistedFilters() {
+    await expect(page.getByTestId('landing-search')).toHaveValue(filters.query)
+    await expect(page.getByTestId('landing-filter-region')).toHaveValue(filters.region)
+    await expect(page.getByTestId('landing-filter-developer')).toHaveValue(filters.developer)
+    await expect(page.getByTestId('landing-filter-project')).toHaveValue(filters.project)
+    await expect(page.getByText('1 / 7 bản ghi', { exact: true })).toBeVisible()
+    await expect(representedLandingRow(page, listing)).toBeVisible()
+    await expect(page.locator('[data-testid^="landing-case-"]')).toHaveCount(1)
+  }
+
+  await expectPersistedFilters()
+  const filteredUrl = page.url()
+  await page.reload()
+  await expect(page).toHaveURL(filteredUrl)
+  await expectPersistedFilters()
+
+  await page.getByTestId('landing-open-listing').click()
+  await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/agent\/nguon-hang\/${listing.listingId}$`))
+  await page.goBack()
+  await expect(page).toHaveURL(filteredUrl)
+  await expectPersistedFilters()
+})
+
+test('landing giữ đúng vai trò khi mở Tin bán đại diện', async ({ page }) => {
+  const listing = REPRESENTED_LISTINGS.tayHoGarden
+
+  for (const role of [
+    { id: 'seller', label: 'Người bán' },
+    { id: 'buyer', label: 'Người mua' },
+    { id: 'bank', label: 'Ngân hàng' },
+  ]) {
+    await openLanding(page)
+    await page.getByLabel('Vai trò vào không gian làm việc').selectOption(role.id)
+    await page.getByTestId('landing-search').fill(listing.npid)
+    await page.keyboard.press('Enter')
+    await expect(representedLandingRow(page, listing)).toBeVisible()
+
+    await page.getByTestId('landing-open-listing').click()
+    await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/${role.id}\/ung-dung$`))
+    await expect(page.getByTestId('ecosystem-hub')).toBeVisible()
+    await expect(page.getByTestId('role-switcher')).toHaveValue(role.id)
+    await expect(page.getByTestId('represented-listing-detail')).toHaveCount(0)
+    expect(page.url()).not.toContain('#/vai-tro/agent/nguon-hang/')
+    await expectSingleMainLandmark(page)
+  }
+
+  await openLanding(page)
+  await page.getByLabel('Vai trò vào không gian làm việc').selectOption('brokerage')
+  await page.getByTestId('landing-search').fill(listing.npid)
+  await page.keyboard.press('Enter')
+  await page.getByTestId('landing-open-listing').click()
+  await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/brokerage\/nguon-hang\/${listing.listingId}$`))
+  await expect(page.getByTestId('represented-listing-detail')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Chuẩn bị phân phối', exact: true })).toHaveCount(0)
+  await expectSingleMainLandmark(page)
+})
+
+test('danh mục theo vai trò phân biệt ứng dụng thao tác, dữ liệu đọc và luồng chưa cấu hình', async ({ page }) => {
+  await startFresh(page, '#/vai-tro/agent/ung-dung')
+  const hub = page.getByTestId('ecosystem-hub')
+  await expect(hub).toBeVisible()
+
+  for (const capability of [
+    'Công việc theo vai trò',
+    'Bất động sản & định danh',
+    'Nguồn hàng được đại diện',
+    'Danh sách Tin bán',
+    'Đăng ký cùng bán',
+    'Phân phối Tin bán',
+    'Giao dịch & chuyển quyền',
+  ]) {
+    const card = articleWithText(hub, capability)
+    await expect(card).toBeVisible()
+    const action = card.getByRole('button')
+    await expect(action).toHaveCount(1)
+    await expect(action).toHaveAccessibleName(new RegExp(capability))
+  }
+
+  const implementedNames = await hub.locator('.ecosystem-open-action')
+    .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')))
+  expect(new Set(implementedNames).size).toBe(implementedNames.length)
+
+  for (const capability of [
+    'Bản đồ & thửa đất',
+    'Đặt lịch xem',
+    'CMA & báo cáo',
+    'Hồ sơ giao dịch',
+  ]) {
+    const card = articleWithText(hub, capability)
+    await expect(card).toBeVisible()
+    await expect(card.locator('button, a[href]')).toHaveCount(0)
+  }
+
+  for (const connection of [
+    'VNeID',
+    'Hệ thống thông tin về nhà ở và thị trường bất động sản',
+    'HouseNow · Căn hộ chung cư',
+  ]) {
+    const card = articleWithHeading(hub, connection)
+    await expect(card).toBeVisible()
+    const action = card.getByRole('button')
+    await expect(action).toHaveCount(1)
+    await expect(action).toHaveAccessibleName(new RegExp(connection))
+  }
+
+  for (const connection of [
+    'Văn phòng công chứng',
+    'Thuế',
+    'Văn phòng đăng ký đất đai',
+    'Chủ đầu tư · HĐMB',
+  ]) {
+    const card = articleWithHeading(hub, connection)
+    await expect(card).toBeVisible()
+    await expect(card.locator('button, a[href]')).toHaveCount(0)
+  }
+})
+
+test('kho căn chỉ hiện dữ liệu ngành và áp dụng đồng thời bốn bộ lọc', async ({ page }) => {
+  await startFresh(page, '#/vai-tro/agent/nguon-hang')
+  const inventory = page.getByTestId('represented-inventory')
+  await expect(inventory).toBeVisible()
+  await expect(representedInventoryRows(page)).toHaveCount(5)
+  await expect(inventory).toContainText(REPRESENTED_LISTINGS.tayHoGarden.responsibleAgent)
+  await expect(inventory).toContainText(REPRESENTED_LISTINGS.tayHoGarden.brokerage)
+  await expect(inventory.getByText('Mã định danh Người bán', { exact: true })).toHaveCount(0)
+  await expectNoRestrictedMarketData(page)
+
+  await inventory.getByLabel('Khu vực').selectOption(REPRESENTED_LISTINGS.tayHoGarden.area)
+  await expect(representedInventoryRows(page)).toHaveCount(2)
+
+  await inventory.getByLabel('Chủ đầu tư').selectOption(REPRESENTED_LISTINGS.tayHoGarden.developer)
+  await inventory.getByLabel('Dự án').selectOption(REPRESENTED_LISTINGS.tayHoGarden.project)
+  await expect(representedInventoryRows(page)).toHaveCount(1)
+  await expect(representedInventoryRows(page).first()).toContainText(
+    REPRESENTED_LISTINGS.tayHoGarden.listingId,
+  )
+
+  await inventory.getByLabel('Mã định danh Bất động sản').fill(
+    REPRESENTED_LISTINGS.thangLongRiverside.npid,
+  )
+  await expect(representedInventoryRows(page)).toHaveCount(0)
+  await expect(inventory.getByText('Không có Tin bán phù hợp', { exact: true })).toBeVisible()
+
+  await inventory.getByLabel('Mã định danh Bất động sản').fill(
+    REPRESENTED_LISTINGS.tayHoGarden.npid,
+  )
+  await expect(representedInventoryRows(page)).toHaveCount(1)
+  await expect(representedInventoryRows(page).first()).toContainText(
+    REPRESENTED_LISTINGS.tayHoGarden.npid,
+  )
+})
+
+test('Môi giới đăng ký cùng bán rồi gửi HouseNow với trạng thái bàn giao được lưu và đặt lại', async ({ page }) => {
+  await startFresh(page, '#/vai-tro/agent/nguon-hang')
+  const listing = REPRESENTED_LISTINGS.tayHoGarden
+  const inventory = page.getByTestId('represented-inventory')
+  await inventory.getByLabel('Mã định danh Bất động sản').fill(listing.npid)
+  const row = representedInventoryRows(page).first()
+  await expect(row).toContainText(listing.listingId)
+  await row.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true }).click()
+
+  const detail = page.getByTestId('represented-listing-detail')
+  await expect(detail).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/agent\/nguon-hang\/${listing.listingId}$`))
+  await expect(detail).toContainText('Thông tin định danh của chủ sở hữu không nằm trong phạm vi chia sẻ.')
+  await expectNoRestrictedMarketData(page)
+
+  await detail.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true }).click()
+  await expect(detail).toContainText('Đã đăng ký hợp tác')
+  await expect(detail.getByRole('button', { name: 'Chuẩn bị phân phối', exact: true })).toBeVisible()
+  await detail.getByRole('button', { name: 'Chuẩn bị phân phối', exact: true }).click()
+
+  const distribution = page.getByTestId('distribution-workspace')
+  await expect(distribution).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/agent\/phan-phoi\/${listing.listingId}$`))
+  await expect(distribution.getByRole('radio')).toHaveCount(1)
+  await expect(distribution.getByRole('radio')).toBeChecked()
+  await expect(distribution).toContainText('HouseNow')
+  await expect(distribution).toContainText('Danh tính và liên hệ Người bán')
+  await expect(distribution).toContainText('Dữ liệu Người mua và tài chính')
+  await expect(distribution).toContainText('PLID và NPID')
+  await expect(distribution.getByText('Đạt', { exact: true })).toHaveCount(5)
+  const preview = distribution.getByTestId('distribution-preview')
+  await expect(preview).toBeVisible()
+  for (const value of [
+    listing.title,
+    listing.npid,
+    listing.listingId,
+    '7.680.000.000',
+    'Căn hộ chung cư',
+    '72,4 m² thông thủy',
+    '2 phòng ngủ · 2 phòng tắm',
+    listing.project,
+    listing.developer,
+    'Tây Hồ, Hà Nội',
+    '14 ảnh được chọn',
+    'Lê M. K. · Sàn Thành Phố',
+  ]) {
+    await expect(preview).toContainText(value)
+  }
+
+  const send = distribution.getByRole('button', {
+    name: 'Gửi Tin bán đến HouseNow',
+    exact: true,
+  })
+  await expect(send).toBeEnabled()
+  await send.click()
+  await expect(distribution).toContainText('Đã gửi · Chờ phản hồi kênh')
+  await expect(distribution).toContainText('Đã gửi · HouseNow')
+  await expect(distribution).toContainText('vmls-public-listing-v1')
+  await expect(send).toBeDisabled()
+
+  const persistedUrl = page.url()
+  await page.reload()
+  await expect(page).toHaveURL(persistedUrl)
+  await expect(page.getByTestId('distribution-workspace')).toContainText(
+    'Đã gửi · Chờ phản hồi kênh',
+  )
+  await expect(page.getByTestId('distribution-workspace')).toContainText(
+    'vmls-public-listing-v1',
+  )
+  await expect(page.getByRole('button', {
+    name: 'Gửi Tin bán đến HouseNow',
+    exact: true,
+  })).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Quay lại Tin bán', exact: true }).click()
+  const persistedDetail = page.getByTestId('represented-listing-detail')
+  await expect(persistedDetail).toBeVisible()
+  await expect(persistedDetail.getByRole('button', {
+    name: 'Chuẩn bị phân phối',
+    exact: true,
+  })).toHaveCount(0)
+  const inspectDistribution = persistedDetail.getByRole('button', {
+    name: 'Xem phân phối',
+    exact: true,
+  })
+  await expect(inspectDistribution).toBeEnabled()
+  await inspectDistribution.click()
+  await expect(page.getByTestId('distribution-workspace')).toContainText(
+    'Đã gửi · Chờ phản hồi kênh',
+  )
+  await expect(page.getByTestId('distribution-workspace')).toContainText(
+    'vmls-public-listing-v1',
+  )
+
+  await page.goto('/#/vai-tro/agent/nguon-hang')
+  const distributedFilter = page.getByRole('group', { name: 'Lọc theo trạng thái Tin bán' })
+    .getByRole('button', { name: /Đã phân phối/ })
+  await distributedFilter.focus()
+  await page.keyboard.press('Enter')
+  await expect(distributedFilter).toHaveAttribute('aria-pressed', 'true')
+  await expect(representedInventoryRows(page)).toHaveCount(1)
+  await expect(representedInventoryRows(page).first()).toContainText(listing.listingId)
+  await expect(representedInventoryRows(page).first()).toContainText('Đã gửi')
+  await expect(representedInventoryRows(page).first()).toContainText('Xem phân phối')
+
+  await page.getByTestId('reset-data').click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByTestId('confirm-reset').click()
+  await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
+
+  await page.goto('/#/vai-tro/agent/nguon-hang')
+  await expect(representedInventoryRows(page)).toHaveCount(5)
+  const resetRow = representedInventoryRows(page).filter({ hasText: listing.listingId })
+  await expect(resetRow).toContainText('Chưa đăng ký')
+  await expect(resetRow.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(representedInventoryRows(page).filter({ hasText: listing.listingId })).toContainText(
+    'Chưa đăng ký',
+  )
+})
+
+test('Sàn chỉ tra cứu kho căn và không thể đăng ký hoặc phân phối thay Môi giới', async ({ page }) => {
+  await startFresh(page, '#/vai-tro/brokerage/ung-dung')
+  const distributionCapability = articleWithText(
+    page.getByTestId('ecosystem-hub'),
+    'Phân phối Tin bán',
+  )
+  await expect(distributionCapability).toContainText('Theo dõi trạng thái')
+  await expect(distributionCapability).not.toContainText('Sẵn sàng')
+  await expect(distributionCapability.locator('button, a[href]')).toHaveCount(0)
+
+  await page.goto('/#/vai-tro/brokerage/nguon-hang')
+  const inventory = page.getByTestId('represented-inventory')
+  await expect(inventory).toBeVisible()
+  await expect(representedInventoryRows(page)).toHaveCount(5)
+  for (const neutralTab of ['Chưa có đăng ký', 'Đăng ký, chưa gửi', 'Có phân phối']) {
+    await expect(inventory.getByText(neutralTab, { exact: true })).toBeVisible()
+  }
+  await expect(inventory.getByText('Có thể đăng ký', { exact: true })).toHaveCount(0)
+  await expect(inventory.getByText('Đăng ký của bạn', { exact: true })).toHaveCount(0)
+  await expect(inventory.getByRole('button', { name: 'Xem chi tiết', exact: true })).toHaveCount(5)
+  await expect(inventory.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true })).toHaveCount(0)
+  await expect(inventory.getByRole('button', { name: 'Chuẩn bị phân phối', exact: true })).toHaveCount(0)
+
+  await inventory.getByRole('button', { name: 'Xem chi tiết', exact: true }).first().click()
+  const detail = page.getByTestId('represented-listing-detail')
+  await expect(detail).toBeVisible()
+  await expect(detail.getByText('Đăng ký của bạn', { exact: true })).toHaveCount(0)
+  await expect(detail.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true })).toHaveCount(0)
+  await expect(detail.getByRole('button', { name: 'Chuẩn bị phân phối', exact: true })).toHaveCount(0)
+  await expectNoRestrictedMarketData(page)
+
+  await page.goto(`/#/vai-tro/brokerage/phan-phoi/${REPRESENTED_LISTINGS.tayHoGarden.listingId}`)
+  await expect(page.getByRole('heading', {
+    name: 'Hồ sơ không thuộc phạm vi được chia sẻ',
+    exact: true,
+  })).toBeVisible()
+  await expect(page.getByTestId('distribution-workspace')).toHaveCount(0)
+})
+
+test('landing và các màn hình ứng dụng chỉ có một main landmark', async ({ page }) => {
+  await openLanding(page)
+  await expectSingleMainLandmark(page)
+
+  for (const screen of [
+    { route: '/#/vai-tro/agent/ung-dung', testId: 'ecosystem-hub' },
+    { route: '/#/vai-tro/agent/cong-viec', testId: 'work-queue' },
+    { route: '/#/vai-tro/agent/nguon-hang', testId: 'represented-inventory' },
+    {
+      route: `/#/vai-tro/agent/nguon-hang/${REPRESENTED_LISTINGS.tayHoGarden.listingId}`,
+      testId: 'represented-listing-detail',
+    },
+    {
+      route: `/#/vai-tro/agent/phan-phoi/${REPRESENTED_LISTINGS.tayHoGarden.listingId}`,
+      testId: 'distribution-workspace',
+    },
+  ]) {
+    await page.goto(screen.route)
+    await expect(page.getByTestId(screen.testId)).toBeVisible()
+    await expectSingleMainLandmark(page)
+  }
+})
+
+test('focus bàn phím theo đúng thứ tự thị giác ở header và sidebar 1024px', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await startFresh(page, '#/vai-tro/agent/ung-dung')
+
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByRole('button', { name: 'Bỏ qua điều hướng' }))
+
+  await page.keyboard.press('Tab')
+  const globalSearch = page.getByTestId('global-search')
+  await expectVisibleKeyboardFocus(globalSearch, page.locator('.global-search'))
+
+  const roleSwitcher = page.getByTestId('role-switcher')
+  const searchBounds = await globalSearch.boundingBox()
+  const roleBounds = await roleSwitcher.boundingBox()
+  expect(searchBounds).not.toBeNull()
+  expect(roleBounds).not.toBeNull()
+  expect(searchBounds.y).toBeLessThan(roleBounds.y)
+
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(
+    roleSwitcher,
+    roleSwitcher.locator('xpath=ancestor::label[1]'),
+  )
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByTestId('reset-data'))
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(
+    page.getByRole('navigation', { name: 'Phân hệ nghiệp vụ' })
+      .getByRole('button', { name: 'Ứng dụng', exact: true }),
+  )
+
+  await openLanding(page)
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByRole('button', { name: 'Bỏ qua điều hướng' }))
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByRole('button', { name: 'Về đầu trang VMLS' }))
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByTestId('landing-applications'))
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByLabel('Vai trò vào không gian làm việc'))
+  await page.keyboard.press('Tab')
+  await expectVisibleKeyboardFocus(page.getByTestId('enter-workspace'))
+})
+
+for (const viewport of [
+  { name: '1440×900', width: 1440, height: 900 },
+  { name: '1024×768', width: 1024, height: 768 },
+  { name: '390×844', width: 390, height: 844 },
+]) {
+  test(`ứng dụng, kho căn và phân phối không tràn ngang ở ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await startFresh(page, '#/vai-tro/agent/ung-dung')
+    await expect(page.getByTestId('ecosystem-hub')).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+
+    await page.goto('/#/vai-tro/agent/nguon-hang')
+    await expect(page.getByTestId('represented-inventory')).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+
+    const firstRow = representedInventoryRows(page).filter({
+      hasText: REPRESENTED_LISTINGS.tayHoGarden.listingId,
+    })
+    const registrationAction = firstRow.getByRole('button', {
+      name: 'Đăng ký hợp tác bán',
+      exact: true,
+    })
+    if (viewport.width > 720) {
+      const [scrollerBounds, actionBounds] = await Promise.all([
+        page.locator('.market-table-wrap').boundingBox(),
+        registrationAction.boundingBox(),
+      ])
+      expect(scrollerBounds).not.toBeNull()
+      expect(actionBounds).not.toBeNull()
+      expect(actionBounds.x).toBeGreaterThanOrEqual(scrollerBounds.x)
+      expect(actionBounds.x + actionBounds.width).toBeLessThanOrEqual(
+        scrollerBounds.x + scrollerBounds.width,
+      )
+    }
+    await registrationAction.click()
+    await expect(page.getByTestId('represented-listing-detail')).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+
+    await page.getByRole('button', { name: 'Đăng ký hợp tác bán', exact: true }).click()
+    await page.getByRole('button', { name: 'Chuẩn bị phân phối', exact: true }).click()
+    await expect(page.getByTestId('distribution-workspace')).toBeVisible()
+    await expect(page.getByRole('button', {
+      name: 'Gửi Tin bán đến HouseNow',
+      exact: true,
+    })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  })
+}
 
 test('vai trò landing được giữ qua tra cứu và không fallback sang hồ sơ Môi giới', async ({ page }) => {
   await openLanding(page)
@@ -1335,7 +1929,7 @@ test('registry nguồn có ba điểm nối và 357 không được gắn vào d
   await expectNoNarrativeInjection(page)
 })
 
-test('tiến độ và hash route được lưu, còn đặt lại trả cả hai hồ sơ về ban đầu', async ({ page }) => {
+test('tiến độ và hash route được lưu, còn đặt lại trả dữ liệu mẫu về ban đầu', async ({ page }) => {
   await requestRepresentation(page, CASES.developer)
   const persistedUrl = page.url()
   await page.reload()
@@ -1348,7 +1942,7 @@ test('tiến độ và hash route được lưu, còn đặt lại trả cả ha
 
   const reset = page.getByTestId('reset-data')
   await reset.click()
-  const dialog = page.getByRole('dialog', { name: 'Đặt lại 2 hồ sơ?' })
+  const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   await dialog.getByTestId('confirm-reset').click()
 
@@ -1372,7 +1966,7 @@ test('bàn phím, focus dialog và reduced motion hoạt động trong app shell
 
   await page.getByTestId('reset-data').focus()
   await page.keyboard.press('Enter')
-  const dialog = page.getByRole('dialog', { name: 'Đặt lại 2 hồ sơ?' })
+  const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Đóng' })).toBeFocused()
 

@@ -2,12 +2,14 @@
 title: VMLS Living Registry brand direction
 status: current
 authority: canonical
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-17
 ---
 
 # VMLS Living Registry brand direction
 
-The canonical VMLS visual reference is the [Living Registry board](./assets/vmls-living-registry.png). Brand, product UI, presentations, and generated visuals must follow this direction.
+The canonical VMLS visual reference is the [Living Registry board](./assets/vmls-living-registry.png). Use the [Living Registry visual specification](./vmls-living-registry-spec.md) when translating that board into product UI, presentations, or generated visuals.
+
+The current VMLS identity is standalone. Omit `by HouseNow`, `Powered by HouseNow`, and equivalent bylines even though the historical board includes one.
 
 VMLS should feel like civic-grade market infrastructure: every asset has a durable identity, and source, verification, authorization, and audit history form a legible lifecycle. The tone is trustworthy, precise, calm, and recognizably Vietnamese rather than a generic property portal.
 

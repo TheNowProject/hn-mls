@@ -47,7 +47,7 @@
   --color-border-strong: var(--patina);
   --color-on-brand: var(--paper-white);
   --color-on-action: #28110a;
-  --color-focus: var(--color-ordinal);
+  --color-focus: var(--registry-green);
 
   --font-display: 'Be Vietnam Pro', 'IBM Plex Sans', sans-serif;
   --font-interface: 'IBM Plex Sans', sans-serif;
@@ -72,14 +72,14 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
-  --radius-sm: 0.5rem;
-  --radius-md: 0.875rem;
-  --radius-lg: 1.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
   --radius-pill: 999px;
 
-  --shadow-card: 0 1rem 3rem rgb(23 33 29 / 9%);
-  --shadow-raised: 0 1.25rem 4rem rgb(13 81 66 / 16%);
-  --focus-ring: 0 0 0 3px rgb(240 100 69 / 38%);
+  --shadow-card: 0 0.35rem 1.4rem rgb(23 33 29 / 6%);
+  --shadow-raised: 0 1rem 3rem rgb(23 33 29 / 14%);
+  --focus-ring: 0 0 0 3px rgb(107 203 177 / 42%);
   --content-max: 90rem;
 
   --duration-fast: 140ms;
@@ -123,15 +123,6 @@
   letter-spacing: -0.045em;
 }
 
-.vmls-brand-mark__wordmark small {
-  margin-top: 0.28rem;
-  color: var(--color-ink-muted);
-  font-family: var(--font-interface);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-}
-
 .vmls-brand-mark--compact {
   gap: 0.5rem;
 }
@@ -151,10 +142,6 @@
 .vmls-brand-mark--inverse .vmls-brand-mark__facet--middle-left,
 .vmls-brand-mark--inverse .vmls-brand-mark__facet--middle-right {
   fill: var(--mint-trace);
-}
-
-.vmls-brand-mark--inverse .vmls-brand-mark__wordmark small {
-  color: rgb(252 251 247 / 72%);
 }
 
 @media (prefers-reduced-motion: reduce) {

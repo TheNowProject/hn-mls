@@ -2,7 +2,7 @@
 title: VMLS public registry workbench
 status: current
 authority: working
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-17
 evidence_labels:
   - FACT
   - PROPOSAL
@@ -25,9 +25,9 @@ Evidence labels govern this document. They do not appear in product copy.
 
 The landing gives a first-time visitor a usable entrance to the VMLS data product without turning the interface into a presentation sequence. It supports five concrete jobs:
 
-1. Search the configured public projection by existing identifier or recognizable Bất động sản context.
+1. Search seven configured records by existing identifier, recognizable Bất động sản context, area, Developer, or Project.
 2. Distinguish Bất động sản/`NPID`, Tin bán/`PLID`, and Giao dịch/`PTID` as separate lifecycle objects.
-3. Inspect the current public status, next public milestone, transfer basis, and derived route for a selected record.
+3. Inspect either the public dossier projection or the safe Industry projection of a represented Tin bán without crossing into seller-private data.
 4. Inspect the field scope and factual status of VNeID, 357, and HouseNow in read-only drawers.
 5. Open the correct role queue, open an allowed role projection, or resume the last valid workspace destination.
 
@@ -38,8 +38,13 @@ It contains no testimonials, decorative KPI claims, guided story, numbered prese
 | Route | Behavior |
 |---|---|
 | `#/` | Landing with an empty search input and the first configured public record selected |
-| `#/tra-cuu?q=<query>` | Search result with query retained through refresh and browser navigation |
+| `#/tra-cuu?q=<query>&khu-vuc=<area>&chu-dau-tu=<developer>&du-an=<project>` | Search result with every active lookup condition retained through refresh and browser navigation; omitted conditions are absent from the URL |
 | `#/tra-cuu/<case-key>` | Selected public record; unknown or malformed keys show a recoverable no-result state |
+| `#/vai-tro/<role-id>/ung-dung` | Role-scoped application and external-flow catalog |
+| `#/vai-tro/agent/nguon-hang` | Searchable represented Tin bán inventory for Môi giới |
+| `#/vai-tro/brokerage/nguon-hang` | Read-only represented Tin bán inventory for Sàn môi giới |
+| `#/vai-tro/<agent-or-brokerage>/nguon-hang/<PLID>` | Role-appropriate Industry detail |
+| `#/vai-tro/agent/phan-phoi/<PLID>` | Guarded outbound distribution workspace |
 | `#/vai-tro/<role-id>/cong-viec` | Existing role-scoped work queue |
 | `#/vai-tro/<role-id>/ho-so/<case-token>/<tab>` | Existing role-scoped dossier projection |
 
@@ -49,14 +54,15 @@ The public case key is only a static-demo route key. Bank operational details co
 
 At `1440 × 900` and `1024 × 768`, the first viewport contains:
 
-- the VMLS mark with subordinate `by HouseNow` origin line;
-- navigation to `Hồ sơ` and `Điểm nối`;
+- the standalone VMLS mark, without an origin or sponsor byline;
+- navigation to `Tra cứu` and `Nguồn dữ liệu`;
 - the role selector and workspace/resume action;
 - the page heading `Tra cứu và điều phối hồ sơ`;
-- a real search form;
+- a real four-field search form for NPID/keyword, area, Developer, and Project;
+- the combined result ledger;
 - the selected public record;
 - the separate `NPID` / `PLID` / `PTID` identity trace;
-- public next-work, transfer, and deadline data.
+- the selected record's area, Developer, Project, and Bất động sản type where those fields belong to its projection.
 
 The heading is an interface label, not a marketing promise. The first viewport uses no generic real-estate image because the configured records do not provide an approved record image.
 
@@ -64,12 +70,11 @@ The heading is an interface label, not a marketing promise. The first viewport u
 
 | Component | Data | Job | Interaction |
 |---|---|---|---|
-| Search | Public allowlist over current persisted state | Find one of the configured records | Submit query; URL, selected result, and focus update |
-| Selected record | Public projection | Inspect current object identities and public lifecycle | Read identifiers; open the selected role projection when allowed, otherwise open that role's queue |
+| Search | Public dossier allowlist plus represented-market lookup projection | Find one of seven configured records | Combine NPID/keyword, area, Developer, and Project with AND semantics; submit to preserve all conditions in the URL |
+| Selected record | Public or Industry projection, selected by record type | Inspect current object identities and safe lifecycle state | Read identifiers; open a permitted dossier/Industry detail or the selected role's application hub |
 | Identity trace | Existing Property, Listing, Transaction objects | Distinguish three independent lifecycles | Read-only; `Chưa có` remains non-interactive |
-| Dossier table | Same public projection as search | Compare the two configured records | Select a record and update the selected panel/URL |
-| Session snapshot | Currently displayed records | Understand the scope of the current result set | Read-only derived counts; never a market KPI |
-| Role summary | Role projections over current state | Check scope, actionable work, and blockers before entering | Change role and open/resume its queue |
+| Result ledger | Same allowlisted records as search | Compare five represented Tin bán and two configured dossiers | Select a record and update the selected panel/URL |
+| Role entry | Role-specific routes and projections | Enter the correct work surface without privilege fallback | Change role; open/resume its application hub, queue, permitted dossier, or Industry detail |
 | External registry | Configured integration records | Inspect owner, direction, field groups, status, source and date | Open a read-only drawer or the original public URL |
 
 A component may be read-only when its job is to communicate a record value. It must not be styled as an action unless it performs one.
@@ -84,11 +89,12 @@ The client-side index contains only:
 - configured public title;
 - Bất động sản name and type;
 - Project and Unit labels;
-- generalized demo location.
+- Developer;
+- generalized demo location and area.
 
 It excludes dossier identifiers, Party names and references, contact and identity data, representation references, finance data, Bank share tokens, documents, supplement details, audit/integration payloads, and correlation identifiers.
 
-The landing consumes `projectStateForPublic(state)`, an explicit nested allowlist. It does not receive a full operational state and hide fields with CSS.
+The two transaction dossiers consume `projectStateForPublic(state)`. The five represented Tin bán consume the separate Industry lookup projection from the represented-market module. Both are explicit nested allowlists; the landing does not receive a full operational state and hide fields with CSS.
 
 Public status and next work are also allowlisted. A notary supplement is generalized to `Đang xử lý công chứng` / `Hoàn tất công chứng`; its reason, document type, responsible Party, and supplement due date do not cross the boundary.
 
@@ -97,7 +103,7 @@ Search behavior:
 - matching is accent-insensitive and case-insensitive;
 - missing future `PLID`/`PTID` values cannot be found;
 - search does not mutate dossier state or add an Audit Event;
-- query, result, refresh, browser Back, and direct-case routes stay consistent;
+- query plus all three structured filters, result, refresh, browser Back, and direct-case routes stay consistent;
 - clearing a no-result query returns to `#/`;
 - malformed encoded case routes show no result instead of selecting a default record.
 

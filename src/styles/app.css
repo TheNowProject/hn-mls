@@ -62,8 +62,8 @@ p {
 h1,
 h2,
 h3 {
-  font-family: var(--font-display);
-  letter-spacing: -0.028em;
+  font-family: var(--font-interface);
+  letter-spacing: -0.018em;
   line-height: 1.18;
 }
 
@@ -126,11 +126,10 @@ select:focus-visible,
   align-items: center;
   gap: 1.5rem;
   padding: 0.7rem 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-  background: rgb(252 251 247 / 96%);
-  box-shadow: 0 0.3rem 1.4rem rgb(23 33 29 / 5%);
-  color: var(--registry-green);
-  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgb(107 203 177 / 35%);
+  background: var(--registry-green);
+  box-shadow: 0 0.25rem 1rem rgb(23 33 29 / 10%);
+  color: var(--paper-white);
 }
 
 .header-brand {
@@ -143,8 +142,8 @@ select:focus-visible,
 .header-brand > span {
   overflow: hidden;
   padding-left: 0.8rem;
-  border-left: 1px solid var(--color-border);
-  color: var(--color-ink-muted);
+  border-left: 1px solid rgb(252 251 247 / 28%);
+  color: rgb(252 251 247 / 78%);
   font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -162,9 +161,19 @@ select:focus-visible,
 }
 
 .global-search {
-  border-color: var(--color-border);
-  background: var(--archive-ivory);
+  border-color: rgb(252 251 247 / 36%);
+  background: var(--paper-white);
   color: var(--color-ink-muted);
+}
+
+.global-search:focus-within {
+  outline: 3px solid var(--mint-trace);
+  outline-offset: 2px;
+}
+
+.table-search:focus-within {
+  outline: 3px solid var(--registry-green);
+  outline-offset: 2px;
 }
 
 .global-search svg,
@@ -204,12 +213,18 @@ select:focus-visible,
 .header-context > svg {
   width: 1.25rem;
   height: 1.25rem;
-  color: var(--registry-green);
+  color: var(--mint-trace);
 }
 
 .header-context label {
   position: relative;
   min-width: 11rem;
+}
+
+.header-context label:focus-within {
+  border-radius: var(--radius-sm);
+  outline: 3px solid var(--mint-trace);
+  outline-offset: 2px;
 }
 
 .header-context select {
@@ -219,7 +234,7 @@ select:focus-visible,
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--registry-green);
+  color: var(--paper-white);
   font-weight: 700;
 }
 
@@ -232,25 +247,30 @@ select:focus-visible,
   transform: translateY(-50%);
 }
 
+.app-header .reset-button:focus-visible,
+.app-sidebar button:focus-visible {
+  outline-color: var(--mint-trace);
+}
+
 .reset-button {
   display: inline-flex;
   min-height: 42px;
   align-items: center;
   gap: 0.45rem;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgb(252 251 247 / 38%);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--registry-green);
+  color: var(--paper-white);
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .reset-button:hover {
-  border-color: var(--registry-green);
-  background: var(--color-brand-soft);
-  color: var(--registry-green);
+  border-color: var(--mint-trace);
+  background: rgb(107 203 177 / 14%);
+  color: var(--paper-white);
 }
 
 .reset-button svg {
@@ -265,6 +285,7 @@ select:focus-visible,
 
 .app-frame > main {
   min-width: 0;
+  background: var(--archive-ivory);
 }
 
 .app-sidebar {
@@ -274,20 +295,20 @@ select:focus-visible,
   height: calc(100vh - 68px);
   flex-direction: column;
   padding: 1.25rem 0.8rem 1rem;
-  border-right: 1px solid var(--color-border);
-  background: #f8f5ed;
-  color: var(--ledger-ink);
+  border-right: 1px solid rgb(107 203 177 / 30%);
+  background: var(--registry-green);
+  color: var(--paper-white);
 }
 
 .sidebar-context {
   padding: 0.2rem 0.8rem 1.1rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid rgb(252 251 247 / 24%);
 }
 
 .sidebar-context small,
 .sidebar-context span {
   display: block;
-  color: var(--color-ink-muted);
+  color: rgb(252 251 247 / 68%);
   font-size: 0.72rem;
 }
 
@@ -312,18 +333,18 @@ select:focus-visible,
   padding: 0.65rem 0.8rem;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-ink-muted);
+  color: rgb(252 251 247 / 78%);
   text-align: left;
 }
 
 .app-sidebar nav button:hover,
 .app-sidebar nav button.is-active {
-  background: var(--color-brand-soft);
-  color: var(--registry-green);
+  background: rgb(107 203 177 / 18%);
+  color: var(--paper-white);
 }
 
 .app-sidebar nav button.is-active {
-  box-shadow: inset 3px 0 0 var(--registry-green);
+  box-shadow: inset 3px 0 0 var(--mint-trace);
   font-weight: 700;
 }
 
@@ -339,13 +360,13 @@ select:focus-visible,
   justify-content: space-between;
   margin-top: auto;
   padding: 0.8rem;
-  border-top: 1px solid var(--color-border);
-  color: var(--color-ink-muted);
+  border-top: 1px solid rgb(252 251 247 / 24%);
+  color: rgb(252 251 247 / 68%);
   font-size: 0.75rem;
 }
 
 .sidebar-foot strong {
-  color: var(--registry-green);
+  color: var(--mint-trace);
 }
 
 .page-shell,
@@ -380,7 +401,10 @@ select:focus-visible,
 
 .page-header h1 {
   margin: 0;
+  color: var(--registry-green);
+  font-family: var(--font-display);
   font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 800;
 }
 
 .page-header p {
@@ -512,7 +536,7 @@ select:focus-visible,
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--paper-white);
-  box-shadow: 0 0.25rem 1.4rem rgb(23 33 29 / 5%);
+  box-shadow: var(--shadow-card);
 }
 
 .data-table,
@@ -750,7 +774,10 @@ select:focus-visible,
 
 .dossier-heading h1 {
   margin: 0.2rem 0;
+  color: var(--registry-green);
+  font-family: var(--font-display);
   font-size: 1.55rem;
+  font-weight: 800;
 }
 
 .dossier-heading p {
@@ -1573,14 +1600,19 @@ select:focus-visible,
 @media (max-width: 1080px) {
   .app-header {
     position: relative;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 210px minmax(0, 1fr);
     min-height: 64px;
     padding: 0.65rem 0.8rem;
   }
 
   .global-search {
-    order: 3;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .header-context {
     grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .header-context > svg {
@@ -1699,6 +1731,10 @@ select:focus-visible,
 
   .header-brand .vmls-brand-mark__wordmark small {
     display: none;
+  }
+
+  .app-header {
+    grid-template-columns: minmax(7.5rem, auto) minmax(0, 1fr);
   }
 
   .header-context label {
