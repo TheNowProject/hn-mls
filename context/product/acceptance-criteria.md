@@ -2,13 +2,75 @@
 title: MVP acceptance criteria baseline
 status: draft
 authority: working
-last_reviewed: 2026-08-14
+last_reviewed: 2026-08-21
 ---
 
 # MVP acceptance criteria baseline
 
 Status: `DRAFT`
 These criteria define testable outcomes. They do not approve unresolved legal or operating policy.
+
+`SOURCE CLAIM`: The supplied process image and meeting flow describe notarization followed by Tax and land-registration work. The sequence is not independently approved legal policy.
+
+`PROPOSAL`: The following V5 criteria define the deterministic client-side demo contract. The broader MVP criteria later in this document remain product baselines outside the narrower runtime slice.
+
+## V5 executable-demo acceptance contract
+
+### V5-AC-01 Landing, catalogue, and runtime accounts
+
+- The public landing uses the Living Registry direction and the headline `Một định danh. Mọi nguồn dữ liệu. Một hành trình có thể truy vết.`
+- A lightly animated NPID–PLID–PTID/HouseNow/357/Tax/VPĐKĐĐ network respects `prefers-reduced-motion`.
+- Public search contains four to five configured Listings, prioritizes Phú Thượng, and returns only allowlisted NPID, PLID, Listing facts, and provenance.
+- Public output contains no PTID, party, contract/document, obligation, processing, notification, work-item, Audit Event, or Integration Event field.
+- `Mở tài khoản demo` exposes exactly Môi giới, Sàn môi giới, Người bán, Người mua, and Vận hành VMLS; unread badges are scoped per account.
+- Legacy/unknown routes return to the landing and never default to an Agent projection.
+
+### V5-AC-02 Identity, HouseNow snapshot, and declaration
+
+- The initial fixture has one Phú Thượng Property/NPID and Listing/PLID, a versioned `HouseNowListingSnapshot`, and no declaration or PTID.
+- NPID, PLID, external HouseNow Listing ID, contract ID, 357 transaction ID, PTID, source-case IDs, and event IDs remain distinct.
+- Only the responsible Agent can submit the configured post-notary declaration.
+- Input contains Buyer reference, whole-VND value, contract number/date, notary organization/date, required notarized-transfer-contract PDF metadata, and optional deposit-contract PDF metadata. NPID, PLID, and Seller derive from the Listing.
+- Wrong actor, PLID, missing/wrong document, malformed value/date, extra field, or second submission produces no partial change.
+- Success atomically creates `TransactionDeclaration`, PTID, Tax case/handoff, Audit Event, and Integration Event while storing no file bytes/base64/path.
+
+### V5-AC-03 357 source and reconciliation
+
+- Only VMLS Ops can synchronize the configured `TransactionSourceRecord357`, and the command succeeds at most once.
+- The Agent declaration, HouseNow Listing snapshot, and 357 transaction source remain separate immutable/provenance-bearing records.
+- Reconciliation classifies each configured field as `matched`, `mismatched`, `missing_in_vmls`, or `missing_in_357` without overwriting a source.
+- The main fixture reconciles all comparable fields. Dedicated tests cover mismatch and both missing directions.
+- Reconciliation differences remain visible to Ops but never block `ADVANCE_EXTERNAL_PROCESSING`.
+
+### V5-AC-04 Sequential external processing
+
+- Only VMLS Ops can advance processing; the command has no caller-supplied source, status, event index, or outcome.
+- Each valid invocation applies exactly one next event: Tax received → action required → both obligations completed → VPĐKĐĐ received → VPĐKĐĐ processing → complete.
+- Event 3 displays `Đã đóng thuế TNCN` and `Đã đóng lệ phí trước bạ` as separate completed rows and only then creates the VPĐKĐĐ handoff.
+- No Land Registry case exists before both obligation rows complete.
+- Duplicate, stale, skipped, exhausted, malformed, and unauthorized attempts are atomic no-ops; status never regresses and events do not duplicate.
+- 357 synchronization and external-status progression are independent and may occur in either order after declaration.
+
+### V5-AC-05 Notifications and work items
+
+- Event 2 creates exactly one Seller notification and open work item without a tax amount or allocation of legal liability.
+- Event 3 resolves the Seller work item without deleting its notification/history.
+- Event 6 completes PTID and creates exactly one Buyer notification/work item directing certificate collection at VPĐKĐĐ.
+- Only the recipient can mark a notification read; reading does not complete work or advance processing.
+- Opening a notification routes to that account's permitted dossier projection, and unread/read state survives reload.
+- The Buyer has no readiness or certificate-receipt acknowledgement command, and completion creates no `ClosingRecord`.
+
+### V5-AC-06 Projections, replay, and reset
+
+- Agent can declare and monitor; Brokerage is monitoring-only; Seller/Buyer receive recipient-scoped projections; Ops alone sees source comparison and synchronization controls.
+- Seller and Buyer never receive the other party's reference. Seller notification contains no financial amount or payer assertion.
+- Every accepted command appends the appropriate immutable history; user Audit Events, system Integration Events, and external source events remain separate.
+- V5 state round-trips through its versioned browser key. V4, malformed, tampered, or unsupported payloads fail closed to the initial fixture.
+- Successful V5 initialization removes only explicitly named legacy demo/market/VNeID keys and never clears unrelated browser storage.
+- Reset restores the Phú Thượng Listing ready for declaration, removes V5 transaction/notification progress, and returns to the landing.
+- Runtime navigation contains no Bank, Developer, VPCC, Tax, VPĐKĐĐ, VNeID, agency-operation, Buyer-readiness, Developer-transfer, or Closing Record workspace/action.
+
+## Broader MVP baseline
 
 ## AC-01 Canonical identity and relist history
 
@@ -99,7 +161,7 @@ When duplicate candidates are reviewed:
 
 ## AC-10 Buyer collaboration and consent
 
-- Buyers see only Public projections.
+- Buyers see only Public data and the purpose-bound projection of their own transaction; they never receive another Buyer's record or unrestricted Seller data.
 - Shortlist, share, contact, and viewing requests do not expose restricted Listing data.
 - Sharing data with an Agent or Bank requires clear purpose and consent scope.
 - Revocation prevents future access while preserving lawful audit/history.
@@ -145,6 +207,8 @@ Regulator scenarios remain a deferred authorization boundary and are not part of
 - Conflicting claimants, co-owners, expired authority and disputed representation enter explicit pending/blocked states and cannot be bypassed by client-side controls.
 - Every sensitive Seller action and every restricted read is purpose-, scope- and time-checked and audited.
 
-## Prototype acceptance subset
+## Relationship between V5 and the broader baseline
 
-The local prototype must demonstrate AC-01, the visible portion of AC-02 through AC-06, the access-governance flow in AC-13, role-specific denied/masked states, and complete exploration paths for Contacts, CMA, Quality and actor workspaces. It must clearly label demo identities, session-local actions and synthetic data; backend projections remain the authority for Property Intelligence fields.
+The V5 executable is accepted against V5-AC-01 through V5-AC-06. It provides visible evidence for the identity, provenance, projection, append-only history, idempotency, and integration-reconciliation principles in AC-01 and AC-04 through AC-06/AC-12. It does not claim to implement the backend enforcement, full Listing lifecycle, consent/access governance, Project inventory, CMA, production administration, or live integrations described by the broader MVP baseline.
+
+All V5 identities and source records must remain synthetic or masked. Passing V5 tests does not validate the supplied process as legal policy or approve official NPID/PTID ownership, Tax rules, VPĐKĐĐ procedure, 357 contracts, HouseNow contracts, or agency SLAs.

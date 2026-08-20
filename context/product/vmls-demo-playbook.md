@@ -1,8 +1,8 @@
 ---
-title: Kịch bản vận hành VMLS
+title: Kịch bản vận hành VMLS V5
 status: proposal
 authority: working
-last_reviewed: 2026-08-20
+last_reviewed: 2026-08-21
 evidence_labels:
   - FACT
   - SOURCE CLAIM
@@ -11,205 +11,195 @@ evidence_labels:
   - OPEN QUESTION
 ---
 
-# Kịch bản vận hành VMLS
+# Kịch bản vận hành VMLS V5
 
-## Mục đích
+## Mục đích và ranh giới
 
-Kịch bản này kiểm tra và trình diễn VMLS như một sản phẩm dữ liệu: tra cứu Bất động sản từ nguồn 357, quản lý quyền đại diện và phạm vi công khai của Tin bán, hợp tác/phân phối, khai báo Người mua, điều phối hồ sơ, và theo dõi trạng thái nhận từ hệ thống nguồn.
+Kịch bản trình diễn một hành trình duy nhất cho nhà ở có Giấy chứng nhận tại Phú Thượng:
 
-Phiên đạt yêu cầu khi người xem có thể xác định từ chính giao diện:
+```text
+HouseNow Listing snapshot
+→ Môi giới khai báo giao dịch đã công chứng
+→ VMLS đối soát bản ghi giao dịch 357
+→ Thuế
+→ VPĐKĐĐ
+→ Người mua nhận thông báo lấy Giấy chứng nhận
+```
 
-1. NPID, PLID và PTID là ba bản ghi riêng nhưng liên kết;
-2. dữ liệu Bất động sản nào đến từ bản ghi nguồn 357, phiên bản và thời điểm nào;
-3. Người bán quyết định nhóm thông tin Public nào được áp dụng;
-4. Industry projection và Public projection phục vụ hai mục đích khác nhau;
-5. Môi giới hợp tác không thay thế quyền đại diện gốc;
-6. Sàn là đơn vị khai báo Người mua, bàn giao hồ sơ công chứng và xử lý yêu cầu sửa Tin bán;
-7. đơn vị nào đang xử lý hồ sơ và trạng thái nào được đồng bộ về VMLS;
-8. VPCC, VPĐKĐĐ và Cơ quan thuế chỉ theo dõi trên VMLS, không làm nghiệp vụ tại đây;
-9. kết quả VPCC cuối tạo PTID và route; Thuế chạy song song;
-10. `Cần cập nhật` là chênh lệch phiên bản kênh, không phải xác nhận HouseNow đã tự đổi dữ liệu.
+Phiên đạt yêu cầu khi người xem nhận ra từ chính giao diện:
 
-`PROPOSAL`: Các record, command, projection và event trong kịch bản là hợp đồng pre-MVP. Quan hệ “357 cấp NPID” chưa phải interface chính thức. Nhãn bằng chứng này chỉ nằm trong tài liệu; UI dùng ngôn ngữ vận hành và không render wording giải thích nội bộ.
+1. NPID, PLID và PTID là ba identity riêng nhưng liên kết;
+2. Tin bán VMLS và `HouseNowListingSnapshot` có external ID, version và timestamp riêng;
+3. Môi giới tự khai báo và submit giao dịch sau công chứng; Sàn chỉ giám sát;
+4. khai báo VMLS và `TransactionSourceRecord357` tồn tại song song, được đối soát nhưng không ghi đè;
+5. hai nút của Vận hành VMLS độc lập: đồng bộ 357 không gate chuỗi trạng thái;
+6. Thuế hoàn thành trước khi VPĐKĐĐ được bàn giao hồ sơ;
+7. Người bán nhận thông báo cần xử lý nghĩa vụ tài chính, Người mua nhận thông báo hoàn tất;
+8. Public và mỗi tài khoản chỉ thấy projection được phép;
+9. không có bước xác nhận readiness, VPCC, Bank, Developer, agency business command, hoặc Closing Record trong runtime.
+
+`SOURCE CLAIM`: Ảnh quy trình và nội dung cuộc họp mô tả trình tự công chứng → Thuế → đăng ký đất đai. Đây chưa phải quy trình pháp lý được xác minh hoặc phê duyệt.
+
+`PROPOSAL`: Command, record, sáu event, wording trạng thái và notification dưới đây là hợp đồng demo client-side. Chúng không khẳng định có API thật, hồ sơ đã được cơ quan nhận, số tiền thuế, người có nghĩa vụ pháp lý, hoặc Giấy chứng nhận thật đã được cấp.
 
 ## Kiểm tra trước khi chạy
 
-- Mở đúng release candidate ở zoom 100%, ưu tiên `1920 × 1080`; kiểm tra thêm `1440 × 900`, `1024 × 768` và `390 × 844` trước khi quay.
-- Chọn `Đặt lại dữ liệu`, xác nhận reset, reload, rồi kiểm tra dữ liệu hồ sơ và thị trường về fixture đầu. Phiên VNeID đã xác nhận phải còn nguyên.
-- Nếu cần quay từ trạng thái chưa đăng nhập, dùng riêng `Đăng xuất`; không xóa browser storage thủ công.
-- Kiểm tra landing có `Đăng nhập bằng VNeID`, tra cứu NPID/từ khóa, khu vực, Chủ đầu tư và Dự án; NPID/PLID/PTID được trình bày riêng.
-- Kiểm tra `Ứng dụng` hiển thị đủ module/luồng theo vai trò. Card chưa triển khai không có chevron, hover hoặc nút giả.
-- Kiểm tra `Tin bán của tôi`, kho nguồn hàng, correction queue của Sàn, ba queue VPCC/VPĐKĐĐ/Thuế, và source cards của Vận hành VMLS mở được.
-- Kiểm tra các local asset VNeID, 357, HouseNow và icon HouseNow tải được; không mở website thật trong phiên quay.
-- Mở console ở cửa sổ khác để theo dõi lỗi nhưng không để lọt vào video.
+- Dùng đúng release candidate, zoom 100%; kiểm tra trước ở `1920 × 1080`, `1440 × 900`, `1024 × 768`, và `390 × 844`.
+- Chọn `Đặt lại dữ liệu`, xác nhận quay về landing, rồi reload.
+- Kiểm tra landing có headline `Một định danh. Mọi nguồn dữ liệu. Một hành trình có thể truy vết.`, public search, data-network hero, và `Mở tài khoản demo`.
+- Kiểm tra account switcher chỉ có Môi giới, Sàn môi giới, Người bán, Người mua, và Vận hành VMLS.
+- Kiểm tra Phú Thượng đứng đầu dữ liệu công khai; các Listing khác chỉ tạo chiều sâu tra cứu và không mở transaction journey riêng.
+- Kiểm tra không có PTID, khai báo, contract, party, processing, notification, hoặc internal event trong public result/DOM.
+- Kiểm tra asset và font local tải được; console không có lỗi và Network không gọi HouseNow, 357, Tax, VPĐKĐĐ, hoặc VNeID.
 
 ### Dữ liệu khóa
 
-| Hồ sơ | NPID | PLID sau xác nhận | PTID sau kết quả VPCC cuối | Căn cứ | Tuyến |
-|---|---|---|---|---|---|
-| Căn hộ S2-12A · Thụy Khuê | `NPID-HN-09876` | `PLID-HN-00125` | `PTID-HN-00031` | HĐMB với Chủ đầu tư | Chủ đầu tư / HĐMB |
-| Nhà ở · Phú Thượng | `NPID-HN-10421` | `PLID-HN-00208` | `PTID-HN-00044` | Giấy chứng nhận | VPĐKĐĐ |
-
-Kho hợp tác có năm cặp `NPID-HN-21001…21005` / `PLID-HN-31001…31005`. Chúng là fixture riêng, không phải trạng thái tương lai của hai hồ sơ giao dịch.
-
-## Video cuối — 20–22 phút, im lặng, 1080p
-
-Video dùng chính production release đã vượt smoke test, `1920 × 1080`, không audio. Callout tiếng Việt phải nằm trong khung hình và đồng thời xuất ra WebVTT. Không thao tác trên website hoặc ứng dụng VNeID, 357, HouseNow. Chỉ thao tác control của VMLS; khi cần ngữ cảnh ngoài hệ thống, dùng media local và wording bên dưới.
-
-| Thời gian | Không gian | Thao tác trong VMLS | Callout/phụ đề bắt buộc |
-|---|---|---|---|
-| 00:00–00:50 | Landing · VNeID | Chọn `Đăng nhập bằng VNeID`, xem danh tính masked/phạm vi chia sẻ, xác nhận | `VMLS ghi nhận một phiên cục bộ với danh tính đã che. Không có yêu cầu đăng nhập hoặc OTP gửi đến VNeID.` |
-| 00:50–02:15 | Tra cứu và 357 | Tra `NPID-HN-21001`, lọc khu vực/Dự án; mở provenance của một BĐS | `NPID được dùng trực tiếp từ bản ghi nguồn 357 đã cấu hình; phiên bản và hai mốc thời gian nguồn/VMLS được giữ riêng.` |
-| 02:15–03:45 | Người bán · Tin bán của tôi | Mở `PLID-HN-31001`, tắt `Vị trí chi tiết` và `Ảnh`, lưu draft rồi áp dụng; xem Public preview | `Người bán kiểm soát nhóm dữ liệu Public. Trường đã ẩn bị loại khỏi projection, không chỉ che trên màn hình.` |
-| 03:45–05:15 | Môi giới · Nguồn hàng | Mở cùng PLID, đăng ký hợp tác, kiểm tra Industry projection và gửi HouseNow | `Industry projection phục vụ hợp tác. HouseNow chỉ nhận applied Public projection; VMLS ghi nhận bàn giao cục bộ.` |
-| 05:15–06:40 | Người bán rồi Sàn | Người bán yêu cầu sửa giá; Sàn mở correction queue, đối chiếu và áp dụng | `Giá mới tạo revision Tin bán. Phiên bản đã gửi trước đó chuyển sang Cần cập nhật; VMLS không khẳng định HouseNow đã tự đổi.` |
-| 06:40–08:40 | Sàn rồi Người mua · S2-12A | Sàn khai báo Người mua; Người mua xem hợp đồng, checklist và panel 357 rồi xác nhận readiness | `Sàn khai báo Người mua. Người mua thấy dữ liệu hợp đồng và snapshot BĐS từ 357; Người bán và cơ quan ngoài không nhận danh tính này.` |
-| 08:40–09:50 | Sàn · bàn giao VPCC | Gửi hồ sơ công chứng; mở VPCC workspace ở chế độ đọc | `VPCC xử lý trên hệ thống nguồn. VMLS chỉ hiển thị hồ sơ và trạng thái được đồng bộ.` |
-| 09:50–11:30 | Vận hành VMLS | Nhận lần lượt trạng thái VPCC của S2-12A; dừng ở source cards/timeline | `Mỗi sự kiện giữ raw status, đơn vị xử lý, thời gian cập nhật tại nguồn và thời gian VMLS nhận.` |
-| 11:30–13:20 | Phú Thượng · ngoại lệ bổ sung | Đi nhanh đến bàn giao; VMLS nhận `Yêu cầu bổ sung`; Người bán gửi PDF outbound; VMLS nhận event kế tiếp | `Yêu cầu và bản gửi bổ sung đều được nối thêm. VPCC không có nút yêu cầu bổ sung trực tiếp trên VMLS.` |
-| 13:20–15:20 | Kết quả VPCC · PTID · Thuế | Nhận kết quả cuối của S2-12A; quan sát PTID/route và handoff Thuế; nhận một Tax event | `Kết quả VPCC cuối tạo PTID và route. Thuế có timeline riêng, chạy song song và không gate tuyến chuyển quyền trong demo.` |
-| 15:20–16:50 | Tuyến Chủ đầu tư | Chủ đầu tư ghi nhận tiếp nhận/xác nhận; Người mua nhận HĐMB mới | `Cùng một PTID đi qua tuyến HĐMB. Không có bước closing giả.` |
-| 16:50–18:50 | Tuyến VPĐKĐĐ | Nhận kết quả VPCC cuối của Phú Thượng; nhận các event VPĐKĐĐ đến `Đã xử lý` | `Route được xác định từ căn cứ hồ sơ. VPĐKĐĐ chỉ có queue/detail đọc trên VMLS.` |
-| 18:50–20:15 | VPCC · VPĐKĐĐ · Thuế | Chuyển ba vai trò, lọc queue và mở detail | `Ba cơ quan theo dõi hồ sơ đồng bộ với trạng thái chuẩn; không tiếp nhận, ký, phê duyệt hoặc xử lý thuế trong VMLS.` |
-| 20:15–21:30 | Môi giới · Sàn · Người bán · Người mua | So sánh cột tiến độ/đơn vị xử lý và timeline của cùng hồ sơ | `Mỗi vai thấy đúng dữ liệu cần thiết, cùng milestone nguồn và đơn vị đang xử lý, không dùng phần trăm tiến độ giả.` |
-
-Cho phép co giãn mỗi cảnh 10–20 giây để tổng video nằm trong 20–22 phút. Callout không che identifier, timestamp, source status, trường Public hoặc action chính.
-
-### Wording tích hợp trong video
-
-- **VNeID**: `Phiên đăng nhập cục bộ dùng danh tính đã che và phạm vi chia sẻ đã cấu hình; không gửi yêu cầu đến VNeID.`
-- **357**: `Bản ghi nguồn 357 cung cấp NPID và các claim BĐS đã cấu hình; ảnh chụp có ngày không chứng minh kết nối API.`
-- **HouseNow**: `VMLS gửi applied Public projection tới kênh HouseNow và theo dõi phiên bản bàn giao; không thao tác hoặc xác nhận đăng tin trên HouseNow.`
-
-Không dùng wording `mô phỏng đề xuất`, `demo giả lập`, evidence label, lời dẫn story-telling hoặc disclaimer banner trong UI/callout. Ranh giới được nói bằng sự kiện quan sát được: local session, bản ghi nguồn, payload, read-only queue, trạng thái cục bộ và timestamp.
-
-## Phiên vận hành chuẩn — 20–22 phút
-
-### A. Danh tính, nguồn và Public projection
-
-1. Ở landing, đăng nhập VNeID qua handoff hai bước. Kiểm tra header thành `Đã đăng nhập VNeID`, reload vẫn giữ phiên, và role hiện tại không đổi.
-2. Tra cứu bằng NPID, khu vực, Chủ đầu tư và Dự án. Mở BĐS và kiểm tra source record ID, version, source-updated-at, VMLS-received-at, project/developer, loại BĐS, tòa/căn, diện tích có khái niệm, và trạng thái công bố.
-3. Vào Người bán → `Tin bán của tôi` → `PLID-HN-31001`. Kiểm tra chỉ có Tin bán thuộc Seller. Tắt `Vị trí chi tiết` và `Ảnh`, `Lưu bản nháp`, sau đó `Áp dụng cấu hình`.
-4. Kiểm tra preview Public không còn hai nhóm đã tắt; PLID, loại giao dịch/BĐS, khu vực tổng quát và liên hệ kinh doanh của Môi giới vẫn có và không thể bỏ.
-
-### B. Hợp tác, phân phối và sửa giá
-
-5. Vào Môi giới, tra `PLID-HN-31001`, đăng ký hợp tác và kiểm tra Representation/Môi giới phụ trách gốc không đổi.
-6. Mở phân phối, kiểm tra payload HouseNow đúng applied Public version và không có Seller identity, evidence, Buyer, finance, VPCC, PTID, audit hoặc correlation data. Gửi một lần.
-7. Vào Người bán, yêu cầu sửa `askingPrice`. Người bán chỉ nhập/đề xuất giá mới; không sửa trực tiếp fixture nguồn hoặc revision cũ.
-8. Vào Sàn, mở correction queue, kiểm tra PLID, old/new value, người gửi, trạng thái, hạn xử lý; áp dụng. Kiểm tra revision mới, Audit Event mới, channel `Cần cập nhật`, reconciliation event và không có claim remote-update.
-
-### C. Buyer, readiness và handoff
-
-9. Với S2-12A, Môi giới nhập exact NPID, scope và term; Người bán xác nhận; kiểm tra PLID tự tạo ở `Đã khởi tạo`.
-10. Vào Sàn, khai báo Buyer bằng mã định danh, giá thỏa thuận và ngày dự kiến ký. Kiểm tra Môi giới không có action này.
-11. Vào Người mua, kiểm tra họ tên masked, mã định danh, NPID, giá/ngày ký, checklist, và `Dữ liệu BĐS từ 357`. Xác nhận readiness; consent Ngân hàng là tùy chọn.
-12. Vào Sàn và bàn giao hồ sơ công chứng. Kiểm tra VPCC queue nhận journey dossier nhưng chỉ có filter, tìm kiếm và detail.
-
-### D. Nhận trạng thái ngoài VMLS
-
-13. Vào Vận hành VMLS, mở S2-12A và dùng `Nhận cập nhật` đúng source VPCC. Mỗi lần phải lấy event kế tiếp, không bỏ qua và không cho event cũ làm lùi state.
-14. Với Phú Thượng, đi đến bàn giao; nhận chuỗi VPCC tới `Yêu cầu bổ sung`. Vào Người bán gửi tài liệu PDF outbound, rồi quay lại VMLS nhận event tiếp theo.
-15. Nhận kết quả VPCC cuối cho cả hai hồ sơ. Kiểm tra contract ID, PTID, route, Tax handoff, và VPĐKĐĐ handoff của Phú Thượng được tạo tự động.
-16. Nhận Tax status song song. Hoàn tất tuyến Chủ đầu tư/HĐMB cho S2-12A và nhận VPĐKĐĐ events cho Phú Thượng. Tax chưa hoàn tất không được chặn hai route.
-
-### E. Cross-role monitoring
-
-17. Mở queue/detail của Môi giới, Sàn, Người bán, Người mua; kiểm tra `Tiến độ hồ sơ`, `Đơn vị đang xử lý` và timeline theo quyền.
-18. Mở lần lượt VPCC, VPĐKĐĐ, Cơ quan thuế; mỗi queue có ít nhất 5–6 hồ sơ masked/synthetic, bốn trạng thái chuẩn, mã hồ sơ nguồn, NPID, PTID nếu có, BĐS, đơn vị xử lý, thời gian nguồn và thời gian VMLS nhận. Không có business action.
-19. Mở Ngân hàng với một hồ sơ không consent và một hồ sơ consent. Hồ sơ không consent phải biến mất; hồ sơ consent chỉ có finance projection.
-20. Reload direct hash route, kiểm tra replay; reset business data và xác nhận phiên VNeID vẫn còn. Đăng xuất VNeID riêng.
-
-## Hợp đồng command và payload
-
-Command sai actor, sai state, thừa/thiếu key hoặc payload không hợp lệ phải để toàn bộ state không đổi.
-
-| Actor | Command | Payload/check chính |
+| Object | Fixture V5 | Trạng thái đầu |
 |---|---|---|
-| Người bán | `SAVE_PUBLICATION_DRAFT` | PLID thuộc Seller; danh sách optional group hợp lệ; locked group không nhận từ form |
-| Người bán | `APPLY_PUBLICATION_PROFILE` | PLID đúng; applied version lấy từ draft hiện tại |
-| Người bán | `REQUEST_LISTING_CORRECTION` | `askingPrice`, old/new whole-VND; Seller không tự apply |
-| Người bán | `SUBMIT_SUPPLEMENT_HANDOFF` | đúng hồ sơ/yêu cầu, loại tài liệu, tên tệp PDF |
-| Sàn | `DECLARE_BUYER` | mã định danh Người mua, giá thỏa thuận VND nguyên, ngày dự kiến ký |
-| Sàn | `APPLY_LISTING_CORRECTION` | đúng request đang chờ và PLID trong Organization scope |
-| Sàn | `HANDOFF_NOTARY_DOSSIER` | đúng hồ sơ, readiness và tập tài liệu bắt buộc |
-| Vận hành VMLS | `RECEIVE_EXTERNAL_EVENT` | `{ caseId, source }`; chỉ event kế tiếp của đúng hồ sơ/nguồn |
-| VNeID local | `CONFIRM_VNEID_LOGIN` | danh tính masked và sharing scope đã cấu hình; không nhận role |
-| VNeID local | `LOGOUT_VNEID` | chỉ xóa session, không đổi business state |
+| Bất động sản | Nhà ở · Phú Thượng, `NPID-HN-10421` | Có sẵn |
+| Tin bán | `PLID-HN-00208` | Có sẵn và liên kết NPID |
+| HouseNow source | external Listing ID + version + source/VMLS timestamps đã cấu hình | Snapshot chỉ đọc |
+| Khai báo giao dịch | Môi giới submit sau công chứng | Chưa có |
+| Giao dịch | PTID VMLS | Chưa có; tạo khi submit |
+| 357 transaction source | source transaction ID + provenance đã cấu hình | Chưa sync |
+| Tax/VPĐKĐĐ events | Sáu event deterministic | Chưa nhận |
+| Notifications | Seller tax due; Buyer completion | Chưa có |
 
-VPCC, VPĐKĐĐ và Cơ quan thuế luôn có `allowedActions=[]`. Kiểm tra DOM không có nút tiếp nhận, ký, phê duyệt, yêu cầu bổ sung hoặc quyết định thuế.
+Tất cả identity, organization, document, timestamp, source record, obligation và notification đều synthetic hoặc masked. UI gắn dữ liệu bằng `Bộ dữ liệu mẫu`; không trình bày fixture date như dữ liệu live trong tương lai.
+
+## Phiên vận hành chuẩn
+
+### A — Landing, public search, và tài khoản
+
+1. Quan sát headline và data-network hero. Bật reduced motion ở hệ điều hành/browser và xác nhận hành trình không phụ thuộc animation.
+2. Tra cứu `NPID-HN-10421`, `PLID-HN-00208`, rồi một từ khóa địa điểm. Xác nhận Phú Thượng được ưu tiên và các kết quả khác chỉ tạo chiều sâu Listing.
+3. Quan sát thẻ kết quả Phú Thượng. Chỉ ra NPID, PLID, safe Listing fields, HouseNow source/version/timestamps; xác nhận không có PTID hay dữ liệu giao dịch riêng tư. Hành trình riêng tư chỉ mở qua account switcher.
+4. Chọn `Mở tài khoản demo`, dùng bàn phím đi qua năm tài khoản, rồi vào Môi giới.
+
+### B — Môi giới khai báo giao dịch đã công chứng
+
+5. Mở hồ sơ Phú Thượng. So sánh NPID, PLID và HouseNow external Listing ID; ba giá trị không thay thế nhau.
+6. Điền Buyer reference, giá giao dịch nguyên VND, số/ngày hợp đồng, VPCC và ngày công chứng.
+7. Gắn metadata PDF của HĐ chuyển nhượng đã công chứng; HĐ đặt cọc là tùy chọn. Giao diện không upload hoặc giữ byte nội dung.
+8. Submit. Kiểm tra đồng thời xuất hiện:
+   - `TransactionDeclaration`;
+   - PTID;
+   - hồ sơ/handoff Thuế;
+   - Audit Event cho hành động Môi giới;
+   - Integration Event cho handoff hệ thống.
+9. Kiểm tra submit lần hai bị vô hiệu/no-op. Chuyển sang Sàn, xác nhận Sàn chỉ theo dõi và không có nút khai báo, phê duyệt, hoặc handoff.
+
+### C — Hai nút Vận hành VMLS
+
+10. Chuyển sang Vận hành VMLS. Hai nút phải cùng được bật sau submit:
+    - `Đồng bộ từ 357`;
+    - `Đồng bộ từ Thuế và VPĐKĐĐ` với preview mốc kế tiếp.
+11. Chọn `Đồng bộ từ 357`. So sánh khai báo Môi giới và bản ghi 357 theo từng trường; fixture chính hiển thị `matched`. Hai source card vẫn tồn tại riêng.
+12. Kiểm tra nút 357 chuyển thành `Đã đồng bộ` và không thể tạo bản ghi/event thứ hai.
+13. Trong một lần chạy QA riêng, reset và bấm status trước 357 để chứng minh 357 không gate tiến độ.
+
+### D — Sáu mốc Thuế → VPĐKĐĐ
+
+Mỗi lần bấm `Đồng bộ từ Thuế và VPĐKĐĐ` chỉ nhận mốc kế tiếp. Trước khi bấm, đọc preview; sau khi bấm, kiểm tra event/timeline và side effect.
+
+| Lần bấm | Kết quả bắt buộc | Kiểm tra chéo |
+|---:|---|---|
+| 1 | Thuế đã tiếp nhận; có giấy hẹn/chờ thông báo nghĩa vụ tài chính | Chưa có Seller notification; chưa có VPĐKĐĐ case |
+| 2 | Có nghĩa vụ tài chính cần xử lý | Tạo đúng một Seller notification + open work item, không có số tiền/người chịu khoản |
+| 3 | Hai dòng riêng: `Đã đóng thuế TNCN`, `Đã đóng lệ phí trước bạ` | Seller work item đóng; VPĐKĐĐ handoff/case mới được tạo |
+| 4 | VPĐKĐĐ đã tiếp nhận hồ sơ TTHC đăng ký sang tên | Processing source/timestamp hiện đúng; PTID chưa complete |
+| 5 | VPĐKĐĐ đang xử lý TTHC | Không dùng phần trăm hoặc SLA giả |
+| 6 | Hoàn tất xử lý sang tên | PTID complete; tạo đúng một Buyer notification + work item lấy Giấy chứng nhận tại VPĐKĐĐ |
+
+14. Sau lần bấm 2, chuyển sang Người bán. Xác nhận unread badge, mở notification và kiểm tra:
+    - notification chỉ dành cho Seller;
+    - wording yêu cầu xử lý nghĩa vụ tài chính nhưng không có amount hoặc legal-liability claim;
+    - mở notification đánh dấu read và đi tới đúng safe dossier;
+    - work item vẫn open cho đến event 3.
+15. Quay lại Ops, bấm event 3. Trở lại Seller và xác nhận work item đã đóng nhưng notification/history còn nguyên.
+16. Hoàn tất event 4–6. Chuyển sang Người mua, mở notification và kiểm tra chỉ dẫn nhận Giấy chứng nhận tại VPĐKĐĐ.
+17. Xác nhận Buyer không có nút `Đã nhận sổ`; hệ thống không tạo Closing Record.
+
+### E — Projection, replay, và reset
+
+18. So sánh cùng PTID qua Agent, Brokerage, Seller, Buyer, và Ops:
+    - Agent thấy khai báo và milestone cần thiết;
+    - Brokerage thấy Organization monitoring projection;
+    - Seller và Buyer không thấy Party reference của nhau;
+    - chỉ Ops thấy chi tiết reconciliation và event identities.
+19. Reload ở trạng thái Seller notification read và trạng thái completed. Kiểm tra account, unread/read, PTID, reconciliation, obligation, và event index giữ nguyên.
+20. Mở một hash V4 hoặc hash không biết. Phải về landing, không fallback sang Agent.
+21. Chọn `Đặt lại dữ liệu`. Kiểm tra quay về landing, Phú Thượng sẵn sàng declaration, PTID/357/status/notification bị xóa, các Listing fixture còn nguyên, và browser-storage key không liên quan không bị xóa.
+
+## Command contract
+
+Command sai actor, sai state, thừa/thiếu key, hoặc payload không hợp lệ phải để toàn bộ state không đổi.
+
+| Actor | Command | Contract chính |
+|---|---|---|
+| Môi giới | `SUBMIT_TRANSACTION_DECLARATION` | Một PLID được gán; exact post-notary fields; required notarized-contract PDF metadata; optional deposit PDF metadata; one-shot |
+| Vận hành VMLS | `SYNC_TRANSACTION_FROM_357` | Chỉ sau declaration; exact configured source record; one-shot; không overwrite, không gate |
+| Vận hành VMLS | `ADVANCE_EXTERNAL_PROCESSING` | Reducer tự chọn event kế tiếp; caller không truyền source/status/index; tối đa sáu lần hợp lệ |
+| Tài khoản nhận | `MARK_NOTIFICATION_READ` | Chỉ notification của chính tài khoản; chỉ đổi read metadata |
+
+Không có mutable command cho Brokerage. Không có runtime command/workspace cho Bank, Developer, VPCC, Tax, VPĐKĐĐ, VNeID, Buyer readiness, certificate acknowledgement, hay Closing Record.
 
 ## Kiểm tra projection và lịch sử
 
-- Public search và HouseNow phải serialize applied Public projection; group tắt không được xuất hiện trong DOM/payload.
-- Industry projection không tự thay đổi theo Public setting và không lộ Seller identity/contact, Representation evidence, Buyer, finance, VPCC, PTID, audit hoặc correlation ID.
-- Seller chỉ thấy Tin bán của mình; correction giữ old/new/request/apply/revision theo thứ tự append.
-- Buyer identity không xuất hiện trong Seller hoặc external-agency projection.
-- Buyer panel 357 không chứa owner identity, CCCD hoặc private transaction history.
-- External event giữ raw status, normalized status, source system, processing organization, source time và received time.
-- Duplicate external event không nối thêm; event cũ không làm lùi status.
-- External status history và Audit Event không được trộn vào một collection.
-- NPID, PLID, PTID, source case ID, contract ID và idempotency/correlation ID không được dùng thay nhau.
-
-## Review sâu 60 phút
-
-| Phút | Mô-đun | Câu hỏi review |
-|---|---|---|
-| 00–10 | NPID và provenance 357 | Ai sở hữu official NPID, field claim, version, correction và conflict-resolution contract? |
-| 10–20 | Representation và PublicationProfile | Locked/optional groups có đúng Public policy; ai duyệt thay đổi nhạy cảm? |
-| 20–30 | Industry, hợp tác và HouseNow | Ai duyệt Môi giới hợp tác, consent kênh, retry/reconciliation và gỡ tin? |
-| 30–40 | Buyer và privacy | Vì sao Sàn khai báo; projection nào cho Agent/Buyer/Seller/Bank/cơ quan ngoài? |
-| 40–50 | VPCC, supplement, PTID, Tax | Inbound event contract, idempotency, sequencing và tax gating chính thức là gì? |
-| 50–60 | VPĐKĐĐ/Developer và cross-role monitoring | Route/rule version, source ownership, SLA và completion semantics do ai phê duyệt? |
+- Public result serialize bằng allowlist và structurally omit mọi private transaction field.
+- `HouseNowListingSnapshot`, `TransactionDeclaration`, và `TransactionSourceRecord357` là ba record riêng với provenance riêng.
+- Reconciliation output không mutate source input; mismatch/missing chỉ tạo cảnh báo cho Ops.
+- Seller notification không chứa amount hoặc payer allocation; Buyer completion không đồng nghĩa đã nhận sổ.
+- Duplicate command/event không nối thêm source, event, notification, work item, Audit Event, hoặc Integration Event.
+- Event cũ/skip không làm lùi hoặc nhảy status; không có Land case trước event 3.
+- User Audit Events, system Integration Events, và ExternalStatusEvents không dùng chung collection.
+- NPID, PLID, PTID, HouseNow Listing ID, 357 transaction ID, contract ID, source case ID, notification ID, và idempotency ID không được dùng thay nhau.
 
 ## Persistence và reset
 
 ### Tiếp tục
 
-- Journey commands replay từ storage `v4`; market governance và VNeID dùng store riêng.
-- Payload cũ, sai schema hoặc bị sửa phải reset store tương ứng an toàn.
-- Reload hoặc direct hash route phải khôi phục cùng projection và milestone.
+- Journey replay từ V5 storage key/schema; không replay command V4 với semantics mới.
+- Payload cũ, sai schema, sai actor/action, hoặc bị sửa reset an toàn về fixture đầu.
+- Reload/direct valid route khôi phục đúng role projection, unread state, reconciliation, và event index.
+- Chỉ legacy keys được allowlist mới bị dọn sau khi V5 khởi tạo thành công; không gọi `localStorage.clear()`.
 
 ### Đặt lại dữ liệu mẫu
 
 1. Chọn `Đặt lại dữ liệu` và xác nhận.
-2. Kiểm tra hai dossier, market registration/distribution, PublicationProfile/correction và external event progress về fixture đầu.
-3. Kiểm tra năm inventory fixture, source records và bundled assets vẫn còn.
-4. Kiểm tra VNeID session không bị xóa; dùng `Đăng xuất` riêng khi cần.
+2. Kiểm tra declaration, PTID, 357 record/reconciliation, external progress, obligations, notifications, và work items về trạng thái đầu.
+3. Kiểm tra Property, Listing, HouseNow snapshot, public catalogue, local assets, và unrelated browser-storage sentinel vẫn còn.
+4. Kiểm tra route quay về landing.
 
-## Fallback khi trình diễn hoặc quay
+## Fallback khi trình diễn
 
-- Nếu storage không dùng được, chạy trong một phiên liên tục và ghi giới hạn vào QA report.
-- Nếu một source event không nhận được, kiểm tra đúng `caseId`, source, handoff prerequisite và next fixture; không đổi vai cơ quan để ép state.
-- Nếu projection còn field đã tắt, dừng quay: đây là lỗi privacy, không dùng CSS/crop để che.
-- Nếu external queue có action nghiệp vụ, dừng quay: ba workspace phải read-only.
-- Nếu local asset lỗi, dùng bản build local đã kiểm chứng từ cùng release candidate; không thay bằng website live.
-- Nếu production smoke thất bại, rollback về deployment ready trước và không quay trên release lỗi.
-- Nếu video callout che UI, quay lại cảnh; không sửa bằng crop làm mất identifier/timestamp.
+- Nếu declaration không submit, kiểm tra đúng Agent, PLID, required PDF metadata, media type, value/date, và không có extra field; không chỉnh fixture bằng DevTools.
+- Nếu 357 không sync, kiểm tra declaration đã tồn tại và nút chưa chạy; không dùng source record để overwrite khai báo.
+- Nếu status không tiến, kiểm tra đúng Ops và preview next event; không truyền/ép source hoặc status tùy ý.
+- Nếu Seller/Buyer thấy dữ liệu của Party kia, dừng demo: đây là lỗi privacy, không dùng CSS/crop để che.
+- Nếu Land case xuất hiện trước event 3 hoặc notification bị duplicate, dừng demo: đây là lỗi state integrity.
+- Nếu production smoke thất bại, dùng release candidate đã xác minh hoặc rollback; không quay trên deployment lỗi.
 
 ## Checklist cuối phiên
 
-- [ ] Landing là workbench dữ liệu, có VNeID entry và bốn tiêu chí tra cứu thật; không phải portfolio hero.
-- [ ] Header/logo chỉ là VMLS; không có `Powered by HouseNow`.
-- [ ] 357-issued NPID được gắn `PROPOSAL` trong tài liệu nhưng UI không render evidence label.
-- [ ] Property provenance có source record, version và hai timestamp; không lộ owner/CCCD/private history.
-- [ ] Seller chỉ thấy PLID của mình, có draft/applied Public profile, preview và correction request.
-- [ ] Detailed location/images bị omit sau khi apply; locked groups vẫn còn.
-- [ ] Môi giới đăng ký hợp tác; Sàn khai báo Buyer và bàn giao VPCC.
-- [ ] HouseNow dùng applied Public projection; correction sau send tạo `Cần cập nhật` và reconciliation event.
-- [ ] Buyer thấy contract/checklist/357 panel; Seller và external agency không thấy Buyer identity.
-- [ ] Môi giới/Sàn/Seller/Buyer có milestone + processing organization + source timeline.
-- [ ] VPCC/VPĐKĐĐ/Tax queue có 5–6 hồ sơ, filter/search/detail và không có business command.
-- [ ] VMLS nhận event tuần tự/idempotent/non-regressive; external events tách khỏi Audit Events.
-- [ ] Final VPCC event tạo PTID/route/Tax handoff; Tax không gate; hai transfer outcome hoàn tất.
-- [ ] VNeID session qua reload, độc lập role/reset, logout riêng, không có external request.
-- [ ] Giao diện không render `PROPOSAL`, `mô phỏng đề xuất`, product-story copy hoặc disclaimer banner.
-- [ ] MP4/WebM 1080p im lặng, callout tiếng Việt trong hình, VTT khớp timing, full decode/frame sample/checksum đều PASS.
+- [ ] Landing đúng Living Registry, headline, public search, network hero, reduced motion.
+- [ ] Public catalogue có 4–5 Listings, Phú Thượng ưu tiên, không lộ private transaction data.
+- [ ] Account switcher có đúng 5 tài khoản và badge theo tài khoản.
+- [ ] HouseNow snapshot có external ID/version/timestamps và không bị mutate.
+- [ ] Agent submit post-notary declaration; Sàn monitoring-only.
+- [ ] Submit tạo PTID, Tax handoff, Audit Event, và Integration Event atomically.
+- [ ] 357 là transaction source riêng, one-shot, đối soát từng field, không overwrite/gate.
+- [ ] Status sync tiến đúng sáu mốc Thuế → VPĐKĐĐ, mỗi lần một event.
+- [ ] Seller notification ở event 2; hai obligations complete và Land handoff ở event 3.
+- [ ] Buyer notification ở event 6; không acknowledgement hoặc Closing Record.
+- [ ] Không còn Bank/Developer/VPCC/Tax/VPĐKĐĐ/VNeID/Buyer-readiness runtime workspace.
+- [ ] Reload/direct route/reset/storage migration fail closed đúng contract.
+- [ ] Không có external request, fake legal claim, fake amount, fake SLA, hoặc future-live date.
 
 ## Ranh giới bằng chứng cho reviewer
 
-- `FACT`: Static build, bundled assets, configured values, reducer guards, browser stores và UI behavior có thể kiểm tra trực tiếp.
-- `FACT`: VNeID, 357 và HouseNow media là local dated captures; không media nào tự chứng minh live integration.
-- `PROPOSAL`: 357 cấp NPID, PublicationProfile, correction/reconciliation, Buyer ownership, external event contract, Tax parallel và route là giả thuyết sản phẩm hiện tại.
-- `OPEN QUESTION`: official identifier owner, legal state transition, field policy, tax decision/gating, entitlement, interface contract, retry/SLA và downstream reconciliation cần stakeholder có thẩm quyền phê duyệt.
-- Dữ liệu công khai phải synthetic/masked. Không nhập danh tính, liên hệ, tài chính, tài liệu hoặc credential thật.
+- `FACT`: Static build, reducer guards, configured fixtures, browser state, local assets, and rendered behavior can be inspected directly.
+- `SOURCE CLAIM`: The supplied process image and meeting statements describe a sequence from notarization through Tax and land registration.
+- `PROPOSAL`: V5 record ownership, PTID timing, HouseNow snapshot, 357 source/reconciliation, six-event sequence, obligations, and notification timing are the current demo contract.
+- `OPEN QUESTION`: Official identifiers, legal sequencing, tax/fee liability, source message schemas, authority, completion evidence, integration security, retry/SLA, retention, and production entitlements require approval.
+- Dữ liệu phải synthetic/masked. Không nhập danh tính, liên hệ, tài chính, document contents, hoặc credentials thật.

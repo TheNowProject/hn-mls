@@ -2,7 +2,7 @@
 title: VMLS domain language
 status: current
 authority: canonical
-last_reviewed: 2026-08-20
+last_reviewed: 2026-08-21
 ---
 
 # VMLS domain language
@@ -11,35 +11,51 @@ VMLS standardizes the language used to describe durable real-estate identities, 
 
 ## Operational workspace vocabulary
 
-> **PROPOSAL:** These Vietnamese labels and configured identifiers are scoped to the static VMLS operational prototype. They preserve object boundaries while users search, inspect, and process records; they do not establish an official identifier, legal record, production lifecycle, or final Vietnamese domain translation. Repository evidence labels remain in maintained documentation and review artifacts, not in the product interface.
+> **PROPOSAL:** These Vietnamese labels and configured identifiers are scoped to the static VMLS V5 demo. They preserve object and source boundaries; they do not establish official identifiers, legal records, production lifecycles, integration contracts, or final Vietnamese domain translations. Repository evidence labels remain in maintained documentation and review artifacts, not in the product interface.
 
 **Bất động sản / NPID**:
-The workspace label and configured reference for the durable Property. It persists independently from each Tin bán or Giao dịch. In the V4 demo, the configured 357 source record issues the NPID and VMLS uses it directly; this relationship remains a `PROPOSAL` until an official interface and identifier owner are approved.
-_Avoid_: PLID, PTID, Tin bán, Giao dịch, VMLS-generated NPID, established official government identifier
+The workspace label and configured reference for the durable Property. It persists independently from every Tin bán, source snapshot, declaration, and Giao dịch. V5 does not claim that HouseNow or 357 officially issues this identifier.
+_Avoid_: PLID, PTID, Tin bán, Giao dịch, HouseNow Listing ID, 357 transaction ID, established government identifier
 
 **Tin bán / PLID**:
-The sale/transfer-only workspace rendering of a Listing and its separate configured identifier. Status `Đã khởi tạo` means the Listing record exists; it does not mean Active, approved, or publicly distributed.
-_Avoid_: Bất động sản, NPID, Giao dịch, PTID, every future Listing type
+The workspace rendering of one Listing and its separate configured identifier. A PLID does not imply that the Listing is Active, approved, publicly distributed, or currently synchronized to HouseNow.
+_Avoid_: Bất động sản, NPID, HouseNow Listing ID, Giao dịch, PTID
 
 **Giao dịch / PTID**:
-A separate VMLS orchestration reference configured for the prototype and created after the notarization result. It may later map to an official identifier if an approved integration provides one; the configured PTID is not an official code, Closing Record, Property, Listing, or HouseNow billing `Transaction`.
-_Avoid_: NPID, PLID, Closing Record, official transaction identifier
-
-**Tuyến chuyển quyền / Transfer Route**:
-The branch automatically derived from configured dossier data: VPĐKĐĐ for the synthetic landed Property or Chủ đầu tư/HĐMB for the supplied apartment case. The user does not select the branch, and implementation does not make either route approved Vietnam policy.
-_Avoid_: user-selected destination, legal determination, universal Vietnam workflow
+A separate VMLS orchestration reference created in V5 when the Agent's valid post-notary transaction declaration is accepted. It may later map to an official identifier if an approved integration provides one; it is not an official code, Closing Record, Property, Listing, contract number, or HouseNow billing `Transaction`.
+_Avoid_: NPID, PLID, Closing Record, contract ID, 357 transaction ID, official transaction identifier
 
 **Mã định danh Bất động sản**:
-The Vietnamese interface label for the configured `NPID` supplied to the representation request. In this demo the Property is already identified before the Agent starts the request; this field is not a candidate-matching control.
-_Avoid_: Mã BĐS, candidate ID, source-record ID
+The Vietnamese interface label for the configured `NPID`. Public lookup may return it, but it remains distinct from every external source-record key.
+_Avoid_: Mã BĐS, HouseNow Listing ID, 357 transaction ID, source-record ID
 
 **Mã định danh Người bán / Người mua / Người đại diện**:
-The Vietnamese interface labels for the configured `Party.reference` values used across the operational workflow. They remain distinct from the masked identity-document reference such as CCCD shown separately when permitted.
-_Avoid_: Mã Người mua, Mã Người bán, Tham chiếu Người mua, CCCD as the Party record ID
+The Vietnamese interface labels for configured `Party.reference` values. They are Restricted transaction data unless a narrower projection is approved and remain distinct from identity-document references such as CCCD.
+_Avoid_: NPID, PLID, PTID, CCCD as Party record ID, a Public Listing field
 
-**Bản ghi nguồn Bất động sản 357 / PropertySourceRecord357**:
-The configured source record from which VMLS receives the NPID and permitted Property claims. It keeps a source record ID, source version, source update time, VMLS receipt time, and field-level claims for project/developer, location, property type, building/unit, named area concepts, and publication state. It excludes owner identity, CCCD, and private transaction history. The V4 demo contract that 357 issues the NPID is a `PROPOSAL`, not evidence of a live or approved interface.
-_Avoid_: Bất động sản itself, owner record, live 357 API response, proof of official integration
+**Ảnh chụp Tin bán HouseNow / HouseNowListingSnapshot**:
+An immutable, versioned local source snapshot linked to one VMLS Listing. It retains the external Listing ID, source version, source-updated time, VMLS-received time, and only the configured Listing claims. It is neither the canonical Property nor proof of a live HouseNow export, API, publication, or acknowledgement.
+_Avoid_: Listing itself, Property, editable current HouseNow state, live feed response, Distribution Event
+
+**Khai báo giao dịch / TransactionDeclaration**:
+The Agent-authored, transaction-scoped post-notary declaration accepted for one configured PLID. It contains Buyer reference, whole-VND transaction value, contract/notary facts, and file metadata. The notarized transfer-contract PDF metadata is required; deposit-contract metadata is optional. It never stores document bytes in V5.
+_Avoid_: BuyerDeclaration, Listing edit, 357 source record, proof of legal validity, uploaded document contents
+
+**Bản ghi giao dịch nguồn 357 / TransactionSourceRecord357**:
+An independent transaction source record synchronized after the VMLS declaration. It preserves source transaction ID, NPID, contract/value facts, masked Buyer/Seller values, notary organization, source timestamp, VMLS receipt timestamp, and provenance. It does not issue the V5 NPID, replace the HouseNow snapshot, or overwrite the Agent declaration.
+_Avoid_: PropertySourceRecord357, TransactionDeclaration, Giao dịch/PTID, live 357 API response, official approval
+
+**Kết quả đối soát / ReconciliationResult**:
+An append-oriented comparison between the Agent declaration and one 357 source record. Each configured field is `matched`, `mismatched`, `missing_in_vmls`, or `missing_in_357`. A difference creates visible investigation context but does not silently merge, overwrite, or block the V5 status demo.
+_Avoid_: Merge Decision, corrected source record, authoritative legal determination, synchronization success flag
+
+**Nghĩa vụ tài chính / FinancialObligation**:
+A transaction-scoped projected row for one configured obligation label. V5 displays personal income tax and registration fee separately and records completion from the deterministic source-event sequence. It contains no calculated amount and does not establish who legally owes a charge.
+_Avoid_: tax calculation, invoice, legal liability, proof of payment from a live authority
+
+**Thông báo và việc cần làm / Notification and WorkItem**:
+Recipient-scoped records derived from a material transaction event. A notification communicates the milestone; its linked work item records whether follow-up remains open. Marking a notification read does not complete the work item or advance the external process.
+_Avoid_: ExternalStatusEvent, Audit Event, email/SMS delivery proof, lifecycle command
 
 ## Asset identity
 
@@ -98,21 +114,21 @@ The field-group policy attached to one PLID that determines its Public projectio
 _Avoid_: Industry projection, consent for every channel, frontend-only hiding, editing the source Property
 
 **Yêu cầu chỉnh sửa Tin bán / SellerCorrectionRequest**:
-An append-oriented proposal from the owning Seller to change a permitted Listing value. The V4 demo uses `askingPrice`: the Seller records old/new values, the Brokerage applies or rejects the request, and an accepted request creates a new Listing revision. It does not rewrite prior events or the 357 source record.
+An append-oriented proposal from the owning Seller to change a permitted Listing value. An approved implementation may apply it as a new Listing revision without rewriting prior events or source records. The concept remains in the broader product model but is not a V5 runtime command.
 _Avoid_: direct Seller mutation, Property-source correction, silent downstream update
 
 **Khai báo Người mua / BuyerDeclaration**:
-A transaction-scoped declaration created by the Brokerage after the Listing and representation prerequisites are satisfied. It contains the Buyer Party reference, agreed price, and expected signing date; the masked name is resolved from the configured Party record rather than entered again. Its projection is purpose- and role-specific.
-_Avoid_: Agent-created buyer record, public Listing field, ownership claim, external-agency identity payload
+A standalone, transaction-scoped declaration of Buyer participation. It remains a possible broader-domain record but is not created in V5: V5 places the Restricted Buyer reference inside the Agent's post-notary `TransactionDeclaration` instead.
+_Avoid_: TransactionDeclaration, Public Listing field, ownership claim, external-agency identity payload
 
 **Closing Record**:
-The permitted record of a completed transaction outcome related to a Listing, kept separate from Property and Listing identities.
+The permitted record of a completed transaction outcome related to a Listing, kept separate from Property and Listing identities. V5 completes the PTID and notifies the Buyer but deliberately creates no Closing Record.
 _Avoid_: Listing, Property History
 
 ## Parties and authority
 
 **Primary Market Actor**:
-A product-experience perspective for one of the six participants in the locked market scope: Real-estate Agent, Brokerage, Developer, Buyer, Owner/Seller, or Bank. For an organizational actor such as a Brokerage, Developer, or Bank, the authenticated User still acts through a scoped Membership and Role.
+A product-experience perspective for one of the six participants in the locked broader market scope: Real-estate Agent, Brokerage, Developer, Buyer, Owner/Seller, or Bank. For an organizational actor such as a Brokerage, Developer, or Bank, the authenticated User still acts through a scoped Membership and Role. V5 exposes only Agent, Brokerage, Buyer, Owner/Seller, and the operational VMLS Ops account; excluding Developer and Bank from runtime navigation does not remove them from the canonical actor model.
 _Avoid_: operational administrator, universal authorization role, every Party subtype
 
 **Operational Role**:
@@ -210,15 +226,15 @@ An immutable inbound source event containing source system, source case, raw sta
 _Avoid_: user-created Audit Event, mutable status field, direct VPCC/VPĐKĐĐ/Tax command in VMLS
 
 **Trạng thái xử lý chuẩn / ProcessingProjection**:
-The role-scoped summary derived from external events using `Chờ tiếp nhận`, `Đang xử lý`, `Yêu cầu bổ sung`, or `Đã xử lý`, together with the unit currently processing the dossier. It is a milestone, not an invented completion percentage.
+The role-scoped summary derived from external events, including the source, current milestone, and processing unit. V5 uses the configured Tax/VPĐKĐĐ milestones instead of an invented completion percentage; broader normalized taxonomies require an approved source mapping.
 _Avoid_: source system of record, SLA guarantee, workflow action
 
 **Hồ sơ thuế / TaxDossier**:
-The tax-source processing case created from the configured outbound handoff after the final notarization event. It progresses in parallel with transfer routing and does not gate the Developer or VPĐKĐĐ route in the demo.
-_Avoid_: proof that tax obligations are settled, manual tax action in VMLS, universal legal rule
+The tax-source processing case created atomically from an accepted V5 post-notary declaration. Its configured events must reach completion of both financial-obligation rows before a VPĐKĐĐ handoff exists. This sequence is a demo proposal, not a universal legal rule or proof received from a live authority.
+_Avoid_: tax calculation, legal liability, direct Tax action in VMLS, live settlement proof
 
 **Phiên VNeID cục bộ / Local VNeID session**:
-A versioned browser record created by the demo's two-step VNeID handoff. It stores only a masked configured identity and accepted sharing scope, persists independently from business-state reset, and neither authenticates against VNeID nor changes VMLS role or entitlements.
+A versioned browser record used by the superseded V4 two-step handoff. It remains historical module vocabulary but is outside V5 runtime navigation. It never represented production authentication or an entitlement.
 _Avoid_: production authentication, OTP exchange, live VNeID session, permission grant
 
 **Verification**:

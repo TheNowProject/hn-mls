@@ -1,11 +1,16 @@
 ---
 title: VMLS transaction screens v3
-status: proposal
-authority: working
-last_reviewed: 2026-08-14
+status: superseded
+authority: historical
+last_reviewed: 2026-08-21
+superseded_by:
+  - ./current-state.md
+  - ./vmls-demo-playbook.md
 ---
 
 # VMLS transaction screens v3
+
+> **SUPERSEDED:** Retained with its image assets as historical V3 storyboard material only. It must not control V5 navigation, actor workspaces, runtime scope, QA, or legal interpretation. See [current state](./current-state.md) and the [V5 playbook](./vmls-demo-playbook.md).
 
 > **PROPOSAL:** This storyboard standardizes visual structure and screen navigation for review. It does not approve the legal, tax, VNeID, VPCC, VPĐKĐĐ, Developer, or API contracts shown in the mockups.
 

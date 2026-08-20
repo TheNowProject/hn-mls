@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowDown,
   ArrowRight,
+  Buildings,
+  CheckCircle,
   Database,
-  IdentificationCard,
+  Fingerprint,
   LinkSimple,
   MagnifyingGlass,
+  MapPin,
+  ShieldCheck,
   Signpost,
-  SquaresFour,
-  Storefront,
-  X,
+  Sparkle,
 } from '@phosphor-icons/react'
 import BrandMark from './BrandMark.jsx'
-import { roles } from '../demo/demoData.js'
 import '../styles/landing.css'
 
-const CONNECTION_ICONS = Object.freeze({
-  vneid: IdentificationCard,
-  'source-357': Database,
-  housenow: Storefront,
-})
+const NETWORK_NODES = Object.freeze([
+  { id: 'npid', label: 'NPID', detail: 'Định danh Bất động sản' },
+  { id: 'plid', label: 'PLID', detail: 'Định danh Tin bán' },
+  { id: 'ptid', label: 'PTID', detail: 'Dấu vết Giao dịch' },
+  { id: 'housenow', label: 'HouseNow', detail: 'Ảnh chụp Tin bán' },
+  { id: 'source-357', label: '357', detail: 'Nguồn Giao dịch' },
+  { id: 'tax', label: 'Thuế', detail: 'Nghĩa vụ tài chính' },
+  { id: 'land', label: 'VPĐKĐĐ', detail: 'Đăng ký sang tên' },
+])
 
 function normalizeText(value) {
   return String(value ?? '')
@@ -33,624 +39,388 @@ function preferredScrollBehavior() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
-function connectionTone(status) {
-  const normalized = normalizeText(status)
-  if (normalized.includes('phat hanh') || normalized.includes('cau hinh') || normalized.includes('cho')) return 'pending'
-  if (normalized.includes('da ') || normalized.includes('san sang')) return 'ready'
-  return 'neutral'
-}
+function toPublicListing(listing, index) {
+  const listingId = listing?.listingId ?? listing?.id ?? null
+  const propertyId = listing?.propertyId ?? null
+  const title = listing?.title ?? 'Tin bán VMLS'
+  const location = listing?.location ?? 'Hà Nội'
+  const isPhuThuong = normalizeText(`${title} ${location}`).includes('phu thuong')
+  const source = listing?.source ?? {}
 
-function recordTone(status) {
-  if (typeof status === 'object' && status?.tone) return status.tone
-  const normalized = normalizeText(typeof status === 'object' ? status?.label : status)
-  if (normalized.includes('hoan tat') || normalized.includes('xac nhan') || normalized.includes('du dieu kien')) return 'success'
-  if (normalized.includes('cho') || normalized.includes('bo sung')) return 'pending'
-  return 'neutral'
-}
-
-function connectionActionLabel(connectionId) {
-  if (connectionId === 'vneid') return 'Xem dữ liệu bàn giao'
-  if (connectionId === 'source-357') return 'Xem ảnh chụp'
-  if (connectionId === 'housenow') return 'Xem phạm vi phân phối'
-  return 'Xem phạm vi dữ liệu'
-}
-
-function uniqueOptions(records, getter) {
-  return [...new Set(records.map(getter).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right, 'vi'))
-}
-
-function normalizeRecord(record, index) {
-  const sourceProperty = record.property ?? {}
-  const property = {
-    ...sourceProperty,
-    id: sourceProperty.id ?? record.id ?? null,
-    name: sourceProperty.name ?? record.title ?? 'Bất động sản',
-    type: sourceProperty.type ?? 'Bất động sản',
-    location: sourceProperty.location ?? sourceProperty.region ?? 'Chưa có',
-    region: sourceProperty.region ?? sourceProperty.location ?? null,
-    project: sourceProperty.project ?? null,
-    developer: sourceProperty.developer ?? null,
-  }
-  const workspaceCaseId = record.caseId ?? record.demoCase?.id ?? null
-  const resultId = workspaceCaseId ?? record.id ?? property.id ?? `lookup-${index}`
-  const title = record.title ?? record.demoCase?.title ?? property.name
-  const listing = record.listing ?? (record.listingId ? { id: record.listingId } : null)
-  const transaction = record.transaction ?? (record.transactionId ? { id: record.transactionId } : null)
-  const status = typeof record.status === 'object'
-    ? { label: record.status?.label ?? 'Chưa có trạng thái', tone: recordTone(record.status) }
-    : { label: record.status ?? 'Chưa có trạng thái', tone: recordTone(record.status) }
-
+  // Explicit Public projection: never spread transaction, party, contract or processing fields.
   return {
-    demoCase: { id: resultId, title },
-    workspaceCaseId,
-    status,
-    nextWork: record.nextWork ?? null,
-    property,
-    listing,
-    transaction,
-    transfer: record.transfer ?? null,
-    sourceRecord357: sourceProperty.sourceRecord357 ?? record.sourceRecord357 ?? null,
-    updatedAt: record.latestMaterialAt ?? record.updatedAt ?? null,
-    searchText: normalizeText([
-      title,
-      property.name,
-      property.type,
-      property.project,
-      property.developer,
-      property.region,
-      property.unit,
-      property.parcelRef,
-      property.location,
-      property.id,
-      listing?.id,
-      transaction?.id,
-    ].filter(Boolean).join(' ')),
+    key: listingId ?? propertyId ?? `public-listing-${index}`,
+    listingId,
+    propertyId,
+    title,
+    propertyType: listing?.propertyType ?? 'Bất động sản',
+    location,
+    askingPriceDisplay: listing?.askingPriceDisplay ?? 'Liên hệ',
+    areaLabel: listing?.areaLabel ?? null,
+    source: {
+      name: source.name ?? 'Nguồn chưa xác định',
+      recordId: source.recordId ?? '—',
+      version: source.version ?? '—',
+      updatedAt: source.updatedAt ?? 'Bộ dữ liệu mẫu',
+    },
+    isPrimary: Boolean(listing?.isPrimary || isPhuThuong),
+    searchText: normalizeText([propertyId, listingId, title, location].filter(Boolean).join(' ')),
   }
 }
 
-function identityNode({ kind, label, value }) {
-  return (
-    <div
-      className={`landing-identity-node${value ? '' : ' is-empty'}`}
-      data-testid={`landing-identity-${kind}`}
-      role="group"
-      aria-label={`${label}: ${value ?? 'Chưa có'}`}
-    >
-      <span>{label}</span>
-      <strong>{value ?? 'Chưa có'}</strong>
-    </div>
-  )
-}
-
-function ConnectionDrawer({ connection, onClose }) {
-  const dialogRef = useRef(null)
-  const headingRef = useRef(null)
+function DemoAccountMenu({ menuId, roles, unreadByRole, onEnterDemo, variant = 'primary', triggerAriaLabel }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const itemRefs = useRef([])
 
   useEffect(() => {
-    if (!connection) return undefined
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    headingRef.current?.focus()
-    return () => {
-      document.body.style.overflow = previousOverflow
+    if (!isOpen) return undefined
+
+    const frame = window.requestAnimationFrame(() => itemRefs.current[0]?.focus())
+    const closeOnOutsidePress = (event) => {
+      if (!rootRef.current?.contains(event.target)) setIsOpen(false)
     }
-  }, [connection])
+    document.addEventListener('pointerdown', closeOnOutsidePress)
 
-  if (!connection) return null
+    return () => {
+      window.cancelAnimationFrame(frame)
+      document.removeEventListener('pointerdown', closeOnOutsidePress)
+    }
+  }, [isOpen])
 
-  const Icon = CONNECTION_ICONS[connection.id] ?? Database
-  const titleId = `landing-connection-title-${connection.id}`
+  function closeAndRestoreFocus() {
+    setIsOpen(false)
+    window.requestAnimationFrame(() => triggerRef.current?.focus())
+  }
 
-  function handleKeyDown(event) {
+  function handleMenuKeyDown(event) {
+    const activeIndex = itemRefs.current.indexOf(document.activeElement)
+    let nextIndex = null
+
+    if (event.key === 'ArrowDown') nextIndex = (activeIndex + 1) % roles.length
+    if (event.key === 'ArrowUp') nextIndex = (activeIndex - 1 + roles.length) % roles.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = roles.length - 1
     if (event.key === 'Escape') {
       event.preventDefault()
-      onClose()
+      closeAndRestoreFocus()
       return
     }
-    if (event.key !== 'Tab') return
-
-    const focusable = [...dialogRef.current.querySelectorAll(
-      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    )]
-    if (!focusable.length) return
-    const first = focusable[0]
-    const last = focusable.at(-1)
-    if (event.shiftKey && (document.activeElement === headingRef.current || document.activeElement === first)) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
+    if (event.key === 'Tab') {
+      setIsOpen(false)
+      return
     }
+    if (nextIndex === null) return
+    event.preventDefault()
+    itemRefs.current[nextIndex]?.focus()
+  }
+
+  function chooseRole(roleId) {
+    setIsOpen(false)
+    onEnterDemo(roleId)
   }
 
   return (
-    <div
-      className="landing-drawer-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <aside
-        className="landing-connection-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        ref={dialogRef}
-        onKeyDown={handleKeyDown}
-        data-testid="landing-connection-drawer"
+    <div className={`landing-v5-account-menu is-${variant}`} ref={rootRef}>
+      <button
+        ref={triggerRef}
+        className="landing-v5-demo-trigger"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-controls={`${menuId}-menu`}
+        aria-label={triggerAriaLabel}
+        onClick={() => setIsOpen((current) => !current)}
+        disabled={!roles.length}
+        data-testid={`${menuId}-trigger`}
       >
-        <header className="landing-drawer-header">
-          <div className="landing-connection-heading">
-            {connection.icon ? (
-              <img src={connection.icon} alt="" />
-            ) : (
-              <span className="landing-connection-icon"><Icon aria-hidden="true" /></span>
-            )}
-            <div>
-              <small>{connection.relationship}</small>
-              <h2 id={titleId} ref={headingRef} tabIndex="-1">{connection.name}</h2>
-            </div>
+        <span>Mở tài khoản demo</span>
+        <ArrowRight weight="bold" aria-hidden="true" />
+      </button>
+
+      {isOpen ? (
+        <div
+          id={`${menuId}-menu`}
+          className="landing-v5-account-popover"
+          role="menu"
+          aria-label="Chọn tài khoản demo"
+          onKeyDown={handleMenuKeyDown}
+        >
+          <div className="landing-v5-account-popover__heading">
+            <small>Không gian làm việc mẫu</small>
+            <strong>Tiếp tục với vai trò</strong>
           </div>
-          <button type="button" onClick={onClose} aria-label="Đóng"><X aria-hidden="true" /></button>
-        </header>
-
-        <div className="landing-drawer-body">
-          <figure className="landing-connection-figure">
-            {connection.screenshot ? (
-              <img src={connection.screenshot} alt={`Ảnh chụp ${connection.name} ngày ${connection.capturedOn}`} />
-            ) : (
-              <div className="landing-preview-empty"><Icon aria-hidden="true" /><span>Chưa có ảnh chụp</span></div>
-            )}
-            {connection.capturedOn ? <figcaption>Ảnh ghi nhận ngày {connection.capturedOn}</figcaption> : null}
-          </figure>
-
-          <div className="landing-contract-panel">
-            <dl className="landing-connection-meta">
-              <div><dt>Đơn vị</dt><dd>{connection.owner ?? 'Chưa có'}</dd></div>
-              <div><dt>Vai trò</dt><dd>{connection.relationship ?? 'Chưa có'}</dd></div>
-              <div><dt>Chiều dữ liệu</dt><dd>{connection.direction ?? 'Chưa có'}</dd></div>
-              <div><dt>Trạng thái</dt><dd>{connection.status ?? 'Chưa có'}</dd></div>
-            </dl>
-
-            <div className="landing-contract-grid">
-              <section>
-                <h3>{connection.inputLabel ?? 'Dữ liệu đầu vào'}</h3>
-                <ul>{(connection.inputFields ?? []).map((field) => <li key={field}>{field}</li>)}</ul>
-              </section>
-              <section>
-                <h3>{connection.outputLabel ?? 'Dữ liệu đầu ra'}</h3>
-                <ul>{(connection.outputFields ?? []).map((field) => <li key={field}>{field}</li>)}</ul>
-              </section>
-            </div>
-
-            {connection.url ? (
-              <a className="landing-source-link" href={connection.url} target="_blank" rel="noreferrer">
-                <span><small>Trang gốc</small><strong>{connection.url}</strong></span>
-                <LinkSimple weight="bold" aria-hidden="true" />
-              </a>
-            ) : null}
-          </div>
+          {roles.map((role, index) => {
+            const unread = Math.max(0, Number(unreadByRole?.[role.id]) || 0)
+            return (
+              <button
+                key={role.id}
+                ref={(element) => { itemRefs.current[index] = element }}
+                type="button"
+                role="menuitem"
+                onClick={() => chooseRole(role.id)}
+                aria-label={`${role.label}${unread ? `, ${unread} thông báo chưa đọc` : ''}`}
+                data-testid={`demo-account-${role.id}`}
+              >
+                <span className="landing-v5-account-avatar" aria-hidden="true">
+                  {(role.shortLabel ?? role.label).slice(0, 2).toLocaleUpperCase('vi')}
+                </span>
+                <span className="landing-v5-account-name">
+                  <strong>{role.label}</strong>
+                  <small>{unread ? 'Có thông báo mới' : 'Tài khoản demo'}</small>
+                </span>
+                {unread ? <span className="landing-v5-unread" aria-hidden="true">{unread > 99 ? '99+' : unread}</span> : null}
+                <ArrowRight aria-hidden="true" />
+              </button>
+            )
+          })}
         </div>
-      </aside>
+      ) : null}
     </div>
   )
 }
 
-function SelectedDossierCard({
-  selectedRecord,
-  headingRef,
-  onOpenDossier,
-  onOpenLookupRecord,
-  canOpenLookupRecord,
-  canOpenDossier,
-  selectedRoleLabel,
-}) {
-  const canOpen = selectedRecord?.workspaceCaseId
-    ? canOpenDossier(selectedRecord.workspaceCaseId)
-    : false
-
+function RegistryNetwork() {
   return (
-    <aside id="landing-selected-dossier" className="landing-selected-card" aria-live="polite">
-      {selectedRecord ? (
-        <>
-          <header>
-            <div>
-              <span className="landing-record-kind">Bản ghi đang chọn</span>
-              <h2 ref={headingRef} tabIndex="-1">{selectedRecord.demoCase.title}</h2>
-              <p>{selectedRecord.property.location}</p>
-            </div>
-            <span className={`landing-status is-${selectedRecord.status.tone}`}>{selectedRecord.status.label}</span>
-          </header>
+    <div className="landing-v5-network" aria-label="Mạng dữ liệu Living Registry của VMLS" role="img">
+      <svg viewBox="0 0 720 560" aria-hidden="true" focusable="false">
+        <path className="landing-v5-trace trace-a" d="M135 118 C245 118 248 247 353 247 S486 124 592 124" />
+        <path className="landing-v5-trace trace-b" d="M116 294 C226 294 239 247 353 247 S489 294 605 294" />
+        <path className="landing-v5-trace trace-c" d="M141 452 C237 452 253 329 353 247 S469 444 579 444" />
+        <path className="landing-v5-trace trace-d" d="M353 82 V247" />
+        <circle className="landing-v5-pulse-ring" cx="353" cy="247" r="78" />
+      </svg>
 
-          <div className="landing-identity-trace" role="group" aria-label="Quan hệ định danh">
-            {identityNode({ kind: 'npid', label: 'Bất động sản · NPID', value: selectedRecord.property.id })}
-            {identityNode({ kind: 'plid', label: 'Tin bán · PLID', value: selectedRecord.listing?.id })}
-            {identityNode({ kind: 'ptid', label: 'Giao dịch · PTID', value: selectedRecord.transaction?.id })}
-          </div>
+      <span className="landing-v5-network-core" aria-hidden="true">
+        <BrandMark compact inverse ariaLabel="VMLS" />
+        <small>Living Registry</small>
+      </span>
 
-          <dl className="landing-dossier-facts">
-            <div><dt>Khu vực</dt><dd>{selectedRecord.property.region ?? selectedRecord.property.location}</dd></div>
-            <div><dt>Chủ đầu tư</dt><dd>{selectedRecord.property.developer ?? 'Không áp dụng'}</dd></div>
-            <div><dt>Dự án</dt><dd>{selectedRecord.property.project ?? 'Không thuộc dự án'}</dd></div>
-            <div><dt>Loại bất động sản</dt><dd>{selectedRecord.property.type}</dd></div>
-            {selectedRecord.sourceRecord357 ? <div><dt>Nguồn cấp NPID</dt><dd>Hệ thống thông tin 357</dd></div> : null}
-            {selectedRecord.sourceRecord357 ? <div><dt>Bản ghi nguồn</dt><dd className="landing-mono">{selectedRecord.sourceRecord357.sourceRecordId} · {selectedRecord.sourceRecord357.version}</dd></div> : null}
-          </dl>
+      {NETWORK_NODES.map((node) => (
+        <span className={`landing-v5-network-node is-${node.id}`} key={node.id} aria-hidden="true">
+          <i />
+          <strong>{node.label}</strong>
+          <small>{node.detail}</small>
+        </span>
+      ))}
 
-          {selectedRecord.workspaceCaseId ? (
-            <button
-              className="landing-open-dossier"
-              type="button"
-              onClick={() => onOpenDossier(selectedRecord.workspaceCaseId, 'tong-quan')}
-            >
-              {canOpen ? `Mở hồ sơ · ${selectedRoleLabel}` : `Xem hàng đợi · ${selectedRoleLabel}`} <ArrowRight weight="bold" aria-hidden="true" />
-            </button>
-          ) : selectedRecord.listing?.id ? (
-            <button
-              className="landing-open-dossier"
-              type="button"
-              onClick={() => onOpenLookupRecord(selectedRecord.listing.id)}
-              data-testid="landing-open-listing"
-            >
-              {canOpenLookupRecord ? 'Mở Tin bán' : `Xem ứng dụng · ${selectedRoleLabel}`} <ArrowRight weight="bold" aria-hidden="true" />
-            </button>
-          ) : null}
-        </>
-      ) : (
-        <div className="landing-selected-empty">Chọn một bản ghi trong kết quả tra cứu.</div>
-      )}
-    </aside>
+      <span className="landing-v5-network-caption" aria-hidden="true">
+        <span /> Dữ liệu có nguồn · lịch sử có dấu vết
+      </span>
+    </div>
+  )
+}
+
+function PublicListingCard({ listing }) {
+  return (
+    <article className={`landing-v5-listing-card${listing.isPrimary ? ' is-primary' : ''}`} data-testid={`public-listing-${listing.listingId ?? listing.key}`}>
+      <header>
+        <div>
+          {listing.isPrimary ? <span className="landing-v5-primary-label"><Sparkle weight="fill" aria-hidden="true" /> Phú Thượng · hồ sơ demo</span> : <span className="landing-v5-listing-kind">Tin bán công khai</span>}
+          <span className="landing-v5-property-type">{listing.propertyType}</span>
+        </div>
+        <ShieldCheck weight="duotone" aria-label="Dữ liệu công khai có nguồn" />
+      </header>
+
+      <div className="landing-v5-listing-content">
+        <h3>{listing.title}</h3>
+        <p><MapPin aria-hidden="true" /> <span>{listing.location}{listing.areaLabel ? ` · ${listing.areaLabel}` : ''}</span></p>
+        <strong className="landing-v5-price">{listing.askingPriceDisplay}</strong>
+      </div>
+
+      <dl className="landing-v5-identifiers" aria-label="Định danh công khai">
+        <div><dt>NPID</dt><dd>{listing.propertyId ?? 'Chưa cấp'}</dd></div>
+        <div><dt>PLID</dt><dd>{listing.listingId ?? 'Chưa cấp'}</dd></div>
+      </dl>
+
+      <div className="landing-v5-provenance">
+        <span><Database aria-hidden="true" /> Nguồn dữ liệu</span>
+        <dl>
+          <div><dt>Nguồn</dt><dd>{listing.source.name}</dd></div>
+          <div><dt>Mã nguồn</dt><dd>{listing.source.recordId}</dd></div>
+          <div><dt>Phiên bản</dt><dd>{listing.source.version}</dd></div>
+          <div><dt>Cập nhật</dt><dd>{listing.source.updatedAt}</dd></div>
+        </dl>
+      </div>
+
+      <p className="landing-v5-listing-scope">
+        {listing.isPrimary
+          ? 'Hành trình giao dịch mở qua tài khoản demo.'
+          : 'Tin bán công khai · không có hành trình giao dịch trong demo.'}
+      </p>
+    </article>
   )
 }
 
 export function LandingPage({
-  publicRecords = [],
-  lookupRecords = [],
-  connections = [],
-  routeCaseId = null,
-  routeQuery = '',
-  routeRegion = '',
-  routeDeveloper = '',
-  routeProject = '',
-  selectedRoleId = 'agent',
-  resumeRoleId = null,
-  onEnterWorkspace = () => {},
-  canOpenDossier = () => false,
-  onOpenDossier = () => {},
-  onResumeWorkspace = () => {},
-  onOpenLookupRecord = () => {},
-  canOpenLookupRecord = false,
-  onOpenApplications = () => {},
-  onRoleChange = () => {},
-  onSearchRoute = () => {},
-  onSelectRecord = () => {},
-  vneidControl = null,
+  listings = [],
+  roles = [],
+  unreadByRole = {},
+  onEnterDemo = () => {},
 }) {
-  const sourceRecords = useMemo(() => {
-    if (!lookupRecords.length) return publicRecords
-    const representedPropertyIds = new Set(
-      lookupRecords.map((record) => record.property?.id ?? record.id).filter(Boolean),
-    )
-    return [
-      ...lookupRecords,
-      ...publicRecords.filter((record) => !representedPropertyIds.has(record.property?.id ?? record.id)),
-    ]
-  }, [lookupRecords, publicRecords])
-  const [query, setQuery] = useState(routeQuery)
-  const [region, setRegion] = useState(routeRegion)
-  const [developer, setDeveloper] = useState(routeDeveloper)
-  const [project, setProject] = useState(routeProject)
-  const [selectedCaseId, setSelectedCaseId] = useState(() => {
-    const routed = sourceRecords.some((record) => (record.caseId ?? record.demoCase?.id ?? record.id) === routeCaseId)
-    return routed ? routeCaseId : sourceRecords[0]?.caseId ?? sourceRecords[0]?.demoCase?.id ?? sourceRecords[0]?.id ?? null
-  })
-  const [previewConnection, setPreviewConnection] = useState(null)
-  const previewTriggerRef = useRef(null)
-  const selectedHeadingRef = useRef(null)
+  const [query, setQuery] = useState('')
+  const searchInputRef = useRef(null)
 
-  const records = useMemo(() => sourceRecords.map(normalizeRecord), [sourceRecords])
-  const regionOptions = useMemo(
-    () => uniqueOptions(records, (record) => record.property.region ?? record.property.location),
-    [records],
-  )
-  const developerOptions = useMemo(
-    () => uniqueOptions(records, (record) => record.property.developer),
-    [records],
-  )
-  const projectOptions = useMemo(
-    () => uniqueOptions(records, (record) => record.property.project),
-    [records],
-  )
+  const publicListings = useMemo(() => listings
+    .map(toPublicListing)
+    .sort((left, right) => Number(right.isPrimary) - Number(left.isPrimary)
+      || left.title.localeCompare(right.title, 'vi')), [listings])
 
   const normalizedQuery = normalizeText(query).trim()
-  const filteredRecords = useMemo(() => records.filter((record) => {
-    const exactNpid = normalizedQuery.startsWith('npid-')
-    const matchesQuery = !normalizedQuery || (exactNpid
-      ? normalizeText(record.property.id) === normalizedQuery
-      : record.searchText.includes(normalizedQuery))
-    const matchesRegion = !region || (record.property.region ?? record.property.location) === region
-    const matchesDeveloper = !developer || record.property.developer === developer
-    const matchesProject = !project || record.property.project === project
-    return matchesQuery && matchesRegion && matchesDeveloper && matchesProject
-  }), [developer, normalizedQuery, project, records, region])
-
-  const routedRecord = routeCaseId
-    ? records.find(({ demoCase, workspaceCaseId }) => workspaceCaseId === routeCaseId || demoCase.id === routeCaseId)
-    : null
-  const hasStructuredFilter = Boolean(region || developer || project)
-  const displayedRecords = normalizedQuery || hasStructuredFilter
-    ? filteredRecords
-    : routeCaseId
-      ? routedRecord ? [routedRecord] : []
-      : filteredRecords
-  const selectedRecord = displayedRecords.find(({ demoCase }) => demoCase.id === selectedCaseId)
-    ?? displayedRecords[0]
-    ?? null
-  const selectedRole = roles.find(({ id }) => id === selectedRoleId) ?? roles[0]
-  const canResume = Boolean(resumeRoleId && resumeRoleId === selectedRole.id)
-
-  useEffect(() => {
-    if (!routeCaseId && !routeQuery && !routeRegion && !routeDeveloper && !routeProject) return undefined
-    const frame = window.requestAnimationFrame(() => selectedHeadingRef.current?.focus())
-    return () => window.cancelAnimationFrame(frame)
-  }, [routeCaseId, routeDeveloper, routeProject, routeQuery, routeRegion])
+  const visibleListings = useMemo(() => {
+    if (!normalizedQuery) return publicListings
+    return publicListings.filter((listing) => listing.searchText.includes(normalizedQuery))
+  }, [normalizedQuery, publicListings])
 
   function focusMain() {
-    document.getElementById('landing-main')?.focus()
+    document.getElementById('landing-v5-main')?.focus()
   }
 
-  function scrollToSection(id) {
-    document.getElementById(id)?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
-  }
-
-  function enterWorkspace() {
-    if (canResume) onResumeWorkspace()
-    else onEnterWorkspace(selectedRole.id)
-  }
-
-  function submitSearch(event) {
-    event.preventDefault()
-    const first = filteredRecords[0]
-    onSearchRoute({ query, region, developer, project })
-    if (!first) return
-    setSelectedCaseId(first.demoCase.id)
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        selectedHeadingRef.current?.focus()
-        selectedHeadingRef.current?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'nearest' })
-      })
+  function scrollToSearch() {
+    document.getElementById('landing-v5-search')?.scrollIntoView({
+      behavior: preferredScrollBehavior(),
+      block: 'start',
     })
-  }
-
-  function selectRecord(caseId) {
-    setSelectedCaseId(caseId)
-    onSelectRecord(caseId)
-  }
-
-  function openConnection(connection, trigger) {
-    previewTriggerRef.current = trigger
-    setPreviewConnection(connection)
-  }
-
-  function closeConnection() {
-    setPreviewConnection(null)
-    window.requestAnimationFrame(() => previewTriggerRef.current?.focus())
-  }
-
-  function clearSearch() {
-    setQuery('')
-    setRegion('')
-    setDeveloper('')
-    setProject('')
-    setSelectedCaseId(records[0]?.demoCase.id ?? null)
-    onSearchRoute({ query: '', region: '', developer: '', project: '' })
+    window.requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }))
   }
 
   return (
-    <div className="landing-page" data-testid="landing-page">
-      <button className="landing-skip" type="button" onClick={focusMain}>Bỏ qua điều hướng</button>
+    <div className="landing-v5" data-testid="landing-page">
+      <button className="landing-v5-skip" type="button" onClick={focusMain}>Bỏ qua điều hướng</button>
 
-      <header className="landing-header">
-        <div className="landing-header-inner">
+      <header className="landing-v5-header">
+        <div className="landing-v5-container landing-v5-header__inner">
           <button
-            className="landing-brand-button"
+            className="landing-v5-brand"
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })}
             aria-label="Về đầu trang VMLS"
           >
             <BrandMark inverse ariaLabel="VMLS" />
           </button>
-
-          <div className="landing-place" role="group" aria-label="Không gian dữ liệu Hà Nội">
-            <span>Sổ bộ dữ liệu</span>
-            <strong>Hà Nội</strong>
-          </div>
-
-          <nav className="landing-nav" aria-label="Điều hướng trang tra cứu">
-            <button type="button" onClick={() => scrollToSection('landing-records')}>Tra cứu</button>
-            <button type="button" onClick={() => scrollToSection('landing-connections')}>Nguồn dữ liệu</button>
+          <nav aria-label="Điều hướng trang chủ">
+            <button type="button" onClick={scrollToSearch}>Tra cứu Tin bán</button>
+            <a href="#landing-v5-registry">Living Registry</a>
           </nav>
-
-          <div className="landing-role-entry">
-            {vneidControl}
-            <button
-              className="landing-applications-button"
-              type="button"
-              onClick={() => onOpenApplications(selectedRole.id)}
-              data-testid="landing-applications"
-            >
-              <SquaresFour aria-hidden="true" />
-              <span>Ứng dụng</span>
-            </button>
-            <label htmlFor="landing-role"><span className="sr-only">Vai trò vào không gian làm việc</span></label>
-            <select id="landing-role" value={selectedRoleId} onChange={(event) => onRoleChange(event.target.value)}>
-              {roles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
-            </select>
-            <button className="landing-enter-button" type="button" onClick={enterWorkspace} data-testid="enter-workspace">
-              <span>{canResume ? 'Tiếp tục công việc' : 'Mở không gian làm việc'}</span>
-              <ArrowRight weight="bold" aria-hidden="true" />
-            </button>
-          </div>
+          <DemoAccountMenu
+            menuId="header-demo-accounts"
+            roles={roles}
+            unreadByRole={unreadByRole}
+            onEnterDemo={onEnterDemo}
+            variant="header"
+            triggerAriaLabel="Chọn vai trò demo"
+          />
         </div>
       </header>
 
-      <main id="landing-main" className="landing-main" tabIndex="-1">
-        <section id="landing-records" className="landing-registry" aria-labelledby="landing-title">
-          <header className="landing-registry-heading">
-            <div>
-              <p className="landing-eyebrow">Tra cứu dữ liệu VMLS</p>
-              <h1 id="landing-title">Tra cứu và điều phối hồ sơ</h1>
-            </div>
-            <p>Bất động sản, Tin bán và Giao dịch có định danh riêng, liên kết trên cùng một hồ sơ vận hành.</p>
-          </header>
-
-          <form className="landing-search-form" role="search" onSubmit={submitSearch}>
-            <label className="landing-field is-query" htmlFor="landing-search-input">
-              <span>Mã định danh Bất động sản (NPID) / từ khóa</span>
-              <span className="landing-input-shell">
-                <MagnifyingGlass aria-hidden="true" />
-                <input
-                  id="landing-search-input"
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="NPID-HN-…"
-                  autoComplete="off"
-                  data-testid="landing-search"
+      <main id="landing-v5-main" tabIndex="-1">
+        <section className="landing-v5-hero" aria-labelledby="landing-v5-title">
+          <div className="landing-v5-container landing-v5-hero__grid">
+            <div className="landing-v5-hero__copy">
+              <p className="landing-v5-eyebrow"><span /> Hạ tầng dữ liệu thị trường bất động sản</p>
+              <h1 id="landing-v5-title">Một định danh. Mọi nguồn dữ liệu. Một hành trình có thể truy vết.</h1>
+              <p className="landing-v5-lede">VMLS kết nối Bất động sản, Tin bán và Giao dịch thành một sổ bộ sống — nơi nguồn dữ liệu, quyền truy cập và từng thay đổi đều được ghi nhận rõ ràng.</p>
+              <div className="landing-v5-hero__actions">
+                <DemoAccountMenu
+                  menuId="hero-demo-accounts"
+                  roles={roles}
+                  unreadByRole={unreadByRole}
+                  onEnterDemo={onEnterDemo}
                 />
-              </span>
-            </label>
-
-            <label className="landing-field" htmlFor="landing-region-filter">
-              <span>Khu vực</span>
-              <select id="landing-region-filter" value={region} onChange={(event) => setRegion(event.target.value)} data-testid="landing-filter-region">
-                <option value="">Tất cả khu vực</option>
-                {regionOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-
-            <label className="landing-field" htmlFor="landing-developer-filter">
-              <span>Chủ đầu tư</span>
-              <select id="landing-developer-filter" value={developer} onChange={(event) => setDeveloper(event.target.value)} data-testid="landing-filter-developer">
-                <option value="">Tất cả chủ đầu tư</option>
-                {developerOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-
-            <label className="landing-field" htmlFor="landing-project-filter">
-              <span>Dự án</span>
-              <select id="landing-project-filter" value={project} onChange={(event) => setProject(event.target.value)} data-testid="landing-filter-project">
-                <option value="">Tất cả dự án</option>
-                {projectOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-
-            <button className="landing-search-submit" type="submit">Tra cứu</button>
-          </form>
-
-          <div className="landing-result-bar">
-            <div>
-              <strong>Kết quả tra cứu</strong>
-              <span role="status" aria-live="polite">{displayedRecords.length} / {records.length} bản ghi</span>
-            </div>
-            {normalizedQuery || hasStructuredFilter ? <button type="button" onClick={clearSearch}>Xóa bộ lọc</button> : null}
-          </div>
-
-          <div className="landing-workbench">
-            <div className="landing-table-card">
-              <div className="landing-table-scroll">
-                <table>
-                  <thead>
-                    <tr><th>Bất động sản</th><th>NPID</th><th>PLID</th><th>PTID</th><th>Trạng thái</th></tr>
-                  </thead>
-                  <tbody>
-                    {displayedRecords.map((record) => {
-                      const isSelected = selectedRecord?.demoCase.id === record.demoCase.id
-                      return (
-                        <tr key={record.demoCase.id} className={isSelected ? 'is-selected' : ''}>
-                          <td>
-                            <button
-                              className="landing-case-select"
-                              type="button"
-                              onClick={() => selectRecord(record.demoCase.id)}
-                              data-testid={`landing-case-${record.demoCase.id}`}
-                              aria-pressed={isSelected}
-                            >
-                              <strong>{record.demoCase.title}</strong>
-                              <small>{record.property.project ?? record.property.type} · {record.property.location}</small>
-                            </button>
-                          </td>
-                          <td><span className="landing-mono">{record.property.id}</span></td>
-                          <td><span className={record.listing ? 'landing-mono' : 'landing-empty'}>{record.listing?.id ?? 'Chưa có'}</span></td>
-                          <td><span className={record.transaction ? 'landing-mono' : 'landing-empty'}>{record.transaction?.id ?? 'Chưa có'}</span></td>
-                          <td><span className={`landing-status is-${record.status.tone}`}>{record.status.label}</span></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <button className="landing-v5-search-link" type="button" onClick={scrollToSearch}>
+                  Tra cứu Tin bán <ArrowDown weight="bold" aria-hidden="true" />
+                </button>
               </div>
-              {!displayedRecords.length ? (
-                <div className="landing-empty-results">
-                  <MagnifyingGlass aria-hidden="true" />
-                  <h3>Không tìm thấy hồ sơ</h3>
-                  <span>Kiểm tra lại NPID hoặc điều kiện tra cứu.</span>
-                  <button type="button" onClick={clearSearch}>Xóa nội dung tìm kiếm</button>
-                </div>
-              ) : null}
+              <ul className="landing-v5-principles" aria-label="Nguyên tắc Living Registry">
+                <li><Fingerprint aria-hidden="true" /><span><strong>Định danh bền vững</strong><small>Tách biệt NPID, PLID và PTID</small></span></li>
+                <li><LinkSimple aria-hidden="true" /><span><strong>Nguồn có provenance</strong><small>Mỗi bản ghi giữ dấu vết nguồn</small></span></li>
+                <li><CheckCircle aria-hidden="true" /><span><strong>Thay đổi có lịch sử</strong><small>Không ghi đè hành trình đã qua</small></span></li>
+              </ul>
             </div>
-
-            <SelectedDossierCard
-              selectedRecord={selectedRecord}
-              headingRef={selectedHeadingRef}
-              onOpenDossier={onOpenDossier}
-              onOpenLookupRecord={onOpenLookupRecord}
-              canOpenLookupRecord={canOpenLookupRecord}
-              canOpenDossier={canOpenDossier}
-              selectedRoleLabel={selectedRole.label}
-            />
+            <RegistryNetwork />
           </div>
         </section>
 
-        {connections.length ? (
-          <section id="landing-connections" className="landing-connections" aria-labelledby="landing-connections-title">
-            <div className="landing-section-heading">
-              <div><p>Nguồn và kênh dữ liệu</p><h2 id="landing-connections-title">Điểm nối ngoài VMLS</h2></div>
-              <span>{connections.length} điểm nối</span>
+        <section id="landing-v5-search" className="landing-v5-search-section" aria-labelledby="landing-v5-search-title">
+          <div className="landing-v5-container">
+            <header className="landing-v5-section-heading">
+              <div>
+                <p className="landing-v5-eyebrow"><span /> Tra cứu công khai</p>
+                <h2 id="landing-v5-search-title">Tin bán có định danh, dữ liệu có nguồn</h2>
+              </div>
+              <p>Chỉ hiển thị trường dữ liệu được phép công khai: NPID, PLID, thông tin Tin bán và provenance.</p>
+            </header>
+
+            <form className="landing-v5-search" role="search" onSubmit={(event) => event.preventDefault()}>
+              <MagnifyingGlass aria-hidden="true" />
+              <label className="sr-only" htmlFor="landing-v5-search-input">Tìm theo NPID, PLID, tên Tin bán hoặc địa điểm</label>
+              <input
+                ref={searchInputRef}
+                id="landing-v5-search-input"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Tìm NPID, PLID, tên Tin bán hoặc địa điểm…"
+                autoComplete="off"
+                data-testid="landing-search"
+              />
+              {query ? <button type="button" onClick={() => setQuery('')}>Xóa</button> : null}
+            </form>
+
+            <div className="landing-v5-result-meta" role="status" aria-live="polite">
+              <strong>{visibleListings.length} Tin bán</strong>
+              <span>{normalizedQuery ? `Kết quả cho “${query.trim()}”` : 'Phú Thượng được ghim làm hành trình demo chính'}</span>
             </div>
 
-            <div className="landing-connection-list">
-              {connections.map((connection) => {
-                const Icon = CONNECTION_ICONS[connection.id] ?? Signpost
-                return (
-                  <article className="landing-connection-card" key={connection.id} data-testid={`landing-connection-${connection.id}`}>
-                    <div className="landing-connection-heading">
-                      {connection.icon ? <img src={connection.icon} alt="" /> : <span className="landing-connection-icon"><Icon aria-hidden="true" /></span>}
-                      <div><small>{connection.relationship}</small><h3>{connection.name}</h3></div>
-                    </div>
-                    <div className="landing-connection-direction"><span>Chiều dữ liệu</span><strong>{connection.direction}</strong></div>
-                    <span className={`landing-status is-${connectionTone(connection.status)}`}>{connection.status}</span>
-                    <button className="landing-preview-button" type="button" onClick={(event) => openConnection(connection, event.currentTarget)}>
-                      {connectionActionLabel(connection.id)} <ArrowRight weight="bold" aria-hidden="true" />
-                    </button>
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-        ) : null}
+            {visibleListings.length ? (
+              <div className="landing-v5-listing-grid">
+                {visibleListings.map((listing) => (
+                  <PublicListingCard key={listing.key} listing={listing} />
+                ))}
+              </div>
+            ) : (
+              <div className="landing-v5-empty">
+                <MagnifyingGlass aria-hidden="true" />
+                <h3>Chưa tìm thấy Tin bán phù hợp</h3>
+                <p>Thử lại bằng NPID, PLID, tên Tin bán hoặc địa điểm.</p>
+                <button type="button" onClick={() => setQuery('')}>Xem tất cả Tin bán</button>
+              </div>
+            )}
+
+            <aside className="landing-v5-privacy-note">
+              <ShieldCheck weight="duotone" aria-hidden="true" />
+              <div><strong>Public projection</strong><p>Thông tin về các bên, hợp đồng, PTID, hồ sơ Thuế và trạng thái xử lý không xuất hiện trên trang công khai.</p></div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="landing-v5-registry" className="landing-v5-registry-story" aria-labelledby="landing-v5-registry-title">
+          <div className="landing-v5-container">
+            <header className="landing-v5-section-heading is-light">
+              <div>
+                <p className="landing-v5-eyebrow"><span /> Living Registry</p>
+                <h2 id="landing-v5-registry-title">Một hành trình, nhiều nguồn sự thật</h2>
+              </div>
+              <p>VMLS giữ từng nguồn riêng biệt và kết nối chúng bằng định danh thay vì san phẳng dữ liệu thành một bản ghi duy nhất.</p>
+            </header>
+            <ol className="landing-v5-story-steps">
+              <li><span>01</span><Fingerprint aria-hidden="true" /><div><strong>Bất động sản</strong><small>NPID giữ định danh bền vững</small></div></li>
+              <li><span>02</span><Signpost aria-hidden="true" /><div><strong>Tin bán</strong><small>PLID gắn với ảnh chụp HouseNow</small></div></li>
+              <li><span>03</span><Database aria-hidden="true" /><div><strong>Đối soát nguồn</strong><small>357 được giữ như một source record</small></div></li>
+              <li><span>04</span><Buildings aria-hidden="true" /><div><strong>Xử lý bên ngoài</strong><small>Thuế và VPĐKĐĐ theo dấu vết sự kiện</small></div></li>
+            </ol>
+          </div>
+        </section>
       </main>
 
-      <footer className="landing-footer">
-        <BrandMark compact ariaLabel="VMLS" />
-        <span>Sổ bộ dữ liệu · Hà Nội</span>
-        <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })}>Về đầu trang</button>
+      <footer className="landing-v5-footer">
+        <div className="landing-v5-container">
+          <BrandMark compact ariaLabel="VMLS" />
+          <p>Sổ bộ sống cho một thị trường có thể truy vết.</p>
+          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })}>Về đầu trang</button>
+        </div>
       </footer>
-
-      <ConnectionDrawer connection={previewConnection} onClose={closeConnection} />
     </div>
   )
 }

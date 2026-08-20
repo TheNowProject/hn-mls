@@ -1,4 +1,16 @@
+---
+title: VMLS transaction flow v2
+status: superseded
+authority: historical
+last_reviewed: 2026-08-21
+superseded_by:
+  - ./current-state.md
+  - ./vmls-demo-playbook.md
+---
+
 # VMLS transaction flow v2
+
+> **SUPERSEDED:** Retained as historical V4 design context only. It must not control V5 implementation, QA, demo operation, or legal interpretation. V5 uses one Phú Thượng titled-property transaction, Agent post-notary declaration, separate HouseNow/357 records, and a sequential Tax → VPĐKĐĐ path as defined in [current state](./current-state.md) and the [V5 playbook](./vmls-demo-playbook.md).
 
 > Evidence status: **PROPOSAL** — revised through stakeholder review on 2026-08-20. This document describes the configured pre-MVP flow, not an approved legal, tax, identity, notarization, land-registration, Developer, or production-integration workflow.
 >
