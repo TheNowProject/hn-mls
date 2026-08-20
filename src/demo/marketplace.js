@@ -8,18 +8,43 @@
  * projection rather than the fixture records themselves.
  */
 
-export const MARKET_STORAGE_KEY = 'vmls:represented-market:2026-08:v1'
+export const MARKET_STORAGE_KEY = 'vmls:represented-market:2026-08:v2'
 export const PUBLIC_DISTRIBUTION_PROJECTION_VERSION = 'vmls-public-listing-v1'
+
+export const PUBLICATION_FIELD_GROUPS = Object.freeze([
+  Object.freeze({ id: 'identity', label: 'Mã Tin bán và Bất động sản', locked: true }),
+  Object.freeze({ id: 'propertyType', label: 'Loại giao dịch và Bất động sản', locked: true }),
+  Object.freeze({ id: 'generalLocation', label: 'Khu vực tổng quát', locked: true }),
+  Object.freeze({ id: 'businessContact', label: 'Liên hệ kinh doanh', locked: true }),
+  Object.freeze({ id: 'price', label: 'Giá chào bán', locked: false }),
+  Object.freeze({ id: 'projectUnit', label: 'Dự án và căn', locked: false }),
+  Object.freeze({ id: 'detailedLocation', label: 'Vị trí chi tiết', locked: false }),
+  Object.freeze({ id: 'areas', label: 'Diện tích', locked: false }),
+  Object.freeze({ id: 'features', label: 'Đặc điểm', locked: false }),
+  Object.freeze({ id: 'description', label: 'Mô tả', locked: false }),
+  Object.freeze({ id: 'images', label: 'Hình ảnh', locked: false }),
+])
 
 export const MARKET_ACTIONS = Object.freeze({
   REGISTER_CO_BROKER: 'register_co_broker',
   DISTRIBUTE_LISTING: 'distribute_listing',
+  SAVE_PUBLICATION_DRAFT: 'save_publication_draft',
+  APPLY_PUBLICATION_PROFILE: 'apply_publication_profile',
+  REQUEST_LISTING_CORRECTION: 'request_listing_correction',
+  APPLY_LISTING_CORRECTION: 'apply_listing_correction',
 })
 
-const MARKET_VERSION = 1
-const MARKET_DATA_VERSION = 'vmls-represented-market-2026-08-v1'
+const MARKET_VERSION = 2
+const MARKET_DATA_VERSION = 'vmls-represented-market-2026-08-v2'
 const MARKET_EFFECTIVE_AT = '2026-08-17T10:00:00+07:00'
 const DISTRIBUTION_PURPOSE = 'Phân phối Tin bán'
+const CURRENT_SELLER_REFERENCE = 'PARTY-SELLER-HN-71001'
+const LOCKED_PUBLICATION_GROUPS = PUBLICATION_FIELD_GROUPS
+  .filter(({ locked }) => locked)
+  .map(({ id }) => id)
+const TOGGLE_PUBLICATION_GROUPS = PUBLICATION_FIELD_GROUPS
+  .filter(({ locked }) => !locked)
+  .map(({ id }) => id)
 const CURRENT_AGENT = Object.freeze({
   reference: 'AGENT-HN-COBROKER-001',
   displayName: 'Lê M. K.',
@@ -455,15 +480,22 @@ function projectForIndustry(state, records) {
     .filter((event) => event.listingId === listing.id)
   const distributions = listingDistributions
     .filter((event) => event.agentReference === state.currentAgent.reference)
-    .map((event) => ({
-      id: event.id,
-      channel: { id: event.channel.id, name: event.channel.name },
-      status: event.status,
-      acknowledgement: event.acknowledgement,
-      purpose: event.purpose,
-      projectionVersion: event.projectionVersion,
-      sentAt: event.sentAt,
-    }))
+    .map((event) => {
+      const channelState = state.channelStates?.find((candidate) => (
+        candidate.listingId === listing.id && candidate.channel.id === event.channel.id
+      ))
+      return {
+        id: event.id,
+        channel: { id: event.channel.id, name: event.channel.name },
+        status: channelState?.status ?? event.status,
+        acknowledgement: channelState?.acknowledgement ?? event.acknowledgement,
+        purpose: event.purpose,
+        projectionVersion: event.projectionVersion,
+        publicationProfileId: event.publicationProfileId,
+        publicationProfileVersion: event.publicationProfileVersion,
+        sentAt: event.sentAt,
+      }
+    })
 
   return {
     listingId: listing.id,
@@ -605,6 +637,66 @@ export function getListingDetail(state, id) {
   return projectForIndustry(state, records)
 }
 
+/**
+ * Public Listing payload. The profile-aware allowlist is filled by the
+ * governance reducer below; an invalid or unavailable Listing fails closed.
+ *
+ * @param {ReturnType<typeof createMarketState>} state
+ * @param {string} id
+ */
+export function getPublicListing(state, id) {
+  if (typeof id !== 'string' || !id.trim()) return null
+  const records = findRecords(state, id)
+  if (!records || !isEligible(state, records.listing, records.representation)) return null
+  return createPublicDistributionPayload(
+    records.listing,
+    records.property,
+    records.project,
+    records.representation.responsibleAgent,
+    findPublicationProfile(state, records.listing.id),
+  )
+}
+
+/** @param {ReturnType<typeof createMarketState>} state @param {string} id */
+export function getSellerListingDetail(state, id) {
+  if (typeof id !== 'string' || !id.trim()) return null
+  const records = findRecords(state, id)
+  if (!records || records.representation.sellerPartyReference !== CURRENT_SELLER_REFERENCE) return null
+  const industry = getListingDetail(state, records.listing.id)
+  const publicationProfile = state.publicationProfiles?.find(({ listingId }) => (
+    listingId === records.listing.id
+  ))
+  if (!industry || !publicationProfile) return null
+  return {
+    ...industry,
+    publicationProfile: clone(publicationProfile),
+    publicProjection: getPublicListing(state, records.listing.id),
+    correctionRequests: clone(state.sellerCorrectionRequests?.filter(({ listingId }) => (
+      listingId === records.listing.id
+    )) ?? []),
+    listingRevisions: clone(state.listingRevisions?.filter(({ listingId }) => (
+      listingId === records.listing.id
+    )) ?? []),
+    channelStates: clone(state.channelStates?.filter(({ listingId }) => (
+      listingId === records.listing.id
+    )) ?? []),
+    reconciliationEvents: clone(state.reconciliationEvents?.filter(({ listingId }) => (
+      listingId === records.listing.id
+    )) ?? []),
+  }
+}
+
+/** @param {ReturnType<typeof createMarketState>} state */
+export function getSellerListings(state) {
+  if (!Array.isArray(state?.representations)) return []
+  return state.representations
+    .filter(({ sellerPartyReference }) => sellerPartyReference === CURRENT_SELLER_REFERENCE)
+    .flatMap(({ listingId }) => {
+      const detail = getSellerListingDetail(state, listingId)
+      return detail ? [detail] : []
+    })
+}
+
 /** @param {ReturnType<typeof createMarketState>} state */
 export function getMarketSummary(state) {
   const representedListings = getRepresentedListings(state)
@@ -614,16 +706,24 @@ export function getMarketSummary(state) {
   const distributions = Array.isArray(state?.distributionEvents)
     ? state.distributionEvents.filter((event) => event.agentReference === state.currentAgent?.reference)
     : []
+  const distributedListingChannels = new Set(distributions.map((event) => (
+    `${event.listingId}:${event.channel.id}`
+  )))
+  const channelStates = Array.isArray(state?.channelStates)
+    ? state.channelStates.filter((channelState) => (
+        distributedListingChannels.has(`${channelState.listingId}:${channelState.channel.id}`)
+      ))
+    : []
 
   return {
     representedListings: representedListings.length,
     openForCollaboration: representedListings.filter((record) => record.collaboration.registrationOpen).length,
     registeredByCurrentAgent: registrations.length,
-    sentToHouseNow: distributions.filter((event) => (
-      event.channel.id === 'housenow' && event.status === 'Đã gửi'
+    sentToHouseNow: channelStates.filter((channelState) => (
+      channelState.channel.id === 'housenow'
     )).length,
-    awaitingChannelResponse: distributions.filter((event) => (
-      event.acknowledgement === 'Chờ phản hồi kênh'
+    awaitingChannelResponse: channelStates.filter((channelState) => (
+      channelState.acknowledgement === 'Chờ phản hồi kênh'
     )).length,
   }
 }
@@ -643,46 +743,126 @@ function distributionId(sequence) {
   return `PP-HN-${String(sequence).padStart(5, '0')}`
 }
 
-/** @param {Record<string, any>} listing @param {Record<string, any>} property @param {Record<string, any>} project @param {Record<string, any>} agent */
-function createPublicDistributionPayload(listing, property, project, agent) {
+/** @param {Record<string, any>} state @param {string} listingId */
+function findPublicationProfile(state, listingId) {
+  if (!Array.isArray(state?.publicationProfiles)) return null
+  return state.publicationProfiles.find((profile) => profile.listingId === listingId) ?? null
+}
+
+/** @param {string} listingId @param {number} version */
+function publicationVersionId(listingId, version) {
+  return `PUB-${listingId.slice(5)}-V${String(version).padStart(3, '0')}`
+}
+
+/**
+ * Preserve outbound DistributionEvents and append an explicit reconciliation
+ * record whenever an already-sent channel no longer represents current data.
+ *
+ * @param {ReturnType<typeof createMarketState>} state
+ * @param {string} listingId
+ * @param {string} reason
+ * @param {string} relatedRecordId
+ * @param {string} createdAt
+ */
+function requireDistributionReconciliation(state, listingId, reason, relatedRecordId, createdAt) {
+  const affectedChannels = state.channelStates.filter((channelState) => (
+    channelState.listingId === listingId
+  ))
+  const additions = affectedChannels.map((channelState, index) => ({
+    id: `DREC-HN-${String(state.reconciliationEvents.length + index + 1).padStart(5, '0')}`,
+    listingId,
+    channelId: channelState.channel.id,
+    reason,
+    relatedRecordId,
+    status: 'Cần cập nhật',
+    createdAt,
+  }))
+
   return {
+    channelStates: state.channelStates.map((channelState) => (
+      channelState.listingId === listingId
+        ? {
+            ...channelState,
+            status: 'Cần cập nhật',
+            acknowledgement: 'Chờ đồng bộ lại',
+            updatedAt: createdAt,
+          }
+        : channelState
+    )),
+    reconciliationEvents: [...state.reconciliationEvents, ...additions],
+  }
+}
+
+/**
+ * @param {Record<string, any>} listing
+ * @param {Record<string, any>} property
+ * @param {Record<string, any>} project
+ * @param {Record<string, any>} agent
+ * @param {Record<string, any>} profile
+ */
+function createPublicDistributionPayload(listing, property, project, agent, profile) {
+  if (!profile?.applied || !Array.isArray(profile.applied.visibleGroups)) return null
+  const visible = new Set(profile.applied.visibleGroups)
+  const payload = {
     listingId: listing.id,
     propertyId: property.id,
-    title: `${property.unitLabel} · ${project.name}`,
     propertyType: property.type,
-    projectName: project.name,
-    developerName: project.developer.name,
+    transactionType: listing.transactionType,
     location: {
       district: property.location.district,
       city: property.location.city,
-    },
-    area: {
-      value: property.area.value,
-      unit: property.area.unit,
-      concept: property.area.concept,
-    },
-    bedrooms: property.bedrooms,
-    bathrooms: property.bathrooms,
-    mediaCount: listing.mediaCount,
-    askingPrice: {
-      value: listing.askingPrice.value,
-      currency: listing.askingPrice.currency,
     },
     businessContact: {
       displayName: agent.displayName,
       organizationName: agent.organizationName,
     },
   }
+
+  if (visible.has('price')) {
+    payload.askingPrice = {
+      value: listing.askingPrice.value,
+      currency: listing.askingPrice.currency,
+    }
+  }
+  if (visible.has('projectUnit')) {
+    payload.title = `${property.unitLabel} · ${project.name}`
+    payload.projectName = project.name
+    payload.developerName = project.developer.name
+    payload.unitLabel = property.unitLabel
+  }
+  if (visible.has('detailedLocation')) {
+    payload.detailedLocation = {
+      ward: property.location.ward,
+    }
+  }
+  if (visible.has('areas')) {
+    payload.area = {
+      value: property.area.value,
+      unit: property.area.unit,
+      concept: property.area.concept,
+    }
+  }
+  if (visible.has('features')) {
+    payload.bedrooms = property.bedrooms
+    payload.bathrooms = property.bathrooms
+    payload.features = Array.isArray(listing.features) ? [...listing.features] : []
+  }
+  if (visible.has('description')) {
+    payload.description = `${property.type} tại ${property.location.district}, ${property.location.city}.`
+  }
+  if (visible.has('images')) payload.mediaCount = listing.mediaCount
+
+  return payload
 }
 
 /**
  * @param {unknown} action
  * @param {string[]} payloadKeys
  */
-function hasValidCommandShape(action, payloadKeys) {
+function hasValidCommandShape(action, actor, payloadKeys) {
   return isPlainObject(action)
     && hasExactKeys(action, ['type', 'actor', 'payload'])
-    && action.actor === 'agent'
+    && action.actor === actor
     && hasExactKeys(action.payload, payloadKeys)
 }
 
@@ -693,8 +873,240 @@ function hasValidCommandShape(action, payloadKeys) {
 export function marketplaceReducer(state, action) {
   if (!state || state.version !== MARKET_VERSION || !isPlainObject(action)) return state
 
+  if (action.type === MARKET_ACTIONS.SAVE_PUBLICATION_DRAFT) {
+    if (!hasValidCommandShape(action, 'seller', ['listingId', 'visibleGroups'])) return state
+    const listingId = normalizeIdentifier(action.payload.listingId)
+    const records = findRecords(state, listingId)
+    if (!records || records.representation.sellerPartyReference !== CURRENT_SELLER_REFERENCE) return state
+    if (!Array.isArray(action.payload.visibleGroups)
+      || action.payload.visibleGroups.some((group) => typeof group !== 'string')
+      || new Set(action.payload.visibleGroups).size !== action.payload.visibleGroups.length
+      || action.payload.visibleGroups.some((group) => !TOGGLE_PUBLICATION_GROUPS.includes(group))) {
+      return state
+    }
+
+    const visibleGroups = TOGGLE_PUBLICATION_GROUPS.filter((group) => (
+      action.payload.visibleGroups.includes(group)
+    ))
+    const profile = findPublicationProfile(state, records.listing.id)
+    if (!profile || (visibleGroups.length === profile.draft.visibleGroups.length
+      && visibleGroups.every((group, index) => group === profile.draft.visibleGroups[index]))) {
+      return state
+    }
+
+    const version = Math.max(profile.draft.version, profile.applied.version) + 1
+    const acceptedAction = {
+      type: MARKET_ACTIONS.SAVE_PUBLICATION_DRAFT,
+      actor: 'seller',
+      payload: { listingId: records.listing.id, visibleGroups },
+    }
+    return {
+      ...state,
+      publicationProfiles: state.publicationProfiles.map((candidate) => (
+        candidate.id === profile.id
+          ? {
+              ...candidate,
+              draft: {
+                id: publicationVersionId(records.listing.id, version),
+                version,
+                visibleGroups,
+                savedAt: actionTime(state.actionLog.length + 1),
+              },
+            }
+          : candidate
+      )),
+      actionLog: [...state.actionLog, acceptedAction],
+    }
+  }
+
+  if (action.type === MARKET_ACTIONS.APPLY_PUBLICATION_PROFILE) {
+    if (!hasValidCommandShape(action, 'seller', ['listingId'])) return state
+    const listingId = normalizeIdentifier(action.payload.listingId)
+    const records = findRecords(state, listingId)
+    if (!records || records.representation.sellerPartyReference !== CURRENT_SELLER_REFERENCE) return state
+    const profile = findPublicationProfile(state, records.listing.id)
+    if (!profile || profile.draft.version === profile.applied.version) return state
+
+    const acceptedAction = {
+      type: MARKET_ACTIONS.APPLY_PUBLICATION_PROFILE,
+      actor: 'seller',
+      payload: { listingId: records.listing.id },
+    }
+    const appliedAt = actionTime(state.actionLog.length + 1)
+    const reconciliation = requireDistributionReconciliation(
+      state,
+      records.listing.id,
+      'publication_profile_changed',
+      profile.draft.id,
+      appliedAt,
+    )
+    return {
+      ...state,
+      publicationProfiles: state.publicationProfiles.map((candidate) => (
+        candidate.id === profile.id
+          ? {
+              ...candidate,
+              applied: {
+                id: profile.draft.id,
+                version: profile.draft.version,
+                visibleGroups: [...profile.draft.visibleGroups],
+                appliedAt,
+              },
+            }
+          : candidate
+      )),
+      ...reconciliation,
+      actionLog: [...state.actionLog, acceptedAction],
+    }
+  }
+
+  if (action.type === MARKET_ACTIONS.REQUEST_LISTING_CORRECTION) {
+    if (!hasValidCommandShape(
+      action,
+      'seller',
+      ['listingId', 'field', 'proposedValue', 'reason'],
+    )) return state
+    const listingId = normalizeIdentifier(action.payload.listingId)
+    const records = findRecords(state, listingId)
+    const reason = typeof action.payload.reason === 'string' ? action.payload.reason.trim() : ''
+    const proposedValue = action.payload.proposedValue
+    if (!records
+      || records.representation.sellerPartyReference !== CURRENT_SELLER_REFERENCE
+      || action.payload.field !== 'askingPrice'
+      || !hasExactKeys(proposedValue, ['value', 'currency'])
+      || !Number.isSafeInteger(proposedValue.value)
+      || proposedValue.value <= 0
+      || proposedValue.currency !== 'VND'
+      || reason.length < 3
+      || reason.length > 160
+      || proposedValue.value === records.listing.askingPrice.value
+      || state.sellerCorrectionRequests.some((request) => (
+        request.listingId === records.listing.id
+          && request.field === 'askingPrice'
+          && request.status === 'Chờ Sàn xử lý'
+      ))) {
+      return state
+    }
+
+    const sequence = state.sellerCorrectionRequests.length + 1
+    const acceptedAction = {
+      type: MARKET_ACTIONS.REQUEST_LISTING_CORRECTION,
+      actor: 'seller',
+      payload: {
+        listingId: records.listing.id,
+        field: 'askingPrice',
+        proposedValue: { value: proposedValue.value, currency: 'VND' },
+        reason,
+      },
+    }
+    return {
+      ...state,
+      sellerCorrectionRequests: [
+        ...state.sellerCorrectionRequests,
+        {
+          id: `SCR-HN-${String(sequence).padStart(5, '0')}`,
+          listingId: records.listing.id,
+          field: 'askingPrice',
+          currentValue: {
+            value: records.listing.askingPrice.value,
+            currency: records.listing.askingPrice.currency,
+          },
+          proposedValue: { value: proposedValue.value, currency: 'VND' },
+          reason,
+          status: 'Chờ Sàn xử lý',
+          requestedBy: 'seller',
+          requestedAt: actionTime(state.actionLog.length + 1),
+          resolvedBy: null,
+          resolvedAt: null,
+        },
+      ],
+      actionLog: [...state.actionLog, acceptedAction],
+    }
+  }
+
+  if (action.type === MARKET_ACTIONS.APPLY_LISTING_CORRECTION) {
+    if (!hasValidCommandShape(action, 'brokerage', ['requestId'])) return state
+    const requestId = normalizeIdentifier(action.payload.requestId)
+    const request = state.sellerCorrectionRequests.find(({ id }) => id === requestId)
+    if (!request || request.status !== 'Chờ Sàn xử lý' || request.field !== 'askingPrice') return state
+    const records = findRecords(state, request.listingId)
+    if (!records
+      || records.listing.askingPrice.value !== request.currentValue.value
+      || records.listing.askingPrice.currency !== request.currentValue.currency) {
+      return state
+    }
+
+    const appliedAt = actionTime(state.actionLog.length + 1)
+    const revisionSequence = state.listingRevisions.length + 1
+    const revisionId = `REV-HN-${String(revisionSequence).padStart(5, '0')}`
+    const listingVersion = state.listingRevisions.filter(({ listingId }) => (
+      listingId === records.listing.id
+    )).length + 2
+    const revision = {
+      id: revisionId,
+      listingId: records.listing.id,
+      version: listingVersion,
+      field: 'askingPrice',
+      beforeValue: clone(request.currentValue),
+      afterValue: clone(request.proposedValue),
+      reason: request.reason,
+      correctionRequestId: request.id,
+      appliedBy: 'brokerage',
+      appliedAt,
+    }
+    const reconciliation = requireDistributionReconciliation(
+      state,
+      records.listing.id,
+      'listing_correction_applied',
+      revisionId,
+      appliedAt,
+    )
+    const acceptedAction = {
+      type: MARKET_ACTIONS.APPLY_LISTING_CORRECTION,
+      actor: 'brokerage',
+      payload: { requestId: request.id },
+    }
+    return {
+      ...state,
+      listings: state.listings.map((listing) => (
+        listing.id === records.listing.id
+          ? { ...listing, askingPrice: clone(request.proposedValue) }
+          : listing
+      )),
+      sellerCorrectionRequests: state.sellerCorrectionRequests.map((candidate) => (
+        candidate.id === request.id
+          ? {
+              ...candidate,
+              status: 'Đã áp dụng',
+              resolvedBy: 'brokerage',
+              resolvedAt: appliedAt,
+            }
+          : candidate
+      )),
+      listingRevisions: [...state.listingRevisions, revision],
+      auditEvents: [
+        ...state.auditEvents,
+        {
+          id: `AUD-MARKET-${String(state.auditEvents.length + 1).padStart(5, '0')}`,
+          type: 'listing_correction_applied',
+          actor: 'brokerage',
+          organizationReference: 'ORG-HN-BROKERAGE-001',
+          target: { type: 'Listing', id: records.listing.id },
+          field: 'askingPrice',
+          beforeValue: clone(request.currentValue),
+          afterValue: clone(request.proposedValue),
+          reason: request.reason,
+          sourceRequestId: request.id,
+          occurredAt: appliedAt,
+        },
+      ],
+      ...reconciliation,
+      actionLog: [...state.actionLog, acceptedAction],
+    }
+  }
+
   if (action.type === MARKET_ACTIONS.REGISTER_CO_BROKER) {
-    if (!hasValidCommandShape(action, ['listingId'])) return state
+    if (!hasValidCommandShape(action, 'agent', ['listingId'])) return state
     const listingId = normalizeIdentifier(action.payload.listingId)
     if (!listingId) return state
 
@@ -737,7 +1149,7 @@ export function marketplaceReducer(state, action) {
   }
 
   if (action.type === MARKET_ACTIONS.DISTRIBUTE_LISTING) {
-    if (!hasValidCommandShape(action, ['listingId', 'channelId'])) return state
+    if (!hasValidCommandShape(action, 'agent', ['listingId', 'channelId'])) return state
     const listingId = normalizeIdentifier(action.payload.listingId)
     const channelId = normalizeText(action.payload.channelId)
     if (!listingId || channelId !== 'housenow') return state
@@ -768,6 +1180,15 @@ export function marketplaceReducer(state, action) {
     if (existing) return state
 
     const sequence = state.distributionEvents.length + 1
+    const publicationProfile = findPublicationProfile(state, records.listing.id)
+    const payload = createPublicDistributionPayload(
+      records.listing,
+      records.property,
+      records.project,
+      records.representation.responsibleAgent,
+      publicationProfile,
+    )
+    if (!publicationProfile || !payload) return state
     const acceptedAction = {
       type: MARKET_ACTIONS.DISTRIBUTE_LISTING,
       actor: 'agent',
@@ -788,13 +1209,21 @@ export function marketplaceReducer(state, action) {
           acknowledgement: 'Chờ phản hồi kênh',
           purpose: consent.purpose,
           projectionVersion: PUBLIC_DISTRIBUTION_PROJECTION_VERSION,
+          publicationProfileId: publicationProfile.applied.id,
+          publicationProfileVersion: publicationProfile.applied.version,
           sentAt: actionTime(state.actionLog.length + 1),
-          payload: createPublicDistributionPayload(
-            records.listing,
-            records.property,
-            records.project,
-            state.currentAgent,
-          ),
+          payload,
+        },
+      ],
+      channelStates: [
+        ...state.channelStates,
+        {
+          listingId: records.listing.id,
+          channel: { ...CHANNELS.housenow },
+          status: 'Đã gửi',
+          acknowledgement: 'Chờ phản hồi kênh',
+          lastDistributionEventId: distributionId(sequence),
+          updatedAt: actionTime(state.actionLog.length + 1),
         },
       ],
       actionLog: [...state.actionLog, acceptedAction],
@@ -817,8 +1246,31 @@ export function createMarketState() {
       projectId: project.id,
     })),
     representations: MARKET_FIXTURES.map(({ representation }) => clone(representation)),
+    publicationProfiles: MARKET_FIXTURES.map(({ listing }) => ({
+      id: `PUB-${listing.id.slice(5)}`,
+      listingId: listing.id,
+      lockedGroups: [...LOCKED_PUBLICATION_GROUPS],
+      toggleGroups: [...TOGGLE_PUBLICATION_GROUPS],
+      draft: {
+        id: `PUB-${listing.id.slice(5)}-V001`,
+        version: 1,
+        visibleGroups: [...TOGGLE_PUBLICATION_GROUPS],
+        savedAt: MARKET_EFFECTIVE_AT,
+      },
+      applied: {
+        id: `PUB-${listing.id.slice(5)}-V001`,
+        version: 1,
+        visibleGroups: [...TOGGLE_PUBLICATION_GROUPS],
+        appliedAt: MARKET_EFFECTIVE_AT,
+      },
+    })),
     coBrokerRegistrations: [],
     distributionEvents: [],
+    channelStates: [],
+    reconciliationEvents: [],
+    sellerCorrectionRequests: [],
+    listingRevisions: [],
+    auditEvents: [],
     actionLog: [],
   }
 }

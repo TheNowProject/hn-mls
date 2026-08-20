@@ -5,6 +5,8 @@ const deploymentProtectionSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
 export default defineConfig({
   testDir: './e2e',
   outputDir: 'output/qa/vmls-interactive-demo/playwright/results',
+  timeout: 90_000,
+  expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -20,11 +22,14 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5180',
     colorScheme: 'light',
     locale: 'vi-VN',
+    timezoneId: 'Asia/Ho_Chi_Minh',
+    viewport: { width: 1440, height: 900 },
     extraHTTPHeaders: deploymentProtectionSecret ? {
       'x-vercel-protection-bypass': deploymentProtectionSecret,
     } : undefined,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     {

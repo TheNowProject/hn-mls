@@ -2,7 +2,7 @@
 title: VMLS domain language
 status: current
 authority: canonical
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-20
 ---
 
 # VMLS domain language
@@ -14,8 +14,8 @@ VMLS standardizes the language used to describe durable real-estate identities, 
 > **PROPOSAL:** These Vietnamese labels and configured identifiers are scoped to the static VMLS operational prototype. They preserve object boundaries while users search, inspect, and process records; they do not establish an official identifier, legal record, production lifecycle, or final Vietnamese domain translation. Repository evidence labels remain in maintained documentation and review artifacts, not in the product interface.
 
 **Bất động sản / NPID**:
-The workspace label and configured reference for the durable Property. It persists independently from each Tin bán or Giao dịch.
-_Avoid_: PLID, PTID, Tin bán, Giao dịch, official government identifier
+The workspace label and configured reference for the durable Property. It persists independently from each Tin bán or Giao dịch. In the V4 demo, the configured 357 source record issues the NPID and VMLS uses it directly; this relationship remains a `PROPOSAL` until an official interface and identifier owner are approved.
+_Avoid_: PLID, PTID, Tin bán, Giao dịch, VMLS-generated NPID, established official government identifier
 
 **Tin bán / PLID**:
 The sale/transfer-only workspace rendering of a Listing and its separate configured identifier. Status `Đã khởi tạo` means the Listing record exists; it does not mean Active, approved, or publicly distributed.
@@ -36,6 +36,10 @@ _Avoid_: Mã BĐS, candidate ID, source-record ID
 **Mã định danh Người bán / Người mua / Người đại diện**:
 The Vietnamese interface labels for the configured `Party.reference` values used across the operational workflow. They remain distinct from the masked identity-document reference such as CCCD shown separately when permitted.
 _Avoid_: Mã Người mua, Mã Người bán, Tham chiếu Người mua, CCCD as the Party record ID
+
+**Bản ghi nguồn Bất động sản 357 / PropertySourceRecord357**:
+The configured source record from which VMLS receives the NPID and permitted Property claims. It keeps a source record ID, source version, source update time, VMLS receipt time, and field-level claims for project/developer, location, property type, building/unit, named area concepts, and publication state. It excludes owner identity, CCCD, and private transaction history. The V4 demo contract that 357 issues the NPID is a `PROPOSAL`, not evidence of a live or approved interface.
+_Avoid_: Bất động sản itself, owner record, live 357 API response, proof of official integration
 
 ## Asset identity
 
@@ -88,6 +92,18 @@ _Avoid_: Property Status, nhãn tự do
 **Listing Status Event**:
 An immutable record of an allowed Listing transition, including actor, time, reason, before/after state, and supporting evidence where required.
 _Avoid_: sửa trực tiếp status history
+
+**Cấu hình công khai Tin bán / PublicationProfile**:
+The field-group policy attached to one PLID that determines its Public projection. It has separate draft and applied versions. PLID, transaction/property type, general area, and the responsible Agent's business contact are locked; price, project/unit, detailed location, named areas, features, description, and images are optional. Public lookup and channel delivery consume only the applied version.
+_Avoid_: Industry projection, consent for every channel, frontend-only hiding, editing the source Property
+
+**Yêu cầu chỉnh sửa Tin bán / SellerCorrectionRequest**:
+An append-oriented proposal from the owning Seller to change a permitted Listing value. The V4 demo uses `askingPrice`: the Seller records old/new values, the Brokerage applies or rejects the request, and an accepted request creates a new Listing revision. It does not rewrite prior events or the 357 source record.
+_Avoid_: direct Seller mutation, Property-source correction, silent downstream update
+
+**Khai báo Người mua / BuyerDeclaration**:
+A transaction-scoped declaration created by the Brokerage after the Listing and representation prerequisites are satisfied. It contains the Buyer Party reference, agreed price, and expected signing date; the masked name is resolved from the configured Party record rather than entered again. Its projection is purpose- and role-specific.
+_Avoid_: Agent-created buyer record, public Listing field, ownership claim, external-agency identity payload
 
 **Closing Record**:
 The permitted record of a completed transaction outcome related to a Listing, kept separate from Property and Listing identities.
@@ -171,6 +187,10 @@ _Avoid_: publishing the full Listing record, confirming a live integration, tran
 An append-oriented record of an outbound delivery attempt for a Listing and channel, including actor, time, projection version, delivery status, and channel acknowledgement state.
 _Avoid_: Listing Status Event, live-channel success without acknowledgement, mutable sync flag
 
+**Cần cập nhật / Channel reconciliation state**:
+The local status used when an applied Listing revision differs from the projection version previously sent to a channel. It creates a reconciliation event and indicates that another delivery may be needed; it never asserts that the external channel changed automatically.
+_Avoid_: remotely updated, published, synchronized successfully
+
 **Distribution Assignment**:
 The authority granted by a Developer or authorized Party to an Organization to distribute specified Project or Unit inventory.
 _Avoid_: Listing Agreement, Organization Membership
@@ -180,6 +200,26 @@ _Avoid_: Listing Agreement, Organization Membership
 **Data Source**:
 The origin of a record or field, including source key, retrieval time, effective time, confidence, and editability.
 _Avoid_: Verification, source name as plain text only
+
+**Hồ sơ xử lý ngoài VMLS / ExternalProcessingCase**:
+A VMLS projection of a dossier processed in an external source system such as VPCC, VPĐKĐĐ, or the tax system. It links the VMLS case to the source case identifier and processing organization without granting the external role a VMLS business command.
+_Avoid_: VMLS-owned authority case, editable agency workflow, transaction Audit Event
+
+**Sự kiện trạng thái ngoài VMLS / ExternalStatusEvent**:
+An immutable inbound source event containing source system, source case, raw status, normalized status, source update time, VMLS receipt time, and idempotency identity. Duplicate events are ignored and older events cannot move the normalized state backwards.
+_Avoid_: user-created Audit Event, mutable status field, direct VPCC/VPĐKĐĐ/Tax command in VMLS
+
+**Trạng thái xử lý chuẩn / ProcessingProjection**:
+The role-scoped summary derived from external events using `Chờ tiếp nhận`, `Đang xử lý`, `Yêu cầu bổ sung`, or `Đã xử lý`, together with the unit currently processing the dossier. It is a milestone, not an invented completion percentage.
+_Avoid_: source system of record, SLA guarantee, workflow action
+
+**Hồ sơ thuế / TaxDossier**:
+The tax-source processing case created from the configured outbound handoff after the final notarization event. It progresses in parallel with transfer routing and does not gate the Developer or VPĐKĐĐ route in the demo.
+_Avoid_: proof that tax obligations are settled, manual tax action in VMLS, universal legal rule
+
+**Phiên VNeID cục bộ / Local VNeID session**:
+A versioned browser record created by the demo's two-step VNeID handoff. It stores only a masked configured identity and accepted sharing scope, persists independently from business-state reset, and neither authenticates against VNeID nor changes VMLS role or entitlements.
+_Avoid_: production authentication, OTP exchange, live VNeID session, permission grant
 
 **Verification**:
 A time-bounded assessment of identity, authority, document, or data claims against defined evidence and rules.

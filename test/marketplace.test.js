@@ -5,6 +5,7 @@ import {
   MARKET_STORAGE_KEY,
   PUBLIC_DISTRIBUTION_PROJECTION_VERSION,
   createMarketState,
+  getPublicListing,
   getListingDetail,
   getMarketSummary,
   getRepresentedListings,
@@ -34,13 +35,16 @@ function distribute(state, listingId = FIRST_LISTING_ID) {
 test('market state starts with five separate synthetic represented Listings', () => {
   const state = createMarketState()
 
-  assert.equal(MARKET_STORAGE_KEY, 'vmls:represented-market:2026-08:v1')
-  assert.equal(state.version, 1)
+  assert.equal(MARKET_STORAGE_KEY, 'vmls:represented-market:2026-08:v2')
+  assert.equal(state.version, 2)
   assert.equal(state.listings.length, 5)
   assert.equal(state.properties.length, 5)
   assert.equal(state.representations.length, 5)
   assert.equal(state.coBrokerRegistrations.length, 0)
   assert.equal(state.distributionEvents.length, 0)
+  assert.equal(state.publicationProfiles.length, 5)
+  assert.equal(state.sellerCorrectionRequests.length, 0)
+  assert.equal(state.listingRevisions.length, 0)
 
   assert.equal(new Set(state.listings.map(({ id }) => id)).size, 5)
   assert.equal(new Set(state.properties.map(({ id }) => id)).size, 5)
@@ -224,26 +228,39 @@ test('HouseNow distribution requires registration and consent, emits only the pu
   assert.equal(event.acknowledgement, 'Chờ phản hồi kênh')
   assert.equal(event.purpose, 'Phân phối Tin bán')
   assert.equal(event.projectionVersion, PUBLIC_DISTRIBUTION_PROJECTION_VERSION)
+  assert.equal(event.publicationProfileId, 'PUB-HN-31001-V001')
+  assert.equal(event.publicationProfileVersion, 1)
   assert.deepEqual(event.channel, { id: 'housenow', name: 'HouseNow' })
   assert.deepEqual(Object.keys(event.payload), [
     'listingId',
     'propertyId',
-    'title',
     'propertyType',
+    'transactionType',
+    'location',
+    'businessContact',
+    'askingPrice',
+    'title',
     'projectName',
     'developerName',
-    'location',
+    'unitLabel',
+    'detailedLocation',
     'area',
     'bedrooms',
     'bathrooms',
+    'features',
+    'description',
     'mediaCount',
-    'askingPrice',
-    'businessContact',
   ])
   assert.deepEqual(Object.keys(event.payload.location), ['district', 'city'])
+  assert.deepEqual(Object.keys(event.payload.detailedLocation), ['ward'])
   assert.deepEqual(Object.keys(event.payload.area), ['value', 'unit', 'concept'])
   assert.deepEqual(Object.keys(event.payload.askingPrice), ['value', 'currency'])
   assert.deepEqual(Object.keys(event.payload.businessContact), ['displayName', 'organizationName'])
+  assert.deepEqual(event.payload, getPublicListing(distributed, FIRST_LISTING_ID))
+  assert.deepEqual(event.payload.businessContact, {
+    displayName: 'Trần H. A.',
+    organizationName: 'Sàn Hồ Tây',
+  })
   assert.doesNotMatch(JSON.stringify(event.payload), /seller|owner|agent|phone|email|evidence/iu)
   assert.strictEqual(marketplaceReducer(distributed, valid), distributed)
 
@@ -277,6 +294,8 @@ test('listing detail separates current-agent participation from aggregate activi
     acknowledgement: 'Chờ phản hồi kênh',
     purpose: 'Phân phối Tin bán',
     projectionVersion: PUBLIC_DISTRIBUTION_PROJECTION_VERSION,
+    publicationProfileId: 'PUB-HN-31001-V001',
+    publicationProfileVersion: 1,
     sentAt: '2026-08-17T10:02:00+07:00',
   }])
   assert.deepEqual(detail.collaboration.activity, {
@@ -300,7 +319,7 @@ test('market progress persists as validated commands and tampered envelopes fail
   const envelope = JSON.parse(serialized)
 
   assert.deepEqual(Object.keys(envelope), ['version', 'actions'])
-  assert.equal(envelope.version, 1)
+  assert.equal(envelope.version, 2)
   assert.equal(envelope.actions.length, 2)
   assert.doesNotMatch(serialized, /PARTY-SELLER|EVIDENCE-REP|Công ty CP|askingPrice/u)
   assert.deepEqual(restoreMarketState(serialized), progressed)
@@ -308,22 +327,22 @@ test('market progress persists as validated commands and tampered envelopes fail
   assert.deepEqual(restoreMarketState(null), initial)
   assert.deepEqual(restoreMarketState('{not-json'), initial)
   assert.deepEqual(restoreMarketState(JSON.stringify({
-    version: 2,
+    version: 3,
     actions: envelope.actions,
   })), initial)
   assert.deepEqual(restoreMarketState(JSON.stringify({
-    version: 1,
+    version: 2,
     actions: [envelope.actions[0], envelope.actions[0]],
   })), initial)
   assert.deepEqual(restoreMarketState(JSON.stringify({
-    version: 1,
+    version: 2,
     actions: [{
       ...envelope.actions[0],
       payload: { ...envelope.actions[0].payload, sellerPartyReference: 'PARTY-LEAK' },
     }],
   })), initial)
   assert.deepEqual(restoreMarketState(JSON.stringify({
-    version: 1,
+    version: 2,
     actions: envelope.actions,
     rawState: progressed,
   })), initial)
@@ -334,7 +353,7 @@ test('market progress persists as validated commands and tampered envelopes fail
     payload: { ...envelope.actions[0].payload, ownerPhone: '0900000000' },
   })
   assert.deepEqual(JSON.parse(serializeMarketState(injected)), {
-    version: 1,
+    version: 2,
     actions: [],
   })
 })

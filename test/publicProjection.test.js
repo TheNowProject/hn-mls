@@ -31,10 +31,11 @@ function advanceToNotarySubmission(caseId) {
   state = apply(state, ACTIONS.CONFIRM_REPRESENTATION, 'seller', {
     accepted: true,
   })
-  state = apply(state, ACTIONS.RECORD_BUYER, 'agent', {
+  state = apply(state, ACTIONS.DECLARE_BUYER, 'brokerage', {
     buyerRef: dossier.parties.buyer.reference,
     agreedPrice: dossier.listing.askingPrice.value - 200_000_000,
-    expectedSigningOn: dossier.actionTimes.record_notary_signing.slice(0, 10),
+    expectedSigningOn: dossier.externalProcessing.notary.events
+      .at(-1).effect.signedAt.slice(0, 10),
   })
   state = apply(state, ACTIONS.VERIFY_READINESS, 'buyer', {
     confirmed: true,
@@ -45,7 +46,7 @@ function advanceToNotarySubmission(caseId) {
       documentsReviewed: true,
     },
   })
-  state = apply(state, ACTIONS.SUBMIT_NOTARY_DOSSIER, 'notary', {
+  state = apply(state, ACTIONS.HANDOFF_NOTARY_DOSSIER, 'brokerage', {
     submissionRef: `NOP-${dossier.notary.id}`,
     documentIds: [...dossier.notary.requiredDocumentIds],
   })
@@ -57,23 +58,30 @@ function advanceToTransaction(caseId) {
   const dossier = getDemoCase(caseId)
   assert.ok(dossier)
   let state = advanceToNotarySubmission(caseId)
+  state = apply(state, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+    caseId,
+    source: 'notary',
+  })
 
   if (dossier.notary.requiresSupplement) {
-    state = apply(state, ACTIONS.REQUEST_SUPPLEMENT, 'notary', {
-      reasonCode: dossier.notary.supplement.reasonCode,
-      documentType: dossier.notary.supplement.documentType,
-      dueOn: '2026-08-21',
+    state = apply(state, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+      caseId,
+      source: 'notary',
     })
-    state = apply(state, ACTIONS.PROVIDE_SUPPLEMENT, 'seller', {
+    state = apply(state, ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF, 'seller', {
       documentId: 'DOC-BOSUNG-HN-0044',
       documentType: dossier.notary.supplement.documentType,
       fileName: 'xac-nhan-tinh-trang-hon-nhan.pdf',
     })
+    state = apply(state, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+      caseId,
+      source: 'notary',
+    })
   }
 
-  return apply(state, ACTIONS.RECORD_NOTARY_SIGNING, 'notary', {
-    contractId: dossier.notary.contractId,
-    signedAt: dossier.actionTimes.record_notary_signing,
+  return apply(state, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+    caseId,
+    source: 'notary',
   })
 }
 
@@ -160,17 +168,23 @@ test('public projection exposes PLID and PTID only after their lifecycle creatio
     id: 'PTID-HN-00031',
     status: 'Đã ký công chứng',
   })
-  assert.equal(afterTransaction.latestMaterialAt, dossier.actionTimes.record_notary_signing)
+  assert.equal(
+    afterTransaction.latestMaterialAt,
+    dossier.externalProcessing.notary.events.at(-1).effect.signedAt,
+  )
 })
 
 test('public projection generalizes restricted notary exceptions', () => {
   const dossier = getDemoCase(LAND_CASE_ID)
   assert.ok(dossier)
   let state = advanceToNotarySubmission(LAND_CASE_ID)
-  state = apply(state, ACTIONS.REQUEST_SUPPLEMENT, 'notary', {
-    reasonCode: dossier.notary.supplement.reasonCode,
-    documentType: dossier.notary.supplement.documentType,
-    dueOn: '2026-08-21',
+  state = apply(state, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+    caseId: LAND_CASE_ID,
+    source: 'notary',
+  })
+  state = apply(state, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+    caseId: LAND_CASE_ID,
+    source: 'notary',
   })
 
   const projected = projectStateForPublic(state)
@@ -211,9 +225,13 @@ test('public transfer projections cover both routes without operational referenc
   const dossier = getDemoCase(LAND_CASE_ID)
   assert.ok(dossier)
   const routedLand = advanceToTransaction(LAND_CASE_ID)
-  const completedLand = apply(routedLand, ACTIONS.APPROVE_LAND_REGISTRY, 'landRegistry', {
-    resultRef: dossier.transfer.resultRef,
-    approvedAt: dossier.actionTimes.approve_land_registry,
+  let completedLand = apply(routedLand, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+    caseId: LAND_CASE_ID,
+    source: 'landRegistry',
+  })
+  completedLand = apply(completedLand, ACTIONS.RECEIVE_EXTERNAL_EVENT, 'vmls', {
+    caseId: LAND_CASE_ID,
+    source: 'landRegistry',
   })
   const land = projectStateForPublic(completedLand)
   assert.deepEqual(land.transfer, {

@@ -5,6 +5,7 @@ import {
   STORAGE_KEY,
   demoCases,
   ecosystemConnections,
+  externalMonitoringFixtures,
   externalRoles,
   getActionTime,
   getDemoCase,
@@ -14,12 +15,12 @@ import {
   workspaceDefinitions,
 } from '../src/demo/demoData.js'
 
-test('the operational fixture has a v3 storage contract and nine explicit roles', () => {
-  assert.equal(DEMO_VERSION, 'vmls-operations-2026-08-v3')
-  assert.equal(STORAGE_KEY, 'vmls:operations:2026-08:v3')
+test('the operational fixture has a v4 storage contract and ten explicit roles', () => {
+  assert.equal(DEMO_VERSION, 'vmls-operations-2026-08-v4')
+  assert.equal(STORAGE_KEY, 'vmls:operations:2026-08:v4')
   assert.deepEqual(
     roles.map(({ id }) => id),
-    ['agent', 'brokerage', 'seller', 'buyer', 'bank', 'developer', 'vmls', 'notary', 'landRegistry'],
+    ['agent', 'brokerage', 'seller', 'buyer', 'bank', 'developer', 'vmls', 'notary', 'landRegistry', 'tax'],
   )
   assert.deepEqual(
     marketRoles.map(({ id }) => id),
@@ -27,7 +28,7 @@ test('the operational fixture has a v3 storage contract and nine explicit roles'
   )
   assert.deepEqual(
     externalRoles.map(({ id }) => id),
-    ['vmls', 'notary', 'landRegistry'],
+    ['vmls', 'notary', 'landRegistry', 'tax'],
   )
 })
 
@@ -132,10 +133,9 @@ test('each configured August chronology is strictly ordered and finishes before 
     developer: [
       'request_seller_confirmation',
       'confirm_representation',
-      'record_buyer',
+      'declare_buyer',
       'verify_readiness',
-      'submit_notary_dossier',
-      'record_notary_signing',
+      'handoff_notary_dossier',
       'developer_intake',
       'developer_confirm_transfer',
       'buyer_receive_contract',
@@ -143,13 +143,10 @@ test('each configured August chronology is strictly ordered and finishes before 
     landRegistry: [
       'request_seller_confirmation',
       'confirm_representation',
-      'record_buyer',
+      'declare_buyer',
       'verify_readiness',
-      'submit_notary_dossier',
-      'request_supplement',
-      'provide_supplement',
-      'record_notary_signing',
-      'approve_land_registry',
+      'handoff_notary_dossier',
+      'submit_supplement_handoff',
     ],
   }
 
@@ -161,17 +158,26 @@ test('each configured August chronology is strictly ordered and finishes before 
     }
     assert.ok(Date.parse(dossier.slaDueAt) > Date.parse(timestamps.at(-1)))
     assert.match(dossier.slaDueAt, /^2026-08-/)
+
+    for (const sourceCase of Object.values(dossier.externalProcessing).filter(Boolean)) {
+      const sourceTimes = sourceCase.events.map(({ receivedAt }) => receivedAt)
+      assert.ok(sourceTimes.every((value) => /^2026-08-/u.test(value)))
+      for (let index = 1; index < sourceTimes.length; index += 1) {
+        assert.ok(Date.parse(sourceTimes[index]) > Date.parse(sourceTimes[index - 1]))
+      }
+      assert.ok(Date.parse(dossier.slaDueAt) > Date.parse(sourceTimes.at(-1)))
+    }
   }
 
   assert.equal(
-    getActionTime('sun-grand-thuy-khue', 'record_notary_signing'),
-    '2026-08-22T15:30:00+07:00',
+    getActionTime('sun-grand-thuy-khue', 'handoff_notary_dossier'),
+    '2026-08-19T09:45:00+07:00',
   )
   assert.equal(
-    getActionTime('phu-thuong-landed-home', 'record_notary_signing'),
-    '2026-08-26T10:00:00+07:00',
+    getActionTime('phu-thuong-landed-home', 'submit_supplement_handoff'),
+    '2026-08-20T09:25:00+07:00',
   )
-  assert.equal(getActionTime('unknown-case', 'record_notary_signing'), null)
+  assert.equal(getActionTime('unknown-case', 'handoff_notary_dossier'), null)
 })
 
 test('representation, finance sharing and listing distribution are separate data concepts', () => {
@@ -192,15 +198,87 @@ test('representation, finance sharing and listing distribution are separate data
   assert.equal('financeSharing' in developer.representation, false)
 })
 
-test('the 357 capture is registered as a source, not attached to either dossier', () => {
+test('each dossier configures deterministic external source cases without party identity', () => {
+  for (const dossier of demoCases) {
+    const { notary, tax, landRegistry } = dossier.externalProcessing
+    assert.equal(notary.source, 'notary')
+    assert.equal(notary.sourceCaseId, dossier.notary.id)
+    assert.equal(tax.source, 'tax')
+    assert.match(tax.sourceCaseId, /^HST-HN-/u)
+    assert.equal(notary.events.at(-1).effect.type, 'notary_completed')
+    assert.equal(notary.events.at(-1).effect.contractId, dossier.notary.contractId)
+    assert.equal(tax.events.at(-1).status, 'Đã xử lý')
+
+    if (dossier.expectedRoute === 'landRegistry') {
+      assert.equal(landRegistry.source, 'landRegistry')
+      assert.equal(landRegistry.events.at(-1).effect.type, 'land_registry_completed')
+      assert.equal(landRegistry.events.at(-1).effect.resultRef, dossier.transfer.resultRef)
+    } else {
+      assert.equal(landRegistry, null)
+    }
+
+    for (const sourceCase of [notary, tax, landRegistry].filter(Boolean)) {
+      assert.deepEqual(
+        sourceCase.events.map(({ sequence }) => sequence),
+        sourceCase.events.map((_, index) => index + 1),
+      )
+      assert.ok(sourceCase.events.every(({ source, sourceCaseId }) => (
+        source === sourceCase.source && sourceCaseId === sourceCase.sourceCaseId
+      )))
+    }
+
+    const exposed = JSON.stringify(dossier.externalProcessing)
+    for (const party of Object.values(dossier.parties)) {
+      assert.doesNotMatch(exposed, new RegExp(party.reference, 'u'))
+      assert.doesNotMatch(exposed, new RegExp(party.identityRef, 'u'))
+    }
+  }
+})
+
+test('each external workspace has five synthetic read-only monitoring rows', () => {
+  assert.deepEqual(Object.keys(externalMonitoringFixtures), ['notary', 'landRegistry', 'tax'])
+  for (const [source, rows] of Object.entries(externalMonitoringFixtures)) {
+    assert.equal(rows.length, 5)
+    assert.equal(new Set(rows.map(({ sourceCaseId }) => sourceCaseId)).size, 5)
+    assert.ok(rows.every((row) => row.source === source))
+    assert.ok(rows.every((row) => row.propertyId.startsWith('NPID-')))
+    assert.ok(rows.every((row) => [
+      'Chờ tiếp nhận',
+      'Đang xử lý',
+      'Yêu cầu bổ sung',
+      'Đã xử lý',
+    ].includes(row.status)))
+    assert.ok(rows.every((row) => Number.isFinite(Date.parse(row.sourceUpdatedAt))))
+    assert.ok(rows.every((row) => Date.parse(row.receivedAt) >= Date.parse(row.sourceUpdatedAt)))
+  }
+  assert.doesNotMatch(JSON.stringify(externalMonitoringFixtures), /CCCD|Người mua|Người bán/iu)
+})
+
+test('357 supplies each canonical NPID through a safe record-level provenance snapshot', () => {
   assert.deepEqual(sourceRegistry.map(({ id }) => id), ['source-357'])
-  assert.equal(sourceRegistry[0].connectionStatus, 'Chưa cấu hình')
+  assert.equal(sourceRegistry[0].connectionStatus, 'Đã đồng bộ')
   assert.equal(sourceRegistry[0].dataCategory, 'Thông tin nhà ở và thị trường bất động sản')
   assert.equal(sourceRegistry[0].capturedOn, '15/08/2026')
   assert.equal(sourceRegistry[0].screenshot, '/assets/demo/357-homepage-2026-08-15.png')
 
-  const dossiers = JSON.stringify(demoCases)
-  assert.doesNotMatch(dossiers, /thongtinbds\.moc\.gov\.vn|357-homepage/)
+  for (const dossier of demoCases) {
+    const source = dossier.property.sourceRecord357
+    assert.equal(source.sourceId, 'source-357')
+    assert.equal(source.npid, dossier.property.id)
+    assert.match(source.sourceRecordId, /^357-HN-/u)
+    assert.match(source.version, /^2026-08-/u)
+    assert.ok(Number.isFinite(Date.parse(source.sourceUpdatedAt)))
+    assert.ok(Number.isFinite(Date.parse(source.receivedAt)))
+    assert.ok(Date.parse(source.receivedAt) >= Date.parse(source.sourceUpdatedAt))
+    assert.equal(source.publicationStatus, 'Đã công bố')
+    assert.ok(source.claims.some(({ field }) => field === 'propertyType'))
+    assert.ok(source.claims.some(({ field }) => field === 'area'))
+
+    const exposed = JSON.stringify(source)
+    for (const forbidden of ['seller', 'owner', 'buyer', 'CCCD', 'identityRef', 'transactionHistory']) {
+      assert.doesNotMatch(exposed, new RegExp(forbidden, 'iu'))
+    }
+  }
 })
 
 test('external touchpoints have explicit data contracts and local reference captures', () => {
@@ -215,7 +293,7 @@ test('external touchpoints have explicit data contracts and local reference capt
     assert.match(connection.screenshot, /^\/assets\/demo\/.+\.png$/)
     assert.ok(connection.inputFields.length > 0)
     assert.ok(connection.outputFields.length > 0)
-    assert.ok(['Chưa kết nối', 'Chưa cấu hình', 'Chưa phát hành'].includes(connection.status))
+    assert.ok(['Chưa kết nối', 'Đã đồng bộ', 'Chưa phát hành'].includes(connection.status))
   }
 
   assert.equal(

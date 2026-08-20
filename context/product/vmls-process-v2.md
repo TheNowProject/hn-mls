@@ -1,97 +1,164 @@
 # VMLS transaction flow v2
 
-> **Superseded for UI review:** use [VMLS transaction screens v3](./vmls-process-v3.md) for the standardized header/sidebar shell, list screens, and navigation relationship map. This v2 document is preserved for comparison.
-
-> Evidence status: **PROPOSAL** — revised from stakeholder comments. This is not yet an approved legal, tax, integration, or production workflow.
+> Evidence status: **PROPOSAL** — revised through stakeholder review on 2026-08-20. This document describes the configured pre-MVP flow, not an approved legal, tax, identity, notarization, land-registration, Developer, or production-integration workflow.
 >
-> Naming note: **HNRE in the supplied flow is treated as VMLS**. `NPID` identifies the Property, `PLID` identifies the Listing, and `PTID` identifies the Transaction; they remain separate lifecycle objects.
+> Naming: HNRE in the supplied source flow is treated as VMLS. `NPID` identifies the Bất động sản, `PLID` identifies the Tin bán, and `PTID` identifies the Giao dịch. They are separate lifecycle objects.
 
-## Revised flow
+Use [transaction screens v3](./vmls-process-v3.md) for shell and list/detail navigation grammar. Where an older screenshot shows an agency performing work in VMLS, this current text controls: VPCC, VPĐKĐĐ, and Cơ quan thuế only expose read-only synchronized status.
 
-![VMLS — Quy trình giao dịch rút gọn v2](./assets/vmls-process-v2/00-flow-overview.png)
+## Governing decisions
 
-## What changed from the 24-step draft
+1. `PROPOSAL`: 357 issues the NPID used directly by VMLS and provides safe Property claims with record-level provenance. An official identifier owner and interface remain an `OPEN QUESTION`.
+2. Môi giới does not match candidate Properties in this flow. The Agent enters an existing NPID and sends representation information to the Seller.
+3. Seller confirmation creates PLID in `Đã khởi tạo`; it does not imply Active or public distribution.
+4. The Seller controls optional Public field groups through one draft/applied `PublicationProfile` per PLID. The Industry cooperation projection is separate.
+5. The Brokerage, not the Agent, declares the Buyer and hands off the notarization dossier.
+6. VPCC, VPĐKĐĐ, and Tax work in their source systems. Their VMLS workspaces are read-only queues/details synchronized from configured source events.
+7. Vận hành VMLS may receive the next configured source event for one dossier and source. It cannot invent or skip a source result.
+8. Final notarization status creates PTID, derives the route, and creates applicable outbound handoffs. Tax proceeds in parallel and does not gate the route.
+9. The Developer/HĐMB branch remains interactive in this demo.
 
-| Old step(s) | v2 decision | Revised behavior |
+## Records and histories
+
+| Record | Purpose | Mutation boundary |
 |---|---|---|
-| 01 | Removed as a screen | Agent demand is the kickoff event. |
-| 02 | New 01 | Agent enters the existing NPID, representation scope and effective period, then sends the request to the seller. Property candidate matching is upstream of this flow. |
-| 03 | New 02 | Seller confirms representation through VNeID; no complex VMLS login. |
-| 04 | New 03 | Result-only VMLS status after prerequisites complete; PLID is generated automatically. |
-| 05–06 | New 04 | Dossier creation and submission happen in VPCC software. |
-| 07 | New 05–06 | VPCC records completed signing and sends the result; VMLS receives it, creates PTID and shows `Đã ký công chứng`. |
-| 08 | Removed | No standalone HouseNow T-VAN delivery screen. |
-| 09–14 | Collapsed into automation | Tax data exchange and confirmation are system events, not user screens. |
-| 15 | Replaced by system routing | The dossier determines the route; the user does not choose VPĐKĐĐ versus Developer. |
-| 16–17 | Branch A — A1 | VPĐKĐĐ processes and approves; VMLS is updated through API. |
-| 18–19 | Removed as VMLS screens | VNeID/357 updates and buyer notification are external or embedded outcomes. |
-| 20–21 | Branch B — B1 | Submission and intake are merged into one Developer Portal screen. This is the old `15.2` route. |
-| 22 | Branch B — B2 | Developer confirms transfer. |
-| 23 | Branch B — B3 | Buyer receives the new HĐMB. |
-| 24 | Removed | VMLS data synchronizes automatically when the Developer confirms; there is no separate manual sync screen. |
+| `PropertySourceRecord357` | Source record/version/timestamps and safe Property field claims, including the NPID | Inbound configured source data; no owner/CCCD/private transaction history |
+| Bất động sản / NPID | Durable Property identity used by VMLS | Independent from PLID and PTID |
+| Representation | Seller authority granted to the responsible Agent/Brokerage | Môi giới requests; Seller confirms |
+| Tin bán / PLID | Sale/transfer offering | Created after Representation confirmation |
+| `PublicationProfile` | Applied Public field groups for one PLID | Seller saves draft and applies; locked groups cannot be removed |
+| `SellerCorrectionRequest` | Old/new Listing value proposed by Seller | Brokerage applies as a new revision; history is not overwritten |
+| `BuyerDeclaration` | Buyer reference, agreed price, expected signing date | Brokerage only |
+| `ExternalProcessingCase` | Link between VMLS dossier and a VPCC, Tax, or VPĐKĐĐ source case | Read-only for the agency role |
+| `ExternalStatusEvent` | Raw/normalized status and source/VMLS timestamps | Append-only, idempotent, non-regressive |
+| Giao dịch / PTID | VMLS orchestration reference for the transaction | Created on the final configured VPCC result |
+| Audit Event | User/system action inside VMLS | Separate from external status events |
 
-## Common screens
+## Common flow
 
-### 01 — Môi giới nhập mã định danh BĐS và gửi thông tin đến Người bán
+### 00 — Optional local VNeID session
 
-### 02 — Người bán xác nhận qua VNeID
+The landing or header opens a local two-step handoff, displays a masked configured identity and the sharing scope, then records confirmation in a separate browser session store. It makes no VNeID request, does not change role or entitlement, does not gate routes, and is not cleared by business-data reset.
 
-![02 — Người bán xác nhận qua VNeID](./assets/vmls-process-v2/02-seller-vneid-confirmation.png)
+### 01 — Môi giới requests Representation
 
-### 03 — VMLS thông báo Listing đã được khởi tạo
+- Enter the exact existing `Mã định danh Bất động sản` issued by the configured 357 record.
+- Enter representation scope, effective date, and expiry date.
+- Send the information to the Seller.
+- Always show the Seller and Agent/representative blocks before and after submission.
 
-![03 — VMLS thông báo Listing đã được khởi tạo](./assets/vmls-process-v2/03-vmls-plid-status.png)
+There is no candidate-match decision and no editable system confirmation code.
 
-### 04 — VPCC lập và nộp hồ sơ
+### 02 — Người bán confirms Representation
 
-![04 — VPCC lập và nộp hồ sơ](./assets/vmls-process-v2/04-vpcc-dossier.png)
+The Seller reviews the NPID, Seller, representative Agent/Brokerage, scope, and term, then confirms. VMLS creates PLID automatically with status `Đã khởi tạo`.
 
-### 05 — VPCC ghi nhận đã ký và gửi kết quả
+### 03 — Người bán applies the Public profile
 
-![05 — VPCC ghi nhận đã ký và gửi kết quả](./assets/vmls-process-v2/05-vpcc-signing-result.png)
+The Seller opens `Tin bán của tôi` and `Công khai & chỉnh sửa`:
 
-### 06 — VMLS nhận kết quả, sinh PTID và cập nhật trạng thái
+- locked groups: PLID, transaction/property type, general area, and Agent business contact;
+- optional groups: price, project/unit, detailed location, named areas, features, description, and images;
+- `Lưu bản nháp` increments the draft without changing distribution;
+- `Áp dụng cấu hình` creates the next applied Public projection.
 
-![06 — VMLS nhận kết quả, sinh PTID và cập nhật trạng thái](./assets/vmls-process-v2/06-vmls-signed-ptid-status.png)
+The walkthrough hides detailed location and images. Public search and HouseNow consume the applied projection. Represented inventory uses its own Industry projection.
 
-## System events without screens
+### 04 — Cooperation, distribution, and correction
 
-- VMLS exchanges tax-obligation data through the applicable integration.
-- Tax/payment confirmation is delivered to VNeID when the integration supports it.
-- The routing service determines the applicable dossier route; the seller does not select it.
-- External identity and 357 synchronization do not create separate VMLS UI steps.
+An eligible Agent may register to cooperate without changing the original Representation. An outbound HouseNow delivery contains only the applied Public projection and stops at a local send/acknowledgement state.
 
-> **OPEN QUESTION — tax integration:** Does the Tax Authority require a manual review/approval action, or is the exchange fully automatic? If manual approval is required, an authority screen must be restored before finalizing the storyboard.
+The Seller may request a change to `askingPrice`. The Brokerage compares old/new values and applies it as a new Listing revision. If a previous version was sent, the channel becomes `Cần cập nhật` and VMLS appends a reconciliation event; no external update is asserted.
+
+### 05 — Sàn declares the Buyer
+
+The Brokerage records:
+
+- `Mã định danh Người mua`;
+- agreed whole-VND price;
+- expected signing date.
+
+The masked name is resolved from the configured Party. The responsible Agent and Buyer receive the fields needed for their job. The Seller receives only the milestone; VPCC, VPĐKĐĐ, and Tax do not receive Buyer identity in this demo.
+
+The Buyer reviews contract fields, the checklist, and `Dữ liệu BĐS từ 357`, including NPID, source record, version, source-update time, VMLS-receipt time, and safe Property claims.
+
+### 06 — Sàn hands off the notarization dossier
+
+When readiness and required documents are complete, the Brokerage sends an outbound handoff. This creates or activates the configured VPCC external-processing case; it does not mean VPCC processed the dossier in VMLS.
+
+### 07 — VMLS receives VPCC status
+
+Vận hành VMLS applies the next configured VPCC event. Standard projection states are:
+
+- `Chờ tiếp nhận`;
+- `Đang xử lý`;
+- `Yêu cầu bổ sung`;
+- `Đã xử lý`.
+
+If VPCC requests a supplement, the Seller receives a task and sends the requested PDF as an outbound handoff. VMLS then continues receiving source events; the VPCC workspace remains read-only throughout.
+
+### 08 — Final VPCC result creates PTID and route
+
+The final configured source event includes the contract identifier and signing time. VMLS atomically:
+
+1. marks the notary source case `Đã xử lý`;
+2. creates PTID;
+3. derives the transfer route from the configured basis;
+4. creates the Tax handoff;
+5. creates the VPĐKĐĐ handoff when the land route applies;
+6. appends integration events separately from user Audit Events.
+
+The user never selects the route.
+
+## Parallel Tax status
+
+Tax has its own `ExternalProcessingCase` and event timeline. Vận hành VMLS receives configured Tax events; the Tax workspace only searches, filters, and inspects synchronized status. Tax progression is parallel and does not gate completion of either branch in this demo.
+
+`OPEN QUESTION`: The official tax decision points, settlement evidence, responsible authority, and gating rules require approval. The demo's non-gating behavior is not a legal conclusion.
 
 ## Branch A — VPĐKĐĐ
 
-### A1 — VPĐKĐĐ approves and VMLS receives the result through API
+For the configured land-certificate basis:
 
-![A1 — VPĐKĐĐ approves and updates VMLS](./assets/vmls-process-v2/a1-land-registry-approval-api.png)
+```text
+VMLS creates the outbound VPĐKĐĐ handoff
+→ VMLS receives configured source statuses
+→ the read-only VPĐKĐĐ queue/detail shows processing organization and source timestamps
+→ the final event records the registration-change result
+```
 
-Physical document submission or certificate pickup may still occur outside the software storyboard; it is not represented as a VMLS screen.
+No VMLS button accepts, approves, signs, or assigns the land case. There is no owner-reference input.
 
-## Branch B — Developer
+## Branch B — Developer/HĐMB
 
-### B1 — Developer Portal input and intake
+For the configured Developer purchase-contract basis:
 
-![B1 — Developer Portal input and intake](./assets/vmls-process-v2/b1-developer-portal-intake.png)
+```text
+Chủ đầu tư records intake
+→ Chủ đầu tư confirms the transfer
+→ Người mua acknowledges receipt of the new HĐMB
+```
 
-### B2 — Developer confirms transfer
+The same PTID remains linked throughout. There is no additional fake closing step.
 
-![B2 — Developer confirms transfer](./assets/vmls-process-v2/b2-developer-confirm-transfer.png)
+## Processing projection across roles
 
-### B3 — Buyer receives the new HĐMB; VMLS is already synchronized
+Môi giới, Sàn, Người bán, and Người mua queues/details show the current milestone and processing organization. They use source status and source time, never an invented percentage. Each permitted detail can show a source timeline while preserving privacy:
 
-![B3 — Buyer receives the new HĐMB](./assets/vmls-process-v2/b3-buyer-new-contract-auto-sync.png)
+- Seller sees own authority, publication, correction, and transaction milestones, not Buyer identity;
+- Buyer sees own contract and safe 357 Property data;
+- external agency views omit market-party private identities;
+- Bank sees only a consented finance projection.
 
-## Shared fictional demo data
+## Configured demo data
 
-- Project: Sun Grand City Thụy Khuê Residence
-- Unit: S2-12A
-- Property ID: `NPID-HN-09876`
-- Listing ID: `PLID-HN-00125`
-- Transaction ID: `PTID-HN-00031`
-- Seller: Trần Thị Minh Anh
-- Buyer: Nguyễn Văn An
-- Agent: Nguyễn Hoàng Nam
+| Record | NPID | PLID after confirmation | PTID after final VPCC event | Route |
+|---|---|---|---|---|
+| Căn hộ S2-12A · Thụy Khuê | `NPID-HN-09876` | `PLID-HN-00125` | `PTID-HN-00031` | Chủ đầu tư / HĐMB |
+| Nhà ở · Phú Thượng | `NPID-HN-10421` | `PLID-HN-00208` | `PTID-HN-00044` | VPĐKĐĐ |
+
+All identities and processing organizations are synthetic or masked. For S2-12A, `69,2 m² thông thủy` and `82,3 m² tim tường` remain two sourced concepts.
+
+## Interface wording boundary
+
+Evidence labels and implementation boundaries remain in repository documentation and QA evidence. The Vietnamese interface must not show labels or phrases such as `PROPOSAL`, `mô phỏng đề xuất`, implementation disclaimers, or presentation-story copy. It communicates truth through operational names, source metadata, explicit state, read-only affordances, field omission, and absence of unsupported actions.

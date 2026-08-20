@@ -1,7 +1,7 @@
 // @ts-check
 
-export const DEMO_VERSION = 'vmls-operations-2026-08-v3'
-export const STORAGE_KEY = 'vmls:operations:2026-08:v3'
+export const DEMO_VERSION = 'vmls-operations-2026-08-v4'
+export const STORAGE_KEY = 'vmls:operations:2026-08:v4'
 
 export const roles = Object.freeze([
   {
@@ -76,6 +76,14 @@ export const roles = Object.freeze([
     defaultWorkspace: 'landTransfers',
     purpose: 'Tiếp nhận hồ sơ đăng ký biến động và trả kết quả sang tên.',
   },
+  {
+    id: 'tax',
+    label: 'Cơ quan thuế',
+    shortLabel: 'THUẾ',
+    group: 'Đơn vị xử lý',
+    defaultWorkspace: 'taxDossiers',
+    purpose: 'Theo dõi hồ sơ nghĩa vụ tài chính được đồng bộ về VMLS.',
+  },
 ])
 
 export const marketRoles = Object.freeze(
@@ -83,7 +91,7 @@ export const marketRoles = Object.freeze(
 )
 
 export const externalRoles = Object.freeze(
-  roles.filter(({ id }) => ['vmls', 'notary', 'landRegistry'].includes(id)),
+  roles.filter(({ id }) => ['vmls', 'notary', 'landRegistry', 'tax'].includes(id)),
 )
 
 export const workspaceDefinitions = Object.freeze({
@@ -139,6 +147,10 @@ export const workspaceDefinitions = Object.freeze({
     { id: 'applications', label: 'Ứng dụng' },
     { id: 'landTransfers', label: 'Đăng ký biến động' },
   ],
+  tax: [
+    { id: 'applications', label: 'Ứng dụng' },
+    { id: 'taxDossiers', label: 'Hồ sơ nghĩa vụ tài chính' },
+  ],
 })
 
 export const sourceRegistry = Object.freeze([
@@ -151,8 +163,8 @@ export const sourceRegistry = Object.freeze([
     url: 'https://thongtinbds.moc.gov.vn/',
     capturedOn: '15/08/2026',
     screenshot: '/assets/demo/357-homepage-2026-08-15.png',
-    connectionStatus: 'Chưa cấu hình',
-    recordCoverage: 'Trang chủ công khai; không có bản ghi thuộc hai hồ sơ đang xử lý.',
+    connectionStatus: 'Đã đồng bộ',
+    recordCoverage: 'Hai bản ghi Bất động sản có định danh và dấu thời gian nguồn.',
     lastCheckedAt: '2026-08-15T08:15:00+07:00',
   },
 ])
@@ -179,14 +191,14 @@ export const ecosystemConnections = Object.freeze([
     owner: 'Bộ Xây dựng',
     relationship: 'Nguồn tham chiếu công khai',
     direction: 'Tham chiếu nguồn',
-    status: 'Chưa cấu hình',
+    status: 'Đã đồng bộ',
     url: 'https://thongtinbds.moc.gov.vn/',
     capturedOn: '15/08/2026',
     screenshot: '/assets/demo/357-homepage-2026-08-15.png',
     inputLabel: 'Dữ liệu gửi',
     inputFields: ['Không có'],
     outputLabel: 'Dữ liệu nhận',
-    outputFields: ['Chưa có dữ liệu cấp hồ sơ'],
+    outputFields: ['NPID', 'Dữ liệu Bất động sản', 'Phiên bản nguồn', 'Thời điểm cập nhật'],
   },
   {
     id: 'housenow',
@@ -205,6 +217,59 @@ export const ecosystemConnections = Object.freeze([
     outputFields: ['Trạng thái bàn giao', 'Thời điểm cập nhật'],
   },
 ])
+
+const monitoringProperties = Object.freeze([
+  { propertyId: 'NPID-HN-22001', propertyLabel: 'Căn hộ A3-08 · Tây Hồ' },
+  { propertyId: 'NPID-HN-22002', propertyLabel: 'Căn hộ B1-15 · Nam Từ Liêm' },
+  { propertyId: 'NPID-HN-22003', propertyLabel: 'Nhà ở · Long Biên' },
+  { propertyId: 'NPID-HN-22004', propertyLabel: 'Căn hộ C2-06 · Cầu Giấy' },
+  { propertyId: 'NPID-HN-22005', propertyLabel: 'Nhà ở · Hà Đông' },
+])
+
+const monitoringStatuses = Object.freeze([
+  { status: 'Chờ tiếp nhận', rawStatus: 'Hồ sơ mới chuyển đến' },
+  { status: 'Đang xử lý', rawStatus: 'Đã tiếp nhận và phân công xử lý' },
+  { status: 'Yêu cầu bổ sung', rawStatus: 'Chờ tài liệu bổ sung' },
+  { status: 'Đã xử lý', rawStatus: 'Đã hoàn tất xử lý hồ sơ' },
+  { status: 'Đang xử lý', rawStatus: 'Đang đối chiếu dữ liệu hồ sơ' },
+])
+
+const createMonitoringRows = ({ source, sourcePrefix, processingOrganization }) => Object.freeze(
+  monitoringProperties.map((property, index) => Object.freeze({
+    id: `MON-${source}-${String(index + 1).padStart(2, '0')}`,
+    source,
+    sourceCaseId: `${sourcePrefix}-${String(index + 51).padStart(3, '0')}`,
+    caseId: null,
+    propertyId: property.propertyId,
+    transactionId: source === 'notary' ? null : `PTID-HN-${String(index + 151).padStart(5, '0')}`,
+    propertyLabel: property.propertyLabel,
+    status: monitoringStatuses[index].status,
+    rawStatus: monitoringStatuses[index].rawStatus,
+    processingOrganization,
+    sourceUpdatedAt: `2026-08-${String(18 + index).padStart(2, '0')}T${String(8 + index).padStart(2, '0')}:20:00+07:00`,
+    receivedAt: `2026-08-${String(18 + index).padStart(2, '0')}T${String(8 + index).padStart(2, '0')}:23:00+07:00`,
+    history: [],
+    actionable: false,
+  })),
+)
+
+export const externalMonitoringFixtures = Object.freeze({
+  notary: createMonitoringRows({
+    source: 'notary',
+    sourcePrefix: 'HSCC-HN-MON',
+    processingOrganization: 'Văn phòng công chứng Minh Tâm',
+  }),
+  landRegistry: createMonitoringRows({
+    source: 'landRegistry',
+    sourcePrefix: 'VPDKDD-HN-MON',
+    processingOrganization: 'Chi nhánh Văn phòng đăng ký đất đai Tây Hồ',
+  }),
+  tax: createMonitoringRows({
+    source: 'tax',
+    sourcePrefix: 'HST-HN-MON',
+    processingOrganization: 'Cơ quan thuế khu vực Tây Hồ',
+  }),
+})
 
 const maskedParty = (
   reference,
@@ -234,6 +299,43 @@ const houseNowChannel = Object.freeze({
   updatedAt: null,
 })
 
+const propertySourceRecord357 = ({
+  npid,
+  sourceRecordId,
+  version,
+  sourceUpdatedAt,
+  receivedAt,
+  propertyType,
+  project,
+  developer,
+  location,
+  building,
+  unit,
+  areas,
+}) => ({
+  sourceId: 'source-357',
+  sourceName: 'Hệ thống thông tin về nhà ở và thị trường bất động sản',
+  sourceRecordId,
+  version,
+  npid,
+  publicationStatus: 'Đã công bố',
+  sourceUpdatedAt,
+  receivedAt,
+  claims: [
+    { field: 'propertyType', label: 'Loại Bất động sản', value: propertyType },
+    { field: 'project', label: 'Dự án', value: project },
+    { field: 'developer', label: 'Chủ đầu tư', value: developer },
+    { field: 'location', label: 'Khu vực', value: location },
+    { field: 'building', label: 'Tòa', value: building },
+    { field: 'unit', label: 'Căn / thửa', value: unit },
+    ...areas.map(({ label, value, unit: areaUnit }) => ({
+      field: 'area',
+      label,
+      value: `${String(value).replace('.', ',')} ${areaUnit}`,
+    })),
+  ].filter(({ value }) => value !== null),
+})
+
 export const demoCases = Object.freeze([
   {
     id: 'sun-grand-thuy-khue',
@@ -252,6 +354,23 @@ export const demoCases = Object.freeze([
       project: 'Sun Grand City Thụy Khuê Residence',
       unit: 'S2-12A',
       location: 'Thụy Khuê, Tây Hồ, Hà Nội',
+      sourceRecord357: propertySourceRecord357({
+        npid: 'NPID-HN-09876',
+        sourceRecordId: '357-HN-09876',
+        version: '2026-08-10.1',
+        sourceUpdatedAt: '2026-08-10T08:20:00+07:00',
+        receivedAt: '2026-08-10T08:25:00+07:00',
+        propertyType: 'Căn hộ thuộc dự án',
+        project: 'Sun Grand City Thụy Khuê Residence',
+        developer: 'Sun Group',
+        location: 'Thụy Khuê, Tây Hồ, Hà Nội',
+        building: 'S2',
+        unit: 'S2-12A',
+        areas: [
+          { label: 'Diện tích thông thủy', value: 69.2, unit: 'm²' },
+          { label: 'Diện tích tim tường', value: 82.3, unit: 'm²' },
+        ],
+      }),
       areas: [
         {
           kind: 'usable',
@@ -323,6 +442,69 @@ export const demoCases = Object.freeze([
       requiresSupplement: false,
       supplement: null,
     },
+    externalProcessing: {
+      notary: {
+        source: 'notary',
+        sourceCaseId: 'HSCC-HN-00031',
+        processingOrganization: 'Văn phòng công chứng Minh Tâm',
+        events: [
+          {
+            id: 'VPCC-EVT-00031-01',
+            source: 'notary',
+            sourceCaseId: 'HSCC-HN-00031',
+            sequence: 1,
+            status: 'Đang xử lý',
+            rawStatus: 'Đã tiếp nhận và phân công xử lý',
+            sourceUpdatedAt: '2026-08-19T10:00:00+07:00',
+            receivedAt: '2026-08-19T10:02:00+07:00',
+          },
+          {
+            id: 'VPCC-EVT-00031-02',
+            source: 'notary',
+            sourceCaseId: 'HSCC-HN-00031',
+            sequence: 2,
+            status: 'Đã xử lý',
+            rawStatus: 'Đã ký hợp đồng công chứng',
+            sourceUpdatedAt: '2026-08-22T15:30:00+07:00',
+            receivedAt: '2026-08-22T15:31:00+07:00',
+            effect: {
+              type: 'notary_completed',
+              contractId: 'HDCC-HN-260822-031',
+              signedAt: '2026-08-22T15:30:00+07:00',
+            },
+          },
+        ],
+      },
+      tax: {
+        source: 'tax',
+        sourceCaseId: 'HST-HN-00031',
+        processingOrganization: 'Cơ quan thuế khu vực Tây Hồ',
+        events: [
+          {
+            id: 'TAX-EVT-00031-01',
+            source: 'tax',
+            sourceCaseId: 'HST-HN-00031',
+            sequence: 1,
+            status: 'Đang xử lý',
+            rawStatus: 'Đã tiếp nhận hồ sơ nghĩa vụ tài chính',
+            sourceUpdatedAt: '2026-08-22T16:00:00+07:00',
+            receivedAt: '2026-08-22T16:02:00+07:00',
+          },
+          {
+            id: 'TAX-EVT-00031-02',
+            source: 'tax',
+            sourceCaseId: 'HST-HN-00031',
+            sequence: 2,
+            status: 'Đã xử lý',
+            rawStatus: 'Đã ghi nhận hoàn thành nghĩa vụ tài chính',
+            sourceUpdatedAt: '2026-08-23T16:00:00+07:00',
+            receivedAt: '2026-08-23T16:03:00+07:00',
+            effect: { type: 'tax_completed' },
+          },
+        ],
+      },
+      landRegistry: null,
+    },
     transaction: {
       id: 'PTID-HN-00031',
     },
@@ -341,10 +523,9 @@ export const demoCases = Object.freeze([
     actionTimes: {
       request_seller_confirmation: '2026-08-10T09:07:00+07:00',
       confirm_representation: '2026-08-12T10:15:00+07:00',
-      record_buyer: '2026-08-14T14:20:00+07:00',
+      declare_buyer: '2026-08-14T14:20:00+07:00',
       verify_readiness: '2026-08-17T09:10:00+07:00',
-      submit_notary_dossier: '2026-08-19T09:45:00+07:00',
-      record_notary_signing: '2026-08-22T15:30:00+07:00',
+      handoff_notary_dossier: '2026-08-19T09:45:00+07:00',
       developer_intake: '2026-08-24T09:00:00+07:00',
       developer_confirm_transfer: '2026-08-25T16:30:00+07:00',
       buyer_receive_contract: '2026-08-26T10:30:00+07:00',
@@ -367,6 +548,23 @@ export const demoCases = Object.freeze([
       project: null,
       unit: null,
       location: 'Phú Thượng, Tây Hồ, Hà Nội',
+      sourceRecord357: propertySourceRecord357({
+        npid: 'NPID-HN-10421',
+        sourceRecordId: '357-HN-10421',
+        version: '2026-08-11.1',
+        sourceUpdatedAt: '2026-08-11T07:55:00+07:00',
+        receivedAt: '2026-08-11T08:00:00+07:00',
+        propertyType: 'Nhà ở riêng lẻ',
+        project: null,
+        developer: null,
+        location: 'Phú Thượng, Tây Hồ, Hà Nội',
+        building: null,
+        unit: 'Thửa 118',
+        areas: [
+          { label: 'Diện tích đất', value: 72, unit: 'm²' },
+          { label: 'Tổng diện tích sàn', value: 216, unit: 'm²' },
+        ],
+      }),
       areas: [
         {
           kind: 'land',
@@ -441,6 +639,127 @@ export const demoCases = Object.freeze([
         documentType: 'Xác nhận tình trạng hôn nhân',
       },
     },
+    externalProcessing: {
+      notary: {
+        source: 'notary',
+        sourceCaseId: 'HSCC-HN-00044',
+        processingOrganization: 'Văn phòng công chứng Minh Tâm',
+        events: [
+          {
+            id: 'VPCC-EVT-00044-01',
+            source: 'notary',
+            sourceCaseId: 'HSCC-HN-00044',
+            sequence: 1,
+            status: 'Đang xử lý',
+            rawStatus: 'Đã tiếp nhận và phân công xử lý',
+            sourceUpdatedAt: '2026-08-18T10:45:00+07:00',
+            receivedAt: '2026-08-18T10:47:00+07:00',
+          },
+          {
+            id: 'VPCC-EVT-00044-02',
+            source: 'notary',
+            sourceCaseId: 'HSCC-HN-00044',
+            sequence: 2,
+            status: 'Yêu cầu bổ sung',
+            rawStatus: 'Chờ bổ sung xác nhận tình trạng hôn nhân',
+            sourceUpdatedAt: '2026-08-19T14:40:00+07:00',
+            receivedAt: '2026-08-19T14:42:00+07:00',
+            effect: {
+              type: 'supplement_required',
+              reasonCode: 'MISSING_MARITAL_STATUS',
+              documentType: 'Xác nhận tình trạng hôn nhân',
+              dueOn: '2026-08-21',
+            },
+          },
+          {
+            id: 'VPCC-EVT-00044-03',
+            source: 'notary',
+            sourceCaseId: 'HSCC-HN-00044',
+            sequence: 3,
+            status: 'Đang xử lý',
+            rawStatus: 'Đã tiếp nhận tài liệu bổ sung',
+            sourceUpdatedAt: '2026-08-20T09:40:00+07:00',
+            receivedAt: '2026-08-20T09:42:00+07:00',
+            effect: { type: 'supplement_received' },
+          },
+          {
+            id: 'VPCC-EVT-00044-04',
+            source: 'notary',
+            sourceCaseId: 'HSCC-HN-00044',
+            sequence: 4,
+            status: 'Đã xử lý',
+            rawStatus: 'Đã ký hợp đồng công chứng',
+            sourceUpdatedAt: '2026-08-26T10:00:00+07:00',
+            receivedAt: '2026-08-26T10:01:00+07:00',
+            effect: {
+              type: 'notary_completed',
+              contractId: 'HDCC-HN-260826-044',
+              signedAt: '2026-08-26T10:00:00+07:00',
+            },
+          },
+        ],
+      },
+      tax: {
+        source: 'tax',
+        sourceCaseId: 'HST-HN-00044',
+        processingOrganization: 'Cơ quan thuế khu vực Tây Hồ',
+        events: [
+          {
+            id: 'TAX-EVT-00044-01',
+            source: 'tax',
+            sourceCaseId: 'HST-HN-00044',
+            sequence: 1,
+            status: 'Đang xử lý',
+            rawStatus: 'Đã tiếp nhận hồ sơ nghĩa vụ tài chính',
+            sourceUpdatedAt: '2026-08-26T11:00:00+07:00',
+            receivedAt: '2026-08-26T11:02:00+07:00',
+          },
+          {
+            id: 'TAX-EVT-00044-02',
+            source: 'tax',
+            sourceCaseId: 'HST-HN-00044',
+            sequence: 2,
+            status: 'Đã xử lý',
+            rawStatus: 'Đã ghi nhận hoàn thành nghĩa vụ tài chính',
+            sourceUpdatedAt: '2026-08-27T11:00:00+07:00',
+            receivedAt: '2026-08-27T11:03:00+07:00',
+            effect: { type: 'tax_completed' },
+          },
+        ],
+      },
+      landRegistry: {
+        source: 'landRegistry',
+        sourceCaseId: 'VPDKDD-HN-260826-044',
+        processingOrganization: 'Chi nhánh Văn phòng đăng ký đất đai Tây Hồ',
+        events: [
+          {
+            id: 'VPDKDD-EVT-00044-01',
+            source: 'landRegistry',
+            sourceCaseId: 'VPDKDD-HN-260826-044',
+            sequence: 1,
+            status: 'Đang xử lý',
+            rawStatus: 'Đã tiếp nhận hồ sơ đăng ký biến động',
+            sourceUpdatedAt: '2026-08-26T14:00:00+07:00',
+            receivedAt: '2026-08-26T14:02:00+07:00',
+          },
+          {
+            id: 'VPDKDD-EVT-00044-02',
+            source: 'landRegistry',
+            sourceCaseId: 'VPDKDD-HN-260826-044',
+            sequence: 2,
+            status: 'Đã xử lý',
+            rawStatus: 'Đã hoàn tất đăng ký biến động',
+            sourceUpdatedAt: '2026-08-28T14:30:00+07:00',
+            receivedAt: '2026-08-28T14:32:00+07:00',
+            effect: {
+              type: 'land_registry_completed',
+              resultRef: 'DKBD-HN-260828-044',
+              approvedAt: '2026-08-28T14:30:00+07:00',
+            },
+          },
+        ],
+      },
+    },
     transaction: {
       id: 'PTID-HN-00044',
     },
@@ -459,13 +778,10 @@ export const demoCases = Object.freeze([
     actionTimes: {
       request_seller_confirmation: '2026-08-11T08:38:00+07:00',
       confirm_representation: '2026-08-12T10:10:00+07:00',
-      record_buyer: '2026-08-14T15:20:00+07:00',
+      declare_buyer: '2026-08-14T15:20:00+07:00',
       verify_readiness: '2026-08-17T09:00:00+07:00',
-      submit_notary_dossier: '2026-08-18T10:30:00+07:00',
-      request_supplement: '2026-08-19T14:40:00+07:00',
-      provide_supplement: '2026-08-20T09:25:00+07:00',
-      record_notary_signing: '2026-08-26T10:00:00+07:00',
-      approve_land_registry: '2026-08-28T14:30:00+07:00',
+      handoff_notary_dossier: '2026-08-18T10:30:00+07:00',
+      submit_supplement_handoff: '2026-08-20T09:25:00+07:00',
     },
   },
 ])

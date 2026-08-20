@@ -432,7 +432,7 @@
 }
 
 .landing-empty {
-  color: #66726d;
+  color: var(--color-ink-muted);
   white-space: nowrap;
 }
 

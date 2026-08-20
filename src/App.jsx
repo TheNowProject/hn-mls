@@ -20,6 +20,7 @@ import {
   ListChecks,
   MagnifyingGlass,
   MapPin,
+  NotePencil,
   PlugsConnected,
   Plus,
   SealCheck,
@@ -33,7 +34,13 @@ import {
 } from '@phosphor-icons/react'
 import BrandMark from './components/BrandMark.jsx'
 import EcosystemHub from './components/EcosystemHub.jsx'
+import ExternalProgressWorkspace from './components/ExternalProgressWorkspace.jsx'
+import ExternalSyncPanel from './components/ExternalSyncPanel.jsx'
 import LandingPage from './components/LandingPage.jsx'
+import ProcessingSummary from './components/ProcessingSummary.jsx'
+import Property357Panel from './components/Property357Panel.jsx'
+import SellerListingWorkspace from './components/SellerListingWorkspace.jsx'
+import VNeIDSessionControl from './components/VNeIDSession.jsx'
 import {
   DistributionWorkspace,
   EMPTY_MARKET_FILTERS,
@@ -53,8 +60,10 @@ import {
   ACTIONS,
   allowedActionsFor,
   createInitialState,
+  deriveExternalQueue,
   getCaseStatus,
   getNextWorkItem,
+  getProcessingProjection,
   journeyReducer,
   projectStateForPublic,
   projectStateForRole,
@@ -64,14 +73,24 @@ import {
 import {
   MARKET_ACTIONS,
   MARKET_STORAGE_KEY,
+  PUBLICATION_FIELD_GROUPS,
   createMarketState,
   getListingDetail,
   getMarketSummary,
+  getPublicListing,
   getRepresentedListings,
+  getSellerListings,
   marketplaceReducer,
   restoreMarketState,
   serializeMarketState,
 } from './demo/marketplace.js'
+import {
+  VNEID_SESSION_ACTIONS,
+  VNEID_SESSION_STORAGE_KEY,
+  restoreVneidSession,
+  serializeVneidSession,
+  vneidSessionReducer,
+} from './demo/vneidSession.js'
 
 const ROLE_ICONS = {
   agent: IdentificationCard,
@@ -82,6 +101,7 @@ const ROLE_ICONS = {
   notary: SealCheck,
   developer: Buildings,
   landRegistry: MapPin,
+  tax: FileText,
   vmls: Database,
 }
 
@@ -94,6 +114,7 @@ const ROLE_LABELS = {
   notary: 'Văn phòng công chứng',
   developer: 'Chủ đầu tư',
   landRegistry: 'Văn phòng đăng ký đất đai',
+  tax: 'Cơ quan thuế',
   vmls: 'Vận hành VMLS',
 }
 
@@ -109,6 +130,7 @@ const WORKSPACE_TITLES = {
   notary: 'Hồ sơ công chứng',
   developer: 'Chuyển nhượng HĐMB',
   landRegistry: 'Đăng ký biến động',
+  tax: 'Theo dõi nghĩa vụ tài chính',
   vmls: 'Theo dõi xử lý',
 }
 
@@ -131,6 +153,7 @@ const NAV_ITEMS = {
   seller: [
     ['ung-dung', 'Ứng dụng', SquaresFour],
     ['cong-viec', 'Yêu cầu và tài liệu', FolderOpen],
+    ['tin-ban-cua-toi', 'Tin bán của tôi', Signpost],
     ['bat-dong-san', 'Bất động sản', House],
     ['tin-ban', 'Tin bán', Signpost],
   ],
@@ -145,8 +168,7 @@ const NAV_ITEMS = {
   ],
   notary: [
     ['ung-dung', 'Ứng dụng', SquaresFour],
-    ['cong-viec', 'Công việc', FolderOpen],
-    ['cong-chung', 'Hồ sơ công chứng', SealCheck],
+    ['cong-viec', 'Hồ sơ công chứng', SealCheck],
   ],
   developer: [
     ['ung-dung', 'Ứng dụng', SquaresFour],
@@ -155,8 +177,11 @@ const NAV_ITEMS = {
   ],
   landRegistry: [
     ['ung-dung', 'Ứng dụng', SquaresFour],
-    ['cong-viec', 'Công việc', FolderOpen],
-    ['chuyen-quyen', 'Đăng ký biến động', MapPin],
+    ['cong-viec', 'Đăng ký biến động', MapPin],
+  ],
+  tax: [
+    ['ung-dung', 'Ứng dụng', SquaresFour],
+    ['cong-viec', 'Nghĩa vụ tài chính', FileText],
   ],
   vmls: [
     ['ung-dung', 'Ứng dụng', SquaresFour],
@@ -183,13 +208,11 @@ const DETAIL_TABS = [
 const ACTION_LABELS = {
   [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Gửi thông tin đến Người bán',
   [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận quyền đại diện',
-  [ACTIONS.RECORD_BUYER]: 'Ghi nhận Người mua',
+  [ACTIONS.DECLARE_BUYER]: 'Khai báo Người mua',
   [ACTIONS.VERIFY_READINESS]: 'Xác nhận thông tin',
-  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: 'Tiếp nhận hồ sơ',
-  [ACTIONS.REQUEST_SUPPLEMENT]: 'Yêu cầu bổ sung',
-  [ACTIONS.PROVIDE_SUPPLEMENT]: 'Gửi tài liệu bổ sung',
-  [ACTIONS.RECORD_NOTARY_SIGNING]: 'Ghi nhận kết quả ký',
-  [ACTIONS.APPROVE_LAND_REGISTRY]: 'Ghi nhận kết quả đăng ký',
+  [ACTIONS.HANDOFF_NOTARY_DOSSIER]: 'Chuyển hồ sơ công chứng',
+  [ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF]: 'Chuyển tài liệu bổ sung',
+  [ACTIONS.RECEIVE_EXTERNAL_EVENT]: 'Nhận cập nhật',
   [ACTIONS.DEVELOPER_INTAKE]: 'Tiếp nhận hồ sơ chuyển nhượng',
   [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'Xác nhận chuyển nhượng',
   [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'Xác nhận đã nhận HĐMB',
@@ -198,13 +221,11 @@ const ACTION_LABELS = {
 const ACTION_ERROR_MESSAGES = {
   [ACTIONS.REQUEST_SELLER_CONFIRMATION]: 'Kiểm tra mã định danh Bất động sản, phạm vi và thời hạn của quyền đại diện.',
   [ACTIONS.CONFIRM_REPRESENTATION]: 'Xác nhận thông tin Bất động sản, người đại diện, phạm vi và thời hạn.',
-  [ACTIONS.RECORD_BUYER]: 'Kiểm tra mã định danh Người mua, giá và ngày dự kiến ký.',
+  [ACTIONS.DECLARE_BUYER]: 'Kiểm tra mã định danh Người mua, giá và ngày dự kiến ký.',
   [ACTIONS.VERIFY_READINESS]: 'Xác nhận đủ ba nội dung sẵn sàng trước công chứng.',
-  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: 'Mã tiếp nhận và toàn bộ tài liệu bắt buộc phải đầy đủ.',
-  [ACTIONS.REQUEST_SUPPLEMENT]: 'Kiểm tra loại tài liệu, lý do và hạn bổ sung.',
-  [ACTIONS.PROVIDE_SUPPLEMENT]: 'Tài liệu phải đúng yêu cầu và có tên tệp PDF hợp lệ.',
-  [ACTIONS.RECORD_NOTARY_SIGNING]: 'Kiểm tra mã hợp đồng và thời điểm ký.',
-  [ACTIONS.APPROVE_LAND_REGISTRY]: 'Kiểm tra mã kết quả và thời điểm hiệu lực.',
+  [ACTIONS.HANDOFF_NOTARY_DOSSIER]: 'Mã bàn giao và toàn bộ tài liệu bắt buộc phải đầy đủ.',
+  [ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF]: 'Tài liệu phải đúng yêu cầu và có tên tệp PDF hợp lệ.',
+  [ACTIONS.RECEIVE_EXTERNAL_EVENT]: 'Nguồn dữ liệu chưa có bản tin tiếp theo để nhận.',
   [ACTIONS.DEVELOPER_INTAKE]: 'Kiểm tra mã tiếp nhận, thời điểm và số tài liệu.',
   [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'Kiểm tra mã và thời điểm xác nhận chuyển nhượng.',
   [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'Kiểm tra biên nhận và xác nhận đã nhận đúng HĐMB mới.',
@@ -217,6 +238,18 @@ const FILTERS = [
   ['blocked', 'Có vướng mắc'],
   ['done', 'Đã xong'],
 ]
+
+const EXTERNAL_SOURCE_LABELS = Object.freeze({
+  notary: 'Văn phòng công chứng',
+  tax: 'Cơ quan thuế',
+  landRegistry: 'Văn phòng đăng ký đất đai',
+})
+
+const EXTERNAL_SOURCE_SYSTEMS = Object.freeze({
+  notary: 'Hệ thống nghiệp vụ công chứng',
+  tax: 'Hệ thống nghĩa vụ tài chính',
+  landRegistry: 'Hệ thống đăng ký đất đai',
+})
 
 const DISTRIBUTION_CHANNELS = Object.freeze([
   {
@@ -241,25 +274,6 @@ const DISTRIBUTION_CHANNELS = Object.freeze([
     status: 'Chưa cấu hình',
     mode: 'unavailable',
   },
-])
-
-const DISTRIBUTION_SEND_FIELDS = Object.freeze([
-  'PLID và NPID',
-  'Tiêu đề Tin bán',
-  'Giá chào',
-  'Loại Bất động sản, Dự án và Chủ đầu tư',
-  'Khu vực được phép công khai',
-  'Diện tích, số phòng ngủ và phòng tắm',
-  'Số lượng ảnh công khai được chọn',
-  'Liên hệ nghiệp vụ của Môi giới hợp tác',
-])
-
-const DISTRIBUTION_EXCLUDED_FIELDS = Object.freeze([
-  'Danh tính và liên hệ Người bán',
-  'Bằng chứng quyền đại diện',
-  'Dữ liệu Người mua và tài chính',
-  'Hồ sơ công chứng và chuyển quyền',
-  'Ghi chú, tài liệu và mã tương quan nội bộ',
 ])
 
 function subscribeToHash(callback) {
@@ -420,43 +434,59 @@ function statusTone(status = '') {
   return 'neutral'
 }
 
-function initialStates() {
-  const clean = Object.fromEntries(demoCases.map((item) => [item.id, createInitialState(item.id)]))
+const JOURNEY_STORAGE_ENVELOPE_KEYS = Object.freeze([
+  'version',
+  'cases',
+  'landingRoleId',
+  'lastWorkspaceRoute',
+])
+
+function storedJourneyEnvelope() {
   try {
     const envelope = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
-    if (!envelope?.cases) return clean
-    return Object.fromEntries(demoCases.map((item) => [
-      item.id,
-      envelope.cases[item.id]
-        ? restoreDemoState(JSON.stringify(envelope.cases[item.id]), item.id)
-        : clean[item.id],
-    ]))
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)
+      || Object.keys(envelope).length !== JOURNEY_STORAGE_ENVELOPE_KEYS.length
+      || !JOURNEY_STORAGE_ENVELOPE_KEYS.every((key) => hasOwn(envelope, key))
+      || envelope.version !== 4
+      || !envelope.cases || typeof envelope.cases !== 'object' || Array.isArray(envelope.cases)
+      || Object.keys(envelope.cases).length !== demoCases.length
+      || !demoCases.every(({ id }) => hasOwn(envelope.cases, id))
+      || !ROLE_LABELS[envelope.landingRoleId]
+      || (envelope.lastWorkspaceRoute !== null && typeof envelope.lastWorkspaceRoute !== 'string')) {
+      return null
+    }
+    return envelope
   } catch {
-    return clean
+    return null
   }
+}
+
+function initialStates() {
+  const clean = Object.fromEntries(demoCases.map((item) => [item.id, createInitialState(item.id)]))
+  const envelope = storedJourneyEnvelope()
+  if (!envelope) return clean
+  return Object.fromEntries(demoCases.map((item) => [
+    item.id,
+    restoreDemoState(JSON.stringify(envelope.cases[item.id]), item.id),
+  ]))
 }
 
 function initialMarketState() {
   return restoreMarketState(window.localStorage.getItem(MARKET_STORAGE_KEY))
 }
 
+function initialVneidSession() {
+  return restoreVneidSession(window.localStorage.getItem(VNEID_SESSION_STORAGE_KEY))
+}
+
 function storedWorkspaceRoute() {
-  try {
-    const candidate = JSON.parse(window.localStorage.getItem(STORAGE_KEY))?.lastWorkspaceRoute
-    if (typeof candidate !== 'string' || !candidate.startsWith('#/vai-tro/')) return null
-    return parseRoute(candidate).page === 'landing' ? null : candidate
-  } catch {
-    return null
-  }
+  const candidate = storedJourneyEnvelope()?.lastWorkspaceRoute
+  if (typeof candidate !== 'string' || !candidate.startsWith('#/vai-tro/')) return null
+  return parseRoute(candidate).page === 'landing' ? null : candidate
 }
 
 function storedLandingRoleId() {
-  try {
-    const roleId = JSON.parse(window.localStorage.getItem(STORAGE_KEY))?.landingRoleId
-    return ROLE_LABELS[roleId] ? roleId : null
-  } catch {
-    return null
-  }
+  return storedJourneyEnvelope()?.landingRoleId ?? null
 }
 
 function validatedWorkspaceRoute(caseStates, marketState) {
@@ -497,6 +527,48 @@ function isComplete(state) {
   return status.includes('hoàn tất') || status.includes('đã nhận hđmb') || status.includes('đăng ký biến động hoàn tất')
 }
 
+function externalSyncSourcesFor(demoCase, state) {
+  if (!demoCase || !state?.records?.externalProcessing) return []
+  return Object.keys(EXTERNAL_SOURCE_LABELS).map((source) => {
+    const externalCase = state.records.externalProcessing[source]
+    const configuration = demoCase.externalProcessing?.[source]
+    const nextEvent = externalCase && configuration
+      ? configuration.events[externalCase.lastSequence] ?? null
+      : null
+    const supplementBlocked = nextEvent?.effect?.type === 'supplement_received'
+      && state.records.notaryDossier?.supplement?.status !== 'Đã chuyển VPCC'
+    const notApplicable = !configuration
+    return {
+      caseId: demoCase.id,
+      source,
+      sourceCaseId: externalCase?.sourceCaseId ?? configuration?.sourceCaseId,
+      sourceLabel: EXTERNAL_SOURCE_LABELS[source],
+      sourceSystem: EXTERNAL_SOURCE_SYSTEMS[source],
+      normalizedStatus: externalCase?.status ?? (notApplicable ? 'Không thuộc tuyến' : 'Chờ tiếp nhận'),
+      rawStatus: externalCase?.rawStatus ?? (notApplicable ? 'Không phát sinh hồ sơ nguồn' : 'Chưa bàn giao đến hệ thống nguồn'),
+      processingOrganization: externalCase?.processingOrganization
+        ?? configuration?.processingOrganization
+        ?? 'Không thuộc tuyến xử lý',
+      sourceUpdatedAt: externalCase?.sourceUpdatedAt,
+      receivedAt: externalCase?.receivedAt,
+      nextEventLabel: nextEvent && !supplementBlocked ? nextEvent.rawStatus : null,
+      canReceive: Boolean(nextEvent) && !supplementBlocked,
+      events: externalCase?.history ?? [],
+    }
+  })
+}
+
+function latestSafeUpdateAt(baseUpdatedAt, processing) {
+  const candidates = [
+    baseUpdatedAt,
+    processing?.receivedAt,
+    ...(processing?.timeline ?? []).map(({ receivedAt }) => receivedAt),
+  ].filter((value) => typeof value === 'string' && Number.isFinite(Date.parse(value)))
+  return candidates.reduce((latest, value) => (
+    !latest || Date.parse(value) > Date.parse(latest) ? value : latest
+  ), null)
+}
+
 function rowFor(demoCase, state, roleId) {
   const projected = projectStateForRole(state, roleId)
   if (!projected) return null
@@ -507,8 +579,8 @@ function rowFor(demoCase, state, roleId) {
   const blocked = projected.records.notaryDossier?.status === 'Yêu cầu bổ sung'
     || supplement?.status === 'Chờ người bán'
   const complete = roleId === 'bank' ? false : isComplete(state)
-  const bucket = complete ? 'done' : blocked ? 'blocked' : ownActions.length ? 'mine' : 'waiting'
-  const updatedAt = roleId === 'bank'
+  const bucket = blocked ? 'blocked' : ownActions.length ? 'mine' : complete ? 'done' : 'waiting'
+  const baseUpdatedAt = roleId === 'bank'
     ? projected.records.readiness?.financeSharing?.recordedAt
     : state.auditEvents.at(-1)?.occurredAt
       ?? state.auditEvents.at(-1)?.at
@@ -516,6 +588,15 @@ function rowFor(demoCase, state, roleId) {
   const visibleStatus = projected.status?.label
     ?? projected.records.readiness?.status
     ?? projected.records.readiness?.financeSharing?.status
+  const processing = getProcessingProjection(state) ?? {
+    milestone: 'Chuẩn bị hồ sơ trong VMLS',
+    status: getCaseStatus(state).label,
+    processingOrganization: 'VMLS',
+    sourceUpdatedAt: baseUpdatedAt,
+    receivedAt: baseUpdatedAt,
+    timeline: [],
+  }
+  const updatedAt = latestSafeUpdateAt(baseUpdatedAt, processing)
   return {
     demoCase,
     state,
@@ -531,6 +612,7 @@ function rowFor(demoCase, state, roleId) {
       ?? projected.records.representation?.request?.expiresOn
       ?? null,
     status: visibleStatus,
+    processing,
     nextLabel: ownActions.length
       ? ACTION_LABELS[ownActions[0]] ?? ACTION_META[ownActions[0]]?.label
       : nextWork?.label ?? (complete ? 'Không còn việc cần xử lý' : roleId === 'bank' ? 'Theo dõi hồ sơ được chia sẻ' : 'Chờ cập nhật'),
@@ -625,12 +707,16 @@ function App() {
   const route = parseRoute(hash)
   const [caseStates, setCaseStates] = useState(initialStates)
   const [marketState, setMarketState] = useState(initialMarketState)
+  const [vneidSession, setVneidSession] = useState(initialVneidSession)
   const [landingRoleId, setLandingRoleId] = useState(() => (
     storedLandingRoleId() ?? (storedWorkspaceRoute() ? parseRoute(storedWorkspaceRoute()).roleId : 'agent')
   ))
   const [query, setQuery] = useState('')
   const [marketFilters, setMarketFilters] = useState({ ...EMPTY_MARKET_FILTERS })
   const [marketTab, setMarketTab] = useState('all')
+  const [externalSearch, setExternalSearch] = useState('')
+  const [externalStatus, setExternalStatus] = useState('all')
+  const [selectedExternalCaseId, setSelectedExternalCaseId] = useState(null)
   const [ecosystemPreview, setEcosystemPreview] = useState(null)
   const [announcement, setAnnouncement] = useState('')
   const [toast, setToast] = useState(null)
@@ -643,7 +729,7 @@ function App() {
       JSON.parse(serializeDemoState(state)),
     ]))
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 3,
+      version: 4,
       cases,
       landingRoleId,
       lastWorkspaceRoute: route.page === 'landing' ? savedWorkspaceRoute : hash,
@@ -653,6 +739,10 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(MARKET_STORAGE_KEY, serializeMarketState(marketState))
   }, [marketState])
+
+  useEffect(() => {
+    window.localStorage.setItem(VNEID_SESSION_STORAGE_KEY, serializeVneidSession(vneidSession))
+  }, [vneidSession])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -685,10 +775,44 @@ function App() {
     setMarketState(createMarketState())
     setMarketFilters({ ...EMPTY_MARKET_FILTERS })
     setMarketTab('all')
+    setExternalSearch('')
+    setExternalStatus('all')
+    setSelectedExternalCaseId(null)
     setShowReset(false)
     setToast({ tone: 'success', message: 'Đã đặt lại dữ liệu mẫu.' })
     navigate('#/vai-tro/agent/cong-viec')
   }
+
+  function confirmVneidLogin() {
+    setVneidSession((current) => vneidSessionReducer(current, {
+      type: VNEID_SESSION_ACTIONS.CONFIRM_LOGIN,
+      payload: { accepted: true },
+    }))
+    setAnnouncement('Đã đăng nhập VNeID.')
+  }
+
+  function logoutVneid() {
+    setVneidSession((current) => vneidSessionReducer(current, {
+      type: VNEID_SESSION_ACTIONS.LOGOUT,
+    }))
+    setAnnouncement('Đã đăng xuất VNeID.')
+  }
+
+  const vneidIdentity = vneidSession.status === 'authenticated' ? vneidSession.identity : null
+  const vneidControl = (variant) => (
+    <VNeIDSessionControl
+      session={vneidIdentity}
+      identityPreview={{
+        reference: 'VNEID-HN-0001',
+        displayName: 'N••• H••• N••',
+        status: 'Đã xác thực',
+      }}
+      scopes={['Mã phiên định danh', 'Họ tên đã che', 'Kết quả xác thực']}
+      onLogin={confirmVneidLogin}
+      onLogout={logoutVneid}
+      variant={variant}
+    />
+  )
 
   const role = roleById(route.roleId)
   const rows = demoCases.map((item) => rowFor(item, caseStates[item.id], role.id)).filter(Boolean)
@@ -708,6 +832,11 @@ function App() {
   const resumeRoute = savedWorkspaceRoute
   const resumeRoleId = resumeRoute ? parseRoute(resumeRoute).roleId : null
   const representedListings = getRepresentedListings(marketState)
+  const publicMarketListings = representedListings
+    .map(({ listingId }) => getPublicListing(marketState, listingId))
+    .filter(Boolean)
+  const sellerListings = getSellerListings(marketState)
+  const sellerListing = sellerListings[0] ?? null
   const marketSummary = getMarketSummary(marketState)
   const marketListing = route.listingId ? getListingDetail(marketState, route.listingId) : null
   const capabilities = projectCapabilitiesForRole(role.id, {
@@ -716,33 +845,58 @@ function App() {
     distributed: marketSummary.sentToHouseNow,
   })
   const lookupRecords = [
-    ...representedListings.map((record) => ({
-    id: record.listingId,
-    listingId: record.listingId,
-    title: `${record.property.unitLabel} · ${record.project.name}`,
-    property: {
-      id: record.property.id,
-      name: record.property.unitLabel,
-      type: record.property.type,
-      project: record.project.name,
-      developer: record.project.developer.name,
-      location: record.property.location.display,
-      region: record.property.location.district,
-      areaLabel: `${record.property.area.value.toLocaleString('vi-VN')} ${record.property.area.unit} ${record.property.area.concept.toLocaleLowerCase('vi-VN')}`,
-    },
+    ...publicMarketListings.map((record) => ({
+      id: record.listingId,
+      listingId: record.listingId,
+      title: record.title ?? `${record.propertyType} · ${record.location.district}`,
+      property: {
+        id: record.propertyId,
+        name: record.unitLabel ?? record.propertyType,
+        type: record.propertyType,
+        project: record.projectName,
+        developer: record.developerName,
+        location: [record.detailedLocation?.ward, record.location.district, record.location.city].filter(Boolean).join(', '),
+        region: record.location.district,
+        areaLabel: record.area
+          ? `${record.area.value.toLocaleString('vi-VN')} ${record.area.unit} ${record.area.concept.toLocaleLowerCase('vi-VN')}`
+          : undefined,
+      },
       status: 'Mở đăng ký cùng bán',
     })),
-    ...publicRecords.map((record) => ({
-      ...record,
-      property: {
-        ...record.property,
-        region: record.property.location?.includes('Tây Hồ')
-          ? 'Tây Hồ'
-          : record.property.location,
-      },
-    })),
+    ...publicRecords.map((record) => {
+      const sourceRecord357 = demoCases.find(({ id }) => id === record.caseId)?.property.sourceRecord357
+      const sourceClaim = (field) => sourceRecord357?.claims.find((claim) => claim.field === field)?.value
+      return {
+        ...record,
+        property: {
+          ...record.property,
+          region: record.property.location?.includes('Tây Hồ')
+            ? 'Tây Hồ'
+            : record.property.location,
+          project: record.property.project ?? sourceClaim('project'),
+          developer: sourceClaim('developer'),
+          sourceRecord357,
+        },
+      }
+    }),
   ]
   const marketListings = representedListings.map((record) => marketViewModel(record, role.id))
+  const externalQueue = ['notary', 'landRegistry', 'tax'].includes(role.id)
+    ? deriveExternalQueue(caseStates, role.id).map((item) => ({
+        ...item,
+        sourceSystem: EXTERNAL_SOURCE_SYSTEMS[item.source],
+        events: item.caseId
+          ? caseStates[item.caseId]?.records.externalProcessing?.[item.source]?.history ?? []
+          : [],
+      }))
+    : []
+  const routedExternalCaseId = route.page === 'ho-so'
+    ? externalQueue.find(({ caseId }) => caseId === activeCaseId)?.sourceCaseId
+    : null
+  const activeExternalCaseId = routedExternalCaseId
+    ?? (externalQueue.some(({ sourceCaseId }) => sourceCaseId === selectedExternalCaseId)
+      ? selectedExternalCaseId
+      : externalQueue[0]?.sourceCaseId)
   const marketListingView = marketListing ? marketViewModel(marketListing, role.id) : null
   const roleCapabilities = capabilities
     .filter(({ group }) => group !== 'Kết nối theo hồ sơ')
@@ -756,7 +910,15 @@ function App() {
       mode: capability.mode,
       status: capability.status,
     }))
+  const publicDistributionListing = marketListing
+    ? getPublicListing(marketState, marketListing.listingId)
+    : null
   const distributionRecord = marketListing?.collaboration.distributions.at(-1) ?? null
+  const distributionChannelState = marketListing
+    ? marketState.channelStates?.find(({ listingId, channel }) => (
+      listingId === marketListing.listingId && channel.id === 'housenow'
+    )) ?? null
+    : null
   const houseNowPermission = marketListing?.collaboration.allowedChannels.find(({ id }) => id === 'housenow')
   const distributionPreflight = marketListing ? [
     {
@@ -799,20 +961,53 @@ function App() {
     at: event.sentAt,
     displayAt: formatDate(event.sentAt),
   })) ?? []
-  const distributionPreview = marketListing ? {
-    listingId: marketListing.listingId,
-    propertyId: marketListing.property.id,
-    title: `${marketListing.property.unitLabel} · ${marketListing.project.name}`,
-    propertyType: marketListing.property.type,
-    projectName: marketListing.project.name,
-    developerName: marketListing.project.developer.name,
-    location: `${marketListing.property.location.district}, ${marketListing.property.location.city}`,
-    area: `${marketListing.property.area.value.toLocaleString('vi-VN')} ${marketListing.property.area.unit} ${marketListing.property.area.concept.toLocaleLowerCase('vi-VN')}`,
-    rooms: `${marketListing.property.bedrooms} phòng ngủ · ${marketListing.property.bathrooms} phòng tắm`,
-    price: formatMoney(marketListing.listing.askingPrice.value),
-    mediaCount: marketListing.listing.mediaCount,
-    businessContact: `${marketState.currentAgent.displayName} · ${marketState.currentAgent.organizationName}`,
+  const distributionPreview = publicDistributionListing ? {
+    listingId: publicDistributionListing.listingId,
+    propertyId: publicDistributionListing.propertyId,
+    title: publicDistributionListing.title
+      ?? `${publicDistributionListing.propertyType} · ${publicDistributionListing.location.district}`,
+    propertyType: publicDistributionListing.propertyType,
+    projectName: publicDistributionListing.projectName,
+    developerName: publicDistributionListing.developerName,
+    location: [
+      publicDistributionListing.detailedLocation?.ward,
+      publicDistributionListing.location?.district,
+      publicDistributionListing.location?.city,
+    ].filter(Boolean).join(', '),
+    area: publicDistributionListing.area
+      ? `${publicDistributionListing.area.value.toLocaleString('vi-VN')} ${publicDistributionListing.area.unit} ${publicDistributionListing.area.concept.toLocaleLowerCase('vi-VN')}`
+      : null,
+    rooms: Number.isFinite(publicDistributionListing.bedrooms)
+      ? `${publicDistributionListing.bedrooms} phòng ngủ · ${publicDistributionListing.bathrooms} phòng tắm`
+      : null,
+    price: publicDistributionListing.askingPrice
+      ? formatMoney(publicDistributionListing.askingPrice.value)
+      : null,
+    mediaCount: publicDistributionListing.mediaCount,
+    businessContact: `${publicDistributionListing.businessContact.displayName} · ${publicDistributionListing.businessContact.organizationName}`,
   } : null
+  const distributionSendFields = publicDistributionListing ? [
+    'PLID và NPID',
+    'Loại giao dịch và loại Bất động sản',
+    'Khu vực tổng quát',
+    'Liên hệ nghiệp vụ của Môi giới',
+    publicDistributionListing.askingPrice ? 'Giá chào' : null,
+    publicDistributionListing.projectName ? 'Dự án và căn' : null,
+    publicDistributionListing.detailedLocation ? 'Vị trí chi tiết' : null,
+    publicDistributionListing.area ? 'Diện tích' : null,
+    Number.isFinite(publicDistributionListing.bedrooms) ? 'Đặc điểm Bất động sản' : null,
+    publicDistributionListing.description ? 'Mô tả' : null,
+    Number.isFinite(publicDistributionListing.mediaCount) ? 'Ảnh được phép công khai' : null,
+  ].filter(Boolean) : []
+  const distributionExcludedFields = [
+    'Danh tính và liên hệ Người bán',
+    'Bằng chứng quyền đại diện',
+    'Dữ liệu Người mua và tài chính',
+    'Hồ sơ công chứng và chuyển quyền',
+    'Ghi chú, tài liệu và mã tương quan nội bộ',
+    ...(publicDistributionListing && !publicDistributionListing.detailedLocation ? ['Vị trí chi tiết'] : []),
+    ...(publicDistributionListing && !Object.hasOwn(publicDistributionListing, 'mediaCount') ? ['Hình ảnh'] : []),
+  ]
 
   function dispatchMarket(action) {
     const next = marketplaceReducer(marketState, action)
@@ -821,9 +1016,15 @@ function App() {
       return false
     }
     setMarketState(next)
-    const message = action.type === MARKET_ACTIONS.REGISTER_CO_BROKER
-      ? 'Đã đăng ký cùng bán.'
-      : 'Đã gửi dữ liệu Tin bán đến kênh.'
+    const messages = {
+      [MARKET_ACTIONS.REGISTER_CO_BROKER]: 'Đã đăng ký cùng bán.',
+      [MARKET_ACTIONS.DISTRIBUTE_LISTING]: 'Đã gửi dữ liệu Tin bán đến kênh.',
+      [MARKET_ACTIONS.SAVE_PUBLICATION_DRAFT]: 'Đã lưu bản nháp cấu hình công khai.',
+      [MARKET_ACTIONS.APPLY_PUBLICATION_PROFILE]: 'Đã áp dụng cấu hình công khai.',
+      [MARKET_ACTIONS.REQUEST_LISTING_CORRECTION]: 'Đã gửi yêu cầu chỉnh sửa đến Sàn.',
+      [MARKET_ACTIONS.APPLY_LISTING_CORRECTION]: 'Đã áp dụng yêu cầu chỉnh sửa Tin bán.',
+    }
+    const message = messages[action.type] ?? 'Đã cập nhật Tin bán.'
     setAnnouncement(message)
     setToast({ tone: 'success', message })
     return true
@@ -874,15 +1075,36 @@ function App() {
           )}
           canOpenLookupRecord={['agent', 'brokerage'].includes(landingRoleId)}
           onOpenApplications={(roleId = landingRoleId) => navigate(rolePath(roleId, 'ung-dung'))}
+          vneidControl={vneidControl('landing')}
         />
       ) : (
         <>
           <button className="skip-link" type="button" onClick={() => document.getElementById('noi-dung-chinh')?.focus()}>Bỏ qua điều hướng</button>
-          <AppHeader role={role} query={query} onQuery={setQuery} onSearch={() => navigate(rolePath(role.id))} onReset={() => setShowReset(true)} />
+          <AppHeader
+            role={role}
+            query={query}
+            onQuery={setQuery}
+            onSearch={() => navigate(rolePath(role.id))}
+            onReset={() => setShowReset(true)}
+            showGlobalSearch={!['notary', 'landRegistry', 'tax'].includes(role.id)}
+            vneidControl={vneidControl('header')}
+          />
           <div className="app-frame">
             <Sidebar role={role} activePage={['nguon-hang-chi-tiet', 'phan-phoi'].includes(route.page) ? 'nguon-hang' : route.page} />
             <main id="noi-dung-chinh" tabIndex="-1">
-              {route.page === 'ho-so' ? (
+              {['notary', 'landRegistry', 'tax'].includes(role.id) && route.page !== 'ung-dung' ? (
+                <ExternalProgressWorkspace
+                  authorityCode={role.id}
+                  authorityLabel={ROLE_LABELS[role.id]}
+                  cases={externalQueue}
+                  selectedCaseId={activeExternalCaseId}
+                  statusFilter={externalStatus}
+                  searchQuery={externalSearch}
+                  onStatusFilterChange={setExternalStatus}
+                  onSearchChange={setExternalSearch}
+                  onSelectCase={setSelectedExternalCaseId}
+                />
+              ) : route.page === 'ho-so' ? (
                 <DossierPage
                   role={role}
                   demoCase={activeDemoCase}
@@ -891,7 +1113,20 @@ function App() {
                   onAction={(action) => dispatch(activeCaseId, action)}
                 />
               ) : route.page === 'cong-viec' ? (
-                <WorkQueue key={role.id} role={role} rows={rows} query={query} />
+                <WorkQueue
+                  key={role.id}
+                  role={role}
+                  rows={rows}
+                  query={query}
+                  correctionRequests={role.id === 'brokerage'
+                    ? marketState.sellerCorrectionRequests.filter(({ status }) => status === 'Chờ Sàn xử lý')
+                    : []}
+                  onApplyCorrection={(requestId) => dispatchMarket({
+                    type: MARKET_ACTIONS.APPLY_LISTING_CORRECTION,
+                    actor: 'brokerage',
+                    payload: { requestId },
+                  })}
+                />
               ) : route.page === 'ung-dung' ? (
                 <EcosystemHub
                   role={role}
@@ -915,6 +1150,27 @@ function App() {
                   onRegister={(listing) => navigate(representedListingPath(role.id, listing.listingId))}
                   onOpenDistribution={(listing) => navigate(distributionPath(role.id, listing.listingId))}
                 />
+              ) : route.page === 'tin-ban-cua-toi' && role.id === 'seller' ? (
+                <SellerListingWorkspace
+                  listing={sellerListing}
+                  fieldGroups={PUBLICATION_FIELD_GROUPS}
+                  correctionRequest={sellerListing?.correctionRequests.at(-1) ?? null}
+                  onSaveDraft={(payload) => dispatchMarket({
+                    type: MARKET_ACTIONS.SAVE_PUBLICATION_DRAFT,
+                    actor: 'seller',
+                    payload,
+                  })}
+                  onApplyProfile={(payload) => dispatchMarket({
+                    type: MARKET_ACTIONS.APPLY_PUBLICATION_PROFILE,
+                    actor: 'seller',
+                    payload,
+                  })}
+                  onRequestCorrection={(payload) => dispatchMarket({
+                    type: MARKET_ACTIONS.REQUEST_LISTING_CORRECTION,
+                    actor: 'seller',
+                    payload,
+                  })}
+                />
               ) : route.page === 'nguon-hang-chi-tiet' && ['agent', 'brokerage'].includes(role.id) ? (
                 marketListingView ? <RepresentedListingDetail
                   listing={marketListingView}
@@ -933,11 +1189,15 @@ function App() {
                   channels={DISTRIBUTION_CHANNELS}
                   selectedChannelId="housenow"
                   preflight={distributionPreflight}
-                  sendFields={DISTRIBUTION_SEND_FIELDS}
-                  excludedFields={DISTRIBUTION_EXCLUDED_FIELDS}
+                  sendFields={distributionSendFields}
+                  excludedFields={distributionExcludedFields}
                   events={distributionEvents}
                   preview={distributionPreview}
-                  status={distributionRecord ? `${distributionRecord.status} · ${distributionRecord.acknowledgement}` : 'Chưa gửi'}
+                  status={distributionChannelState
+                    ? `${distributionChannelState.status} · ${distributionChannelState.acknowledgement}`
+                    : distributionRecord
+                      ? `${distributionRecord.status} · ${distributionRecord.acknowledgement}`
+                      : 'Chưa gửi'}
                   canSubmit={Boolean(marketListing.collaboration.ownRegistration)
                     && Boolean(houseNowPermission)
                     && !distributionRecord}
@@ -969,7 +1229,7 @@ function App() {
   )
 }
 
-function AppHeader({ role, query, onQuery, onSearch, onReset }) {
+function AppHeader({ role, query, onQuery, onSearch, onReset, showGlobalSearch = true, vneidControl }) {
   const Icon = ROLE_ICONS[role.id] ?? User
   function changeRole(event) {
     navigate(rolePath(event.target.value))
@@ -977,12 +1237,15 @@ function AppHeader({ role, query, onQuery, onSearch, onReset }) {
   return (
     <header className="app-header">
       <div className="header-brand"><BrandMark compact inverse /><span>Hà Nội</span></div>
-      <form className="global-search" role="search" aria-label="Tìm trong không gian làm việc" onSubmit={(event) => { event.preventDefault(); onSearch() }}>
-        <MagnifyingGlass aria-hidden="true" />
-        <label className="sr-only" htmlFor="global-search-input">Tìm trong không gian làm việc</label>
-        <input id="global-search-input" value={query} onChange={(event) => onQuery(event.target.value)} placeholder={role.id === 'bank' ? 'Tìm loại Bất động sản, khoảng giá, mục đích' : 'Tìm NPID, PLID, PTID, dự án, khu vực'} data-testid="global-search" />
-      </form>
+      {showGlobalSearch ? (
+        <form className="global-search" role="search" aria-label="Tìm trong không gian làm việc" onSubmit={(event) => { event.preventDefault(); onSearch() }}>
+          <MagnifyingGlass aria-hidden="true" />
+          <label className="sr-only" htmlFor="global-search-input">Tìm trong không gian làm việc</label>
+          <input id="global-search-input" value={query} onChange={(event) => onQuery(event.target.value)} placeholder={role.id === 'bank' ? 'Tìm loại Bất động sản, khoảng giá, mục đích' : 'Tìm NPID, PLID, PTID, dự án, khu vực'} data-testid="global-search" />
+        </form>
+      ) : null}
       <div className="header-context">
+        {vneidControl}
         <Icon aria-hidden="true" />
         <label>
           <span className="sr-only">Vai trò làm việc</span>
@@ -1025,7 +1288,7 @@ function Sidebar({ role, activePage }) {
   )
 }
 
-function WorkQueue({ role, rows, query }) {
+function WorkQueue({ role, rows, query, correctionRequests = [], onApplyCorrection }) {
   const [filter, setFilter] = useState('all')
   const [ownerFilter, setOwnerFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
@@ -1057,7 +1320,7 @@ function WorkQueue({ role, rows, query }) {
     <section className="page-shell work-queue" aria-labelledby="workspace-title" data-testid="work-queue">
       <PageHeader
         title={WORKSPACE_TITLES[role.id]}
-        count={`${filtered.length} hồ sơ`}
+        count={`${filtered.length} hồ sơ${role.id === 'brokerage' && correctionRequests.length ? ` · ${correctionRequests.length} yêu cầu chỉnh sửa` : ''}`}
         action={role.id === 'agent'
           ? <ActionButton icon={Plus} disabled testId="create-dossier">Khởi tạo</ActionButton>
           : null}
@@ -1065,29 +1328,56 @@ function WorkQueue({ role, rows, query }) {
       <div className="queue-controls queue-controls-meta">
         <span className="filter-summary"><Funnel aria-hidden="true" /> Dữ liệu cập nhật đến 28/08/2026</span>
       </div>
-      {queueFilters.length ? <div className="metric-filters" aria-label="Lọc theo trạng thái công việc">
+      {queueFilters.length ? <div className="metric-filters" role="group" aria-label="Lọc theo trạng thái công việc">
         {queueFilters.map(([id, label]) => (
           <button key={id} type="button" className={filter === id ? 'is-active' : ''} onClick={() => setFilter(id)} aria-pressed={filter === id} data-testid={`status-filter-${id}`}>
             <span>{label}</span><strong>{counts[id]}</strong>
           </button>
         ))}
       </div> : null}
-      {ownerOptions.length || priorityOptions.length || routeOptions.length ? <div className="queue-filters" aria-label="Bộ lọc nghiệp vụ">
+      {ownerOptions.length || priorityOptions.length || routeOptions.length ? <div className="queue-filters" role="group" aria-label="Bộ lọc nghiệp vụ">
         {ownerOptions.length ? <label><span>Phụ trách</span><select value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}><option value="">Tất cả</option>{ownerOptions.map((id) => <option key={id} value={id}>{ROLE_LABELS[id]}</option>)}</select></label> : null}
         {priorityOptions.length ? <label><span>Ưu tiên</span><select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option value="">Tất cả</option>{priorityOptions.map((priority) => <option key={priority} value={priority}>{priority}</option>)}</select></label> : null}
         {routeOptions.length ? <label><span>Tuyến chuyển quyền</span><select value={routeFilter} onChange={(event) => setRouteFilter(event.target.value)}><option value="">Tất cả</option>{routeOptions.map((route) => <option key={route} value={route}>{routeLabel(route)}</option>)}</select></label> : null}
       </div> : null}
+      {role.id === 'brokerage' && correctionRequests.length ? (
+        <BrokerageCorrections requests={correctionRequests} onApply={onApplyCorrection} />
+      ) : null}
       {filtered.length ? <WorkTable rows={filtered} role={role} /> : <EmptyState role={role} query={query} />}
+    </section>
+  )
+}
+
+function BrokerageCorrections({ requests, onApply }) {
+  return (
+    <section className="record-panel correction-queue" aria-labelledby="correction-queue-title" data-testid="listing-correction-queue">
+      <PanelHeading icon={NotePencil} title="Yêu cầu chỉnh sửa Tin bán" meta={`${requests.length} yêu cầu`} />
+      <div className="data-table-wrap">
+        <table className="compact-table">
+          <thead><tr><th>PLID</th><th>Nội dung</th><th>Người gửi</th><th>Trạng thái</th><th>Hạn xử lý</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+          <tbody>{requests.map((request) => (
+            <tr key={request.id} data-testid={`correction-request-${request.id}`}>
+              <td className="mono">{request.listingId}</td>
+              <td><strong>{formatMoney(request.currentValue?.value)} → {formatMoney(request.proposedValue?.value)}</strong><small>{request.reason}</small></td>
+              <td>Người bán</td>
+              <td><StatusPill tone="pending">{request.status}</StatusPill></td>
+              <td>{formatDate(addDays(request.requestedAt, 2))}</td>
+              <td><button className="row-action" type="button" onClick={() => onApply?.(request.id)}>Đối chiếu và áp dụng <ArrowRight aria-hidden="true" /></button></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
     </section>
   )
 }
 
 function WorkTable({ rows, role }) {
   if (role.id === 'bank') return <BankWorkTable rows={rows} role={role} />
+  const showProcessing = ['agent', 'brokerage', 'seller', 'buyer'].includes(role.id)
   return (
     <div className="data-table-wrap">
       <table className="data-table work-table">
-        <thead><tr><th>Bất động sản</th><th>NPID</th><th>PLID</th><th>PTID</th>{role.id === 'brokerage' ? <th>Môi giới</th> : null}<th>Việc cần làm</th><th>Trạng thái</th><th>Phụ trách</th><th>Ưu tiên</th><th>Hạn xử lý</th>{role.id === 'brokerage' ? <th>Hết hạn đại diện</th> : null}<th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+        <thead><tr><th>Bất động sản</th><th>NPID</th><th>PLID</th><th>PTID</th>{role.id === 'brokerage' ? <th>Môi giới</th> : null}<th>Việc cần làm</th><th>Trạng thái</th>{showProcessing ? <><th>Tiến độ hồ sơ</th><th>Đơn vị đang xử lý</th></> : null}<th>Phụ trách</th><th>Ưu tiên</th><th>Hạn xử lý</th>{role.id === 'brokerage' ? <th>Hết hạn đại diện</th> : null}<th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
         <tbody>{rows.map((row) => {
           const records = row.projected.records
           const property = records.property
@@ -1100,6 +1390,7 @@ function WorkTable({ rows, role }) {
               {role.id === 'brokerage' ? <td data-label="Môi giới">{row.agentLabel}</td> : null}
               <td data-label="Việc cần làm"><strong>{row.nextLabel}</strong>{row.bucket === 'blocked' && records.notaryDossier?.supplement?.documentType ? <small className="blocker-copy"><WarningCircle aria-hidden="true" /> {records.notaryDossier.supplement.documentType}</small> : null}</td>
               <td data-label="Trạng thái"><StatusPill tone={statusTone(row.status)}>{row.status}</StatusPill></td>
+              {showProcessing ? <><td data-label="Tiến độ hồ sơ"><strong>{row.processing.milestone}</strong><small>{row.processing.status}</small></td><td data-label="Đơn vị đang xử lý">{row.processing.processingOrganization}</td></> : null}
               <td data-label="Phụ trách">{row.ownerId ? ROLE_LABELS[row.ownerId] : row.bucket === 'done' ? 'Không còn việc' : 'Không thuộc phạm vi'}</td>
               <td data-label="Ưu tiên">{row.priority ? <StatusPill tone={row.priority === 'Cao' ? 'warning' : 'neutral'}>{row.priority}</StatusPill> : <span className="empty-value">Không thuộc phạm vi</span>}</td>
               <td data-label="Hạn xử lý">{row.dueAt ? formatDate(row.dueAt) : <span className="empty-value">Không thuộc phạm vi</span>}</td>
@@ -1216,9 +1507,19 @@ function DossierPage({ role, demoCase, state, tab, onAction }) {
   }
   const ownerLabel = projected.nextWorkItem?.ownerLabel
     ?? (allowedActionsFor(state, role.id).length ? role.label : null)
-  const updatedAt = role.id === 'bank'
+  const baseUpdatedAt = role.id === 'bank'
     ? records.readiness?.financeSharing?.recordedAt
     : state.auditEvents.at(-1)?.occurredAt ?? state.auditEvents.at(-1)?.at ?? demoCase.property.sourceRecords?.at(-1)?.receivedAt
+  const processing = getProcessingProjection(state) ?? {
+    milestone: 'Chuẩn bị hồ sơ trong VMLS',
+    status: getCaseStatus(state).label,
+    processingOrganization: 'VMLS',
+    receivedAt: baseUpdatedAt,
+    timeline: [],
+  }
+  const updatedAt = role.id === 'bank'
+    ? baseUpdatedAt
+    : latestSafeUpdateAt(baseUpdatedAt, processing)
   return (
     <section className="dossier-page">
       <header className="dossier-header">
@@ -1239,6 +1540,9 @@ function DossierPage({ role, demoCase, state, tab, onAction }) {
         </nav>
       </header>
       <div className="dossier-content">
+        {['agent', 'brokerage', 'seller', 'buyer'].includes(role.id) ? (
+          <ProcessingSummary projection={processing} events={processing.timeline} />
+        ) : null}
         <DossierTab role={role} demoCase={demoCase} state={state} projected={projected} records={records} parties={projected.parties ?? {}} tab={activeTab} onAction={onAction} />
       </div>
     </section>
@@ -1247,11 +1551,11 @@ function DossierPage({ role, demoCase, state, tab, onAction }) {
 
 function tabsForRole(roleId) {
   if (roleId === 'bank') return DETAIL_TABS.filter(([id]) => id === 'tong-quan')
-  if (roleId === 'brokerage') return DETAIL_TABS.filter(([id]) => !['nguoi-mua', 'lich-su'].includes(id))
+  if (roleId === 'brokerage') return DETAIL_TABS.filter(([id]) => id !== 'lich-su')
   if (roleId === 'seller') return DETAIL_TABS.filter(([id]) => id !== 'nguoi-mua')
   if (roleId === 'buyer') return DETAIL_TABS.filter(([id]) => !['quyen-dai-dien', 'lich-su'].includes(id))
-  if (roleId === 'notary') return DETAIL_TABS.filter(([id]) => ['tong-quan', 'bat-dong-san', 'quyen-dai-dien', 'nguoi-mua', 'cong-chung'].includes(id))
-  if (roleId === 'developer' || roleId === 'landRegistry') return DETAIL_TABS.filter(([id]) => ['tong-quan', 'bat-dong-san', 'cong-chung', 'chuyen-quyen'].includes(id))
+  if (roleId === 'notary') return DETAIL_TABS.filter(([id]) => ['tong-quan', 'bat-dong-san', 'cong-chung'].includes(id))
+  if (roleId === 'developer' || roleId === 'landRegistry' || roleId === 'tax') return DETAIL_TABS.filter(([id]) => ['tong-quan', 'bat-dong-san', 'cong-chung', 'chuyen-quyen'].includes(id))
   return DETAIL_TABS
 }
 
@@ -1262,13 +1566,13 @@ function RecordRelationBar({ role, demoCase, records }) {
     ['transaction', 'PTID', records.transaction?.id, 'chuyen-quyen', Handshake],
   ].filter(([recordKey]) => hasOwn(records, recordKey))
   return (
-    <div className="relation-bar" aria-label="Bản ghi liên quan">
+    <nav className="relation-bar" aria-label="Bản ghi liên quan">
       {links.map(([, label, value, tab, Icon]) => (
         <button key={label} type="button" disabled={!value} onClick={() => navigate(casePath(role.id, demoCase.id, tab))} data-testid={`object-${label.toLowerCase()}`}>
           <Icon aria-hidden="true" /><span>{label}</span><strong>{value ?? 'Chưa có'}</strong><ArrowRight aria-hidden="true" />
         </button>
       ))}
-    </div>
+    </nav>
   )
 }
 
@@ -1278,7 +1582,7 @@ function DossierTab({ role, demoCase, state, projected, records, parties, tab, o
   if (tab === 'bat-dong-san') return <PropertyTab property={records.property} />
   if (tab === 'quyen-dai-dien') return <RepresentationTab parties={parties} record={records.representation} />
   if (tab === 'tin-ban') return <ListingTab listing={records.listing} />
-  if (tab === 'nguoi-mua') return <BuyerTab readiness={records.readiness} />
+  if (tab === 'nguoi-mua') return <BuyerTab readiness={records.readiness} property357={records.property?.sourceRecord357} />
   if (tab === 'cong-chung') return <NotaryTab dossier={records.notaryDossier} />
   if (tab === 'chuyen-quyen') return <TransferTab transaction={records.transaction} transfer={records.transfer} integrations={projected.integrationEvents ?? []} />
   return <HistoryTab events={projected.auditEvents ?? []} />
@@ -1306,6 +1610,19 @@ function OverviewTab({ role, demoCase, state, records, onAction }) {
 function TaskPanel({ role, demoCase, state, onAction }) {
   const actions = allowedActionsFor(state, role.id)
   const nextWork = getNextWorkItem(state)
+  if (role.id === 'vmls') {
+    return (
+      <ExternalSyncPanel
+        caseId={demoCase.id}
+        sources={externalSyncSourcesFor(demoCase, state)}
+        onReceiveNext={({ caseId, source }) => onAction({
+          type: ACTIONS.RECEIVE_EXTERNAL_EVENT,
+          actor: 'vmls',
+          payload: { caseId, source },
+        })}
+      />
+    )
+  }
   if (!actions.length) {
     const complete = isComplete(state)
     return (
@@ -1367,7 +1684,7 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
     return <form className="task-form" onSubmit={submit}><div className="confirmation-summary"><FieldGrid><Field label="Mã bản ghi xác nhận" value={state.records.representation.confirmation?.id} mono /><Field label="Mã định danh Bất động sản" value={state.records.property.id} mono /><Field label="Người đại diện (Môi giới)" value={demoCase.parties?.agent?.displayName} /><Field label="Sàn môi giới" value={demoCase.parties?.agent?.organization} /><Field label="Phạm vi" value={state.records.representation.request?.scope} /><Field label="Hiệu lực" value={`${formatDate(state.records.representation.request?.startsOn, false)} — ${formatDate(state.records.representation.request?.expiresOn, false)}`} /></FieldGrid></div><label className="checkbox-field"><input type="checkbox" checked={form.accepted} onChange={(event) => update('accepted', event.target.checked)} required /><span>Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn.</span></label>{submitControl()}</form>
   }
 
-  if (actionType === ACTIONS.RECORD_BUYER) {
+  if (actionType === ACTIONS.DECLARE_BUYER) {
     return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã định danh Người mua" value={form.buyerRef} onChange={(value) => update('buyerRef', value)} /><FormInput label="Giá đã thống nhất (VND)" type="number" min="1" value={form.agreedPrice} onChange={(value) => update('agreedPrice', value)} /><FormInput label="Ngày dự kiến ký" type="date" value={form.expectedSigningOn} onChange={(value) => update('expectedSigningOn', value)} /></div>{submitControl()}</form>
   }
 
@@ -1377,24 +1694,12 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
     return <form className="task-form" onSubmit={submit}><section className="confirmation-summary contract-confirmation" aria-labelledby="contract-confirmation-title"><h3 id="contract-confirmation-title">Thông tin hợp đồng cần xác nhận</h3><FieldGrid><Field label="Họ tên Người mua" value={contract.buyer?.displayName ?? state.records.readiness.buyer?.displayName} /><Field label="Mã định danh Người mua" value={contract.buyer?.reference ?? state.records.readiness.buyer?.reference} mono /><Field label="Mã định danh Bất động sản" value={contract.property?.id ?? state.records.property.id} mono /><Field label="Loại giao dịch" value={contract.transactionType ?? state.records.listing?.transactionType} /><Field label="Giá đã thống nhất" value={formatMoney(contract.agreedPrice ?? state.records.readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(contract.expectedSigningOn ?? state.records.readiness.expectedSigningOn, false)} /></FieldGrid></section><fieldset className="readiness-checks"><legend>Nội dung Người mua xác nhận</legend>{checklist.map(([key, label]) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(event) => update(key, event.target.checked)} required /><span>{label}</span></label>)}</fieldset><label className="checkbox-field optional"><input type="checkbox" checked={form.bankConsent} onChange={(event) => update('bankConsent', event.target.checked)} /><span>Chia sẻ giá, Bất động sản và lịch dự kiến với Ngân hàng</span></label>{submitControl()}</form>
   }
 
-  if (actionType === ACTIONS.SUBMIT_NOTARY_DOSSIER) {
-    return <form className="task-form" onSubmit={submit}><FormInput label="Mã tiếp nhận" value={form.submissionRef} onChange={(value) => update('submissionRef', value)} /><fieldset className="document-checks"><legend>Thành phần hồ sơ</legend>{requiredDocuments.map((document) => { const id = typeof document === 'string' ? document : document.id; const label = typeof document === 'string' ? document : document.label; return <label key={id}><input type="checkbox" checked={form.documentIds.includes(id)} onChange={(event) => update('documentIds', event.target.checked ? [...form.documentIds, id] : form.documentIds.filter((item) => item !== id))} /><span>{label}</span></label> })}</fieldset>{submitControl()}</form>
+  if (actionType === ACTIONS.HANDOFF_NOTARY_DOSSIER) {
+    return <form className="task-form" onSubmit={submit}><FormInput label="Mã bàn giao hồ sơ" value={form.submissionRef} onChange={(value) => update('submissionRef', value)} /><fieldset className="document-checks"><legend>Thành phần hồ sơ gửi VPCC</legend>{requiredDocuments.map((document) => { const id = typeof document === 'string' ? document : document.id; const label = typeof document === 'string' ? document : document.label; return <label key={id}><input type="checkbox" checked={form.documentIds.includes(id)} onChange={(event) => update('documentIds', event.target.checked ? [...form.documentIds, id] : form.documentIds.filter((item) => item !== id))} /><span>{label}</span></label> })}</fieldset>{submitControl()}</form>
   }
 
-  if (actionType === ACTIONS.REQUEST_SUPPLEMENT) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormSelect label="Loại tài liệu" value={form.documentType} onChange={(value) => update('documentType', value)} options={[demoCase.notary.supplement.documentType]} /><FormSelect label="Lý do" value={form.reasonCode} onChange={(value) => update('reasonCode', value)} options={[demoCase.notary.supplement.reasonCode]} labels={['Thiếu xác nhận tình trạng hôn nhân']} /><FormInput label="Hạn bổ sung" type="date" value={form.dueOn} onChange={(value) => update('dueOn', value)} /></div>{submitControl(true)}</form>
-  }
-
-  if (actionType === ACTIONS.PROVIDE_SUPPLEMENT) {
+  if (actionType === ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF) {
     return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã tài liệu" value={form.documentId} onChange={(value) => update('documentId', value)} /><FormInput label="Loại tài liệu" value={form.documentType} onChange={(value) => update('documentType', value)} /><FormInput label="Tên tệp PDF" value={form.fileName} onChange={(value) => update('fileName', value)} pattern=".+\.pdf$" /></div>{submitControl()}</form>
-  }
-
-  if (actionType === ACTIONS.RECORD_NOTARY_SIGNING) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã hợp đồng" value={form.contractId} onChange={(value) => update('contractId', value)} /><FormInput label="Thời điểm ký" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.signedAt} onChange={(value) => update('signedAt', value)} /></div>{submitControl()}</form>
-  }
-
-  if (actionType === ACTIONS.APPROVE_LAND_REGISTRY) {
-    return <form className="task-form" onSubmit={submit}><div className="form-grid"><FormInput label="Mã kết quả" value={form.resultRef} onChange={(value) => update('resultRef', value)} /><FormInput label="Thời điểm hiệu lực" type="datetime-local" min="2026-08-01T00:00" max="2026-08-31T23:59" value={form.approvedAt} onChange={(value) => update('approvedAt', value)} /></div>{submitControl()}</form>
   }
 
   if (actionType === ACTIONS.DEVELOPER_INTAKE) {
@@ -1411,16 +1716,16 @@ function ActionFields({ actionType, role, demoCase, state, onAction }) {
 function defaultActionForm(type, demoCase, state, documents) {
   const actionTimes = demoCase.actionTimes ?? {}
   const representationStart = dateInputValue(actionTimes[ACTIONS.REQUEST_SELLER_CONFIRMATION])
+  const configuredSigningAt = demoCase.externalProcessing?.notary?.events?.find(
+    (event) => event.effect?.type === 'notary_completed',
+  )?.effect?.signedAt
   const defaults = {
     [ACTIONS.REQUEST_SELLER_CONFIRMATION]: { propertyId: demoCase.property.id, scope: 'Độc quyền', startsOn: representationStart, expiresOn: addDays(representationStart, 30) },
     [ACTIONS.CONFIRM_REPRESENTATION]: { accepted: false },
-    [ACTIONS.RECORD_BUYER]: { buyerRef: demoCase.parties?.buyer?.reference ?? `BUYER-${demoCase.id}`, agreedPrice: demoCase.listing?.askingPrice?.value ?? 1, expectedSigningOn: dateInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]) },
-    [ACTIONS.VERIFY_READINESS]: { confirmed: true, identityReviewed: false, paymentPlanReviewed: false, documentsReviewed: false, bankConsent: demoCase.id === 'sun-grand-thuy-khue' },
-    [ACTIONS.SUBMIT_NOTARY_DOSSIER]: { submissionRef: demoCase.notary?.id, documentIds: documents.map((item) => typeof item === 'string' ? item : item.id) },
-    [ACTIONS.REQUEST_SUPPLEMENT]: { reasonCode: demoCase.notary?.supplement?.reasonCode ?? 'missing-document', documentType: demoCase.notary?.supplement?.documentType ?? 'Tài liệu bổ sung', dueOn: dateInputValue(actionTimes[ACTIONS.PROVIDE_SUPPLEMENT]) },
-    [ACTIONS.PROVIDE_SUPPLEMENT]: { documentId: 'TLBS-HN-00044', documentType: state.records.notaryDossier.supplement?.documentType ?? 'Xác nhận tình trạng hôn nhân', fileName: 'xac-nhan-tinh-trang-hon-nhan.pdf' },
-    [ACTIONS.RECORD_NOTARY_SIGNING]: { contractId: demoCase.notary?.contractId ?? demoCase.transfer?.contractReference ?? `HD-${demoCase.id}`, signedAt: dateTimeInputValue(actionTimes[ACTIONS.RECORD_NOTARY_SIGNING]) },
-    [ACTIONS.APPROVE_LAND_REGISTRY]: { resultRef: 'KQ-ĐKBĐ-260828-044', approvedAt: dateTimeInputValue(actionTimes[ACTIONS.APPROVE_LAND_REGISTRY]) },
+    [ACTIONS.DECLARE_BUYER]: { buyerRef: demoCase.parties?.buyer?.reference ?? `BUYER-${demoCase.id}`, agreedPrice: demoCase.listing?.askingPrice?.value ?? 1, expectedSigningOn: dateInputValue(configuredSigningAt) },
+    [ACTIONS.VERIFY_READINESS]: { confirmed: true, identityReviewed: false, paymentPlanReviewed: false, documentsReviewed: false, bankConsent: false },
+    [ACTIONS.HANDOFF_NOTARY_DOSSIER]: { submissionRef: `NOP-${demoCase.notary?.id}`, documentIds: documents.map((item) => typeof item === 'string' ? item : item.id) },
+    [ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF]: { documentId: 'TLBS-HN-00044', documentType: state.records.notaryDossier.supplement?.documentType ?? 'Xác nhận tình trạng hôn nhân', fileName: 'xac-nhan-tinh-trang-hon-nhan.pdf' },
     [ACTIONS.DEVELOPER_INTAKE]: { intakeRef: demoCase.transfer?.intakeRef ?? 'TNCĐT-S2-12A-2026', receivedAt: dateTimeInputValue(actionTimes[ACTIONS.DEVELOPER_INTAKE]), documentCount: Math.max(4, demoCase.notary?.requiredDocumentIds?.length ?? 4) },
     [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: { confirmationRef: `XN-${demoCase.transfer?.intakeRef ?? 'CDT-S2-12A'}`, confirmedAt: dateTimeInputValue(actionTimes[ACTIONS.DEVELOPER_CONFIRM_TRANSFER]) },
     [ACTIONS.BUYER_RECEIVE_CONTRACT]: { receiptRef: demoCase.transfer?.resultRef ?? 'HDMB-MOI-S2-12A/2026', receivedAt: dateTimeInputValue(actionTimes[ACTIONS.BUYER_RECEIVE_CONTRACT]), acknowledged: false },
@@ -1430,11 +1735,9 @@ function defaultActionForm(type, demoCase, state, documents) {
 
 function payloadFor(type, form) {
   if (type === ACTIONS.REQUEST_SELLER_CONFIRMATION) return { ...form, propertyId: String(form.propertyId ?? '').trim().toUpperCase() }
-  if (type === ACTIONS.RECORD_BUYER) return { buyerRef: form.buyerRef, agreedPrice: Number(form.agreedPrice), expectedSigningOn: form.expectedSigningOn }
+  if (type === ACTIONS.DECLARE_BUYER) return { buyerRef: form.buyerRef, agreedPrice: Number(form.agreedPrice), expectedSigningOn: form.expectedSigningOn }
   if (type === ACTIONS.VERIFY_READINESS) return { confirmed: true, checklist: { identityReviewed: form.identityReviewed, paymentPlanReviewed: form.paymentPlanReviewed, documentsReviewed: form.documentsReviewed }, bankConsent: form.bankConsent }
-  if (type === ACTIONS.SUBMIT_NOTARY_DOSSIER) return { submissionRef: form.submissionRef, documentIds: form.documentIds ?? [] }
-  if (type === ACTIONS.RECORD_NOTARY_SIGNING) return { ...form, signedAt: hanoiTimestamp(form.signedAt) }
-  if (type === ACTIONS.APPROVE_LAND_REGISTRY) return { ...form, approvedAt: hanoiTimestamp(form.approvedAt) }
+  if (type === ACTIONS.HANDOFF_NOTARY_DOSSIER) return { submissionRef: form.submissionRef, documentIds: form.documentIds ?? [] }
   if (type === ACTIONS.DEVELOPER_INTAKE) return { ...form, documentCount: Number(form.documentCount), receivedAt: hanoiTimestamp(form.receivedAt) }
   if (type === ACTIONS.DEVELOPER_CONFIRM_TRANSFER) return { ...form, confirmedAt: hanoiTimestamp(form.confirmedAt) }
   if (type === ACTIONS.BUYER_RECEIVE_CONTRACT) return { ...form, receivedAt: hanoiTimestamp(form.receivedAt) }
@@ -1521,10 +1824,10 @@ function ListingTab({ listing }) {
   return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={Signpost} title="Tin bán" meta={listing.id} /><FieldGrid><Field label="Bất động sản" value={listing.propertyId ?? listing.npid} mono /><Field label="Loại giao dịch" value={listing.transactionType} /><Field label="Giá" value={listing.askingPrice?.displayValue ?? formatMoney(listing.askingPrice)} /><Field label="Trạng thái" value={listing.status} /><Field label="Ngày khởi tạo" value={formatDate(listing.createdAt)} /></FieldGrid></section><section className="record-panel full-span"><PanelHeading icon={PlugsConnected} title="Kênh phân phối" /><table className="compact-table channel-table"><thead><tr><th>Kênh</th><th>Phạm vi dữ liệu</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead><tbody>{channels.map((channel) => <tr key={channel.id ?? channel.name} data-testid={channel.id === 'housenow' ? 'distribution-housenow' : undefined}><td><span className="channel-name">{channel.icon ? <img src={channel.icon} alt="" /> : null}<strong>{channel.name}</strong></span></td><td>{channel.fieldScope ?? channel.scope}</td><td><StatusPill tone={statusTone(channel.status)}>{channel.status}</StatusPill></td><td>{formatDate(channel.updatedAt)}</td></tr>)}</tbody></table></section></div>
 }
 
-function BuyerTab({ readiness }) {
+function BuyerTab({ readiness, property357 }) {
   const contract = readiness.contractConfirmation ?? {}
   const buyer = contract.buyer ?? readiness.buyer
-  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={User} title="Người mua" meta={buyer?.reference} /><FieldGrid><Field label="Họ tên" value={buyer?.displayName} /><Field label="Mã định danh Người mua" value={buyer?.reference} mono /><Field label="Giấy tờ định danh" value={buyer?.identityRef} /><Field label="Giá đã thống nhất" value={formatMoney(contract.agreedPrice ?? readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(contract.expectedSigningOn ?? readiness.expectedSigningOn, false)} /><Field label="Trạng thái" value={readiness.status} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={FileText} title="Thông tin hợp đồng" /><FieldGrid><Field label="Mã định danh Bất động sản" value={contract.property?.id} mono /><Field label="Bất động sản" value={contract.property?.name} /><Field label="Loại giao dịch" value={contract.transactionType} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={ListChecks} title="Nội dung đã kiểm tra" /><Checklist items={Object.entries(readiness.checklist ?? {}).map(([key, value]) => ({ id: key, label: { identityReviewed: 'Thông tin định danh', paymentPlanReviewed: 'Phương án thanh toán', documentsReviewed: 'Danh mục tài liệu' }[key] ?? key, state: value ? 'done' : 'pending' }))} /></section>{hasOwn(readiness, 'financeSharing') ? <section className="record-panel full-span"><PanelHeading icon={Bank} title="Chia sẻ với Ngân hàng" /><FieldGrid><Field label="Trạng thái" value={readiness.financeSharing?.status} /><Field label="Mục đích" value={readiness.financeSharing?.purpose} /><Field label="Trường dữ liệu" value={readiness.financeSharing?.visibleFields?.join(', ')} /></FieldGrid></section> : null}</div>
+  return <div className="two-column-grid"><section className="record-panel"><PanelHeading icon={User} title="Người mua" meta={buyer?.reference} /><FieldGrid><Field label="Họ tên" value={buyer?.displayName} /><Field label="Mã định danh Người mua" value={buyer?.reference} mono /><Field label="Giấy tờ định danh" value={buyer?.identityRef} /><Field label="Giá đã thống nhất" value={formatMoney(contract.agreedPrice ?? readiness.agreedPrice)} /><Field label="Ngày dự kiến ký" value={formatDate(contract.expectedSigningOn ?? readiness.expectedSigningOn, false)} /><Field label="Trạng thái" value={readiness.status} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={FileText} title="Thông tin hợp đồng" /><FieldGrid><Field label="Mã định danh Bất động sản" value={contract.property?.id} mono /><Field label="Bất động sản" value={contract.property?.name} /><Field label="Loại giao dịch" value={contract.transactionType} /></FieldGrid></section><section className="record-panel"><PanelHeading icon={ListChecks} title="Nội dung đã kiểm tra" /><Checklist items={Object.entries(readiness.checklist ?? {}).map(([key, value]) => ({ id: key, label: { identityReviewed: 'Thông tin định danh', paymentPlanReviewed: 'Phương án thanh toán', documentsReviewed: 'Danh mục tài liệu' }[key] ?? key, state: value ? 'done' : 'pending' }))} /></section><div className="full-span"><Property357Panel record={property357} /></div>{hasOwn(readiness, 'financeSharing') ? <section className="record-panel full-span"><PanelHeading icon={Bank} title="Chia sẻ với Ngân hàng" /><FieldGrid><Field label="Trạng thái" value={readiness.financeSharing?.status} /><Field label="Mục đích" value={readiness.financeSharing?.purpose} /><Field label="Trường dữ liệu" value={readiness.financeSharing?.visibleFields?.join(', ')} /></FieldGrid></section> : null}</div>
 }
 
 function NotaryTab({ dossier }) {

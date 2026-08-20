@@ -90,6 +90,7 @@ function normalizeRecord(record, index) {
     listing,
     transaction,
     transfer: record.transfer ?? null,
+    sourceRecord357: sourceProperty.sourceRecord357 ?? record.sourceRecord357 ?? null,
     updatedAt: record.latestMaterialAt ?? record.updatedAt ?? null,
     searchText: normalizeText([
       title,
@@ -113,6 +114,7 @@ function identityNode({ kind, label, value }) {
     <div
       className={`landing-identity-node${value ? '' : ' is-empty'}`}
       data-testid={`landing-identity-${kind}`}
+      role="group"
       aria-label={`${label}: ${value ?? 'Chưa có'}`}
     >
       <span>{label}</span>
@@ -263,7 +265,7 @@ function SelectedDossierCard({
             <span className={`landing-status is-${selectedRecord.status.tone}`}>{selectedRecord.status.label}</span>
           </header>
 
-          <div className="landing-identity-trace" aria-label="Quan hệ định danh">
+          <div className="landing-identity-trace" role="group" aria-label="Quan hệ định danh">
             {identityNode({ kind: 'npid', label: 'Bất động sản · NPID', value: selectedRecord.property.id })}
             {identityNode({ kind: 'plid', label: 'Tin bán · PLID', value: selectedRecord.listing?.id })}
             {identityNode({ kind: 'ptid', label: 'Giao dịch · PTID', value: selectedRecord.transaction?.id })}
@@ -274,6 +276,8 @@ function SelectedDossierCard({
             <div><dt>Chủ đầu tư</dt><dd>{selectedRecord.property.developer ?? 'Không áp dụng'}</dd></div>
             <div><dt>Dự án</dt><dd>{selectedRecord.property.project ?? 'Không thuộc dự án'}</dd></div>
             <div><dt>Loại bất động sản</dt><dd>{selectedRecord.property.type}</dd></div>
+            {selectedRecord.sourceRecord357 ? <div><dt>Nguồn cấp NPID</dt><dd>Hệ thống thông tin 357</dd></div> : null}
+            {selectedRecord.sourceRecord357 ? <div><dt>Bản ghi nguồn</dt><dd className="landing-mono">{selectedRecord.sourceRecord357.sourceRecordId} · {selectedRecord.sourceRecord357.version}</dd></div> : null}
           </dl>
 
           {selectedRecord.workspaceCaseId ? (
@@ -323,6 +327,7 @@ export function LandingPage({
   onRoleChange = () => {},
   onSearchRoute = () => {},
   onSelectRecord = () => {},
+  vneidControl = null,
 }) {
   const sourceRecords = useMemo(() => {
     if (!lookupRecords.length) return publicRecords
@@ -459,7 +464,7 @@ export function LandingPage({
             <BrandMark inverse ariaLabel="VMLS" />
           </button>
 
-          <div className="landing-place" aria-label="Không gian dữ liệu Hà Nội">
+          <div className="landing-place" role="group" aria-label="Không gian dữ liệu Hà Nội">
             <span>Sổ bộ dữ liệu</span>
             <strong>Hà Nội</strong>
           </div>
@@ -470,6 +475,7 @@ export function LandingPage({
           </nav>
 
           <div className="landing-role-entry">
+            {vneidControl}
             <button
               className="landing-applications-button"
               type="button"

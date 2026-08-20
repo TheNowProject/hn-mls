@@ -2,7 +2,7 @@
 title: Permission model baseline
 status: proposal
 authority: working
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-20
 ---
 
 # Permission model baseline
@@ -45,7 +45,7 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 | Property / merge | No | Recommend | Recommend | No | No | Dispute only | Assigned Steward only | Override by authority |
 | Ownership Claim / create | Assisted | View organization-linked | No | No | No | Own claim | Verify assigned case | Inspect by authority |
 | Listing / create | Own representation | On behalf within organization | Own inventory | No | No | No direct create; supply authority/consent | Assisted correction only | No |
-| Listing / edit | Responsible Listing | Organization scope | Own inventory | No | No | Request correction only | Correction scope | Override by authority |
+| Listing / edit | Responsible Listing | Organization scope; apply Seller correction | Own inventory | No | No | Decide Public field groups; request value correction | Correction scope | Override by authority |
 | Listing / submit | Responsible Listing | Organization scope | Own inventory | No | No | Acknowledge own authority scope | No | No |
 | Listing / approve Active | No | Configured organization scope | Configured own inventory | No | No | No | Quality co-review only | Override/supervision only |
 | Listing / transition | Allowed own transitions | Allowed organization transitions | Own inventory transitions | No | No | Request only | Correction only | Authorized override |
@@ -55,12 +55,49 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 | Listing distribution / send | Responsible Listing or active CoBrokerRegistration plus channel consent | Organization policy/supervision | Own inventory scope | No | No | Grant/revoke own channel consent | Verification only | Supervision by authority |
 | Representation / create | Propose | Validate organization party | Create distribution basis | No | No | Grant/renew/revoke own authority | Verify evidence | Inspect by authority |
 | Distribution consent / decide | Propose scope | Validate and execute | Own-unit distribution scope | No | Own buyer consent only | Grant/revoke own Listing channels | Verify assigned case | Inspect by authority |
+| Buyer declaration / create | No | Transaction within Organization scope | No | No | Confirm own readiness only | No | No | Inspect by authority when lawful |
 | Project/Unit / maintain | No | Assigned distribution subset | Own Project scope | No | No | No; view owned Unit projection | Identity/quality correction | Override by authority |
 | Audit / read | Own resources | Organization scope | Own resources | Limited purpose | Public history only | Own consent/authority/milestones | Assigned/all operational scope | Statutory scope |
 | Audit / mutate/delete | No | No | No | No | No | No | No | No |
 | Data Issue / report | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Data Issue / resolve | No | Organization correction | Own-data correction | No | No | Accept/reject own outcome only | Assigned Steward | Authority workflow |
 | Aggregate dashboard | Own metrics | Organization metrics | Own Project metrics | Approved market/product view | No | Own Listing summary | Operational quality view | Jurisdiction view |
+
+## Static V4 demo command contract
+
+`PROPOSAL`: The client-side reducer enforces the following narrow demo contract. It demonstrates intended ownership and field projection only; it is not production authorization and does not replace the decision function above.
+
+| Workspace | Mutable commands in VMLS | Read projection |
+|---|---|---|
+| Môi giới | Request seller Representation; register to cooperate; send an eligible applied Public projection to HouseNow | Assigned dossiers, Industry inventory, relevant processing milestone and source timeline |
+| Sàn môi giới | Declare Buyer; apply a pending Seller price-correction request; hand off a ready notarization dossier | Organization queue, correction queue, represented inventory, relevant Buyer/processing projection |
+| Người bán | Confirm or reject Representation; save PublicationProfile draft; apply PublicationProfile; request permitted Listing correction; send a requested supplemental document as an outbound handoff | Own PLID only, Public preview, own authority/consent milestones, processing summary |
+| Người mua | Confirm the configured readiness checklist; acknowledge the new HĐMB on the Developer route | Own contract fields, permitted 357 Property snapshot, processing summary; no seller private data |
+| Chủ đầu tư | Record intake and transfer confirmation for the configured HĐMB route | Routed Developer dossier only |
+| Ngân hàng | None in this slice | A consented finance projection only; the whole dossier is absent without Buyer consent |
+| Vận hành VMLS | Receive the next configured inbound source event for a specific dossier and source | Object links, source cards, routing result, integration events, and audit events |
+| VPCC | None | Read-only synchronized queue and detail |
+| VPĐKĐĐ | None | Read-only synchronized queue and detail |
+| Cơ quan thuế | None | Read-only synchronized queue and detail |
+
+The VNeID local session is independent from this matrix. `CONFIRM_VNEID_LOGIN` and `LOGOUT_VNEID` create or clear only the masked browser session; they do not select a role, grant an Entitlement, unlock a command, or change a dossier.
+
+### Publication and correction projection rules
+
+- One `PublicationProfile` belongs to one PLID and has `draftVersion` and `appliedVersion`.
+- PLID, transaction/property type, general location, and responsible Agent business contact are locked Public groups. The Seller may decide whether the configured price, project/unit, detailed location, named areas, features, description, and images appear.
+- Public search and HouseNow serialize only the applied Public projection. The Industry projection for represented inventory is independently allowlisted and is never expanded by a Public setting.
+- A Seller correction is a request, not a direct mutation. Only the Brokerage applies the configured request; acceptance appends a Listing revision and an Audit Event.
+- If the previous applied version was already sent, applying a correction marks the channel `Cần cập nhật` and appends reconciliation data. It does not claim an external update.
+
+### Buyer and external-source projection rules
+
+- Only the Brokerage creates `BuyerDeclaration`. The responsible Agent and Buyer receive the fields required for their job; the Seller receives a milestone rather than Buyer identity; VPCC, VPĐKĐĐ, and Tax projections omit Buyer identity.
+- The Buyer's Property panel exposes only the safe configured `PropertySourceRecord357` claims and their provenance. It excludes owner identity, CCCD, and private transaction history.
+- External processing states use `Chờ tiếp nhận`, `Đang xử lý`, `Yêu cầu bổ sung`, and `Đã xử lý`. The raw source status, source system, processing organization, source timestamp, and VMLS receipt timestamp remain inspectable where the role is entitled.
+- VPCC, VPĐKĐĐ, and Tax records are read-only. Their configured queues support search, filter, and detail only; no accept, sign, approve, request-supplement, or tax-decision command is available in VMLS.
+- Vận hành VMLS receives the next configured source event. Event identities are idempotent, duplicates are ignored, and an older event cannot regress the normalized status.
+- External status events and user-created Audit Events are separate append-only collections.
 
 ## Field-level visibility matrix
 

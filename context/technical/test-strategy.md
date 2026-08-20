@@ -2,27 +2,18 @@
 title: Test strategy
 status: current
 authority: supporting
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-20
 ---
 
 # Test strategy
 
-This strategy covers the static VMLS data workspace described by the [operational workspace contract](../product/vmls-operational-workspace.md) and the [represented inventory and distribution proposal](../product/vmls-representation-distribution-demo.md). It verifies coherent records, structured lookup, honest module availability, guarded commands, role projections, derived queues, and the local boundary of outbound distribution. It does not validate production policy, security controls, external contracts, publication on HouseNow, or legal correctness; those boundaries are maintained in [security](./security.md).
+This strategy covers the static VMLS V4 workspace described by [current state](../product/current-state.md), the [v2 process](../product/vmls-process-v2.md), and the [demo playbook](../product/vmls-demo-playbook.md). It verifies record boundaries, seller publication control, Buyer command ownership, source-event orchestration, privacy projections, local VNeID session behavior, and honest external-system affordances.
 
-## Automated coverage
+It does not validate production authorization, official NPID ownership, legal/tax correctness, live VNeID authentication, or any 357, VPCC, Tax, VPĐKĐĐ, Developer, or HouseNow integration. `PROPOSAL`: the configured 357 record issues the NPID in this demo; the test proves the fixture contract, not an official interface.
 
-- Fixture tests enforce six market roles and three system/external workspaces, two independent dossiers, distinct `NPID`/`PLID`/`PTID` identities, masked parties, sourced area concepts, and separate representation, finance-sharing, and dossier distribution records.
-- Connection/channel tests enforce that VNeID, 357, and HouseNow have dated local captures and explicit data contracts. The 357 capture remains a catalog record rather than dossier evidence; HouseNow remains a Tin bán distribution channel with the supplied icon and status `Chưa phát hành`.
-- Represented-market tests enforce a separate five-record synthetic set, distinct Property/Tin bán/Representation identities, effective eligibility, NPID/area/developer/project filtering with AND semantics, and a fail-closed Industry projection.
-- Represented-market reducer tests cover the Môi giới-only `CoBrokerRegistration`, exact command shapes, duplicate rejection, unchanged original Representation, HouseNow channel consent, public payload allowlist, event idempotency, `Đã gửi · Chờ phản hồi kênh`, and versioned command replay with tamper fallback.
-- Reducer tests cover actor, state, and payload guards; exact NPID submission; independent record lifecycles; automatic PLID/PTID creation; the recoverable VPCC supplement; append-oriented histories; both automatically selected transfer routes; derived work queues; invalid-action atomicity; and versioned persistence/replay.
-- Projection tests cover role-specific record and field visibility, including complete dossier omission before Ngân hàng consent and the minimized projection after consent.
-- Playwright tests cover structured root lookup, the role application hub, represented inventory/detail/distribution, the queue, computed metric filters, global search, collection/list and dossier-detail surfaces, structured forms and validation, privacy behavior, both transfer outcomes, source/channel placement, hash-route restoration, local persistence, and `Đặt lại dữ liệu`.
-- Application-hub checks enforce interaction semantics rather than appearance alone: implemented modules navigate, configured media records open a read-only drawer, and event-only or unconfigured modules have no button, link, keyboard target, or misleading hover treatment.
-- The Môi giới queue check keeps the presentation-only `Khởi tạo` entry point disabled and verifies that it cannot change the two pre-created sample dossiers, the route, or persisted state.
-- Lint, prototype-contract type checking, unit tests, production build, and browser tests are required release gates.
+## Required release gates
 
-Run:
+Run from a clean release candidate:
 
 ```bash
 npm run lint
@@ -32,54 +23,164 @@ npm run build
 npm run test:e2e
 ```
 
-## Browser and interface verification
+All commands must pass before preview deployment. The exact preview candidate then receives a browser smoke test and independent black-box dogfood pass. Production is promoted only from that candidate; a failed production smoke test requires rollback to the previous ready deployment.
+
+Store screenshots, browser traces, QA report, and generated video evidence under `output/qa/vmls-interactive-demo/`. MP4, raw WebM, VTT, screenshots, and QA evidence remain local and uncommitted.
+
+## Unit and data-contract coverage
+
+### Record identity and 357 provenance
+
+- Two independent transaction dossiers never share NPID, PLID, PTID, Representation, Buyer declaration, source case, event history, or replay state.
+- NPID, PLID, PTID, source-record ID, source-case ID, contract ID, and event/correlation ID remain distinct typed values.
+- `PropertySourceRecord357` supplies the same NPID used as the VMLS Property identifier; no second VMLS-generated NPID exists.
+- Each source record has source record ID, version, source-updated-at, VMLS-received-at, and safe claims for project/developer, location, Property type, building/unit, named area concepts, and publication state.
+- The 357 projection and serialization contain no owner identity, CCCD, or private transaction history.
+- S2-12A keeps `69,2 m² thông thủy` and `82,3 m² tim tường` as separate sourced concepts.
+
+### PublicationProfile and represented market
+
+- Marketplace state replays from its current versioned schema; incompatible, old, or tampered payload resets safely.
+- One `PublicationProfile` belongs to one PLID and keeps independent `draftVersion` and `appliedVersion`.
+- `SAVE_PUBLICATION_DRAFT` accepts only permitted optional field-group IDs and the owning Seller; locked fields cannot be disabled or injected through the payload.
+- Saving a draft does not change the applied Public projection or any previously serialized channel payload.
+- `APPLY_PUBLICATION_PROFILE` applies the current draft and increments only the appropriate version/history.
+- Public lookup and HouseNow derive from the applied Public projection. Disabled groups are structurally absent from the returned object and rendered output.
+- The Industry projection is independently allowlisted and is not expanded or reduced by a Public setting.
+- `CoBrokerRegistration` remains Agent-only, does not change the original Representation/responsible Agent, and is still required for the configured distribution action.
+- HouseNow delivery rejects unknown fields and records only the applied projection/version and local acknowledgement state.
+
+### Seller correction and channel reconciliation
+
+- `REQUEST_LISTING_CORRECTION` is Seller-only, scoped to the Seller's own PLID, and accepts the configured `askingPrice` old/new values without mutating Listing/source history.
+- `APPLY_LISTING_CORRECTION` is Brokerage-only and rejects wrong role, request, PLID, state, value type, or extra payload keys.
+- Acceptance appends a new Listing revision and user Audit Event while preserving prior values and request history.
+- If the prior version was distributed, the local channel becomes `Cần cập nhật` and a reconciliation event is appended exactly once.
+- Reconciliation never changes a past DistributionEvent and never records remote publication or remote update success.
+
+### Buyer ownership and privacy
+
+- `DECLARE_BUYER` is Brokerage-only. Agent, Seller, Buyer, VMLS, VPCC, VPĐKĐĐ, Tax, Developer, and Bank attempts are rejected atomically.
+- Payload uses exact keys for Buyer reference, whole-VND agreed price, and expected signing date. Masked name is resolved from the configured Party, not accepted as input.
+- Responsible Agent and Buyer receive the required projection; Seller receives only a milestone; external agencies receive no Buyer identity.
+- Buyer detail includes contract data, readiness checklist, and the safe 357 snapshot with record/version/timestamps.
+- Bank receives no dossier before consent and only the configured minimized finance projection after consent.
+- `HANDOFF_NOTARY_DOSSIER` is Brokerage-only and requires readiness plus the exact configured document set.
+
+### External processing and Tax
+
+- VPCC, VPĐKĐĐ, and Tax fixtures expose at least 5–6 synthetic/masked rows with source case, NPID, optional PTID, BĐS, raw/normalized status, processing organization, source update time, and VMLS receipt time.
+- Standard status is one of `Chờ tiếp nhận`, `Đang xử lý`, `Yêu cầu bổ sung`, or `Đã xử lý`; raw source status is preserved separately.
+- All three external roles always have `allowedActions=[]`. Legacy direct accept/sign/approve/supplement/tax commands are rejected or absent.
+- `RECEIVE_EXTERNAL_EVENT` is VMLS-only and accepts exactly `{ caseId, source }`.
+- One invocation applies only the next configured event for that dossier/source. Wrong case/source, missing handoff, exhausted fixture, duplicate event ID, and extra keys leave state unchanged.
+- Duplicate events are idempotent; an older source event cannot regress normalized state; events append in accepted source order.
+- External status events are stored separately from user Audit Events.
+- `SUBMIT_SUPPLEMENT_HANDOFF` is Seller-only, requires the active request/type/PDF payload, and records an outbound handoff without pretending VPCC acted in VMLS.
+- The final configured VPCC event creates PTID and route once, then prepares Tax and applicable VPĐKĐĐ handoffs atomically.
+- Tax status can progress before, during, or after either transfer branch and never gates the Developer or VPĐKĐĐ outcome in the demo.
+- The Developer route retains its configured interactive intake, confirmation, and Buyer receipt commands.
+
+### VNeID local session and replay
+
+- Journey state uses schema/storage `v4`; old or malformed journey payloads reset safely instead of partially replaying.
+- The VNeID session uses an independent versioned key and contains only the configured masked identity, accepted sharing scope, and local session metadata.
+- `CONFIRM_VNEID_LOGIN` and `LOGOUT_VNEID` do not change selected role, entitlement, queue, dossier, marketplace state, or route.
+- Reload restores a valid session. Business-data reset preserves it; logout clears only it.
+- Invalid/tampered session data fails closed.
+
+## Playwright end-to-end coverage
+
+### Landing, VNeID, and source lookup
+
+1. Verify the landing is a functional data workbench, not a portfolio/product-story hero. It has standalone VMLS branding, VNeID entry, NPID/keyword, area, Developer, and Project filters.
+2. Complete the local two-step VNeID handoff. Verify masked identity/scopes, reload persistence, role independence, business reset independence, separate logout, and zero requests to a VNeID origin.
+3. Combine root filters with AND semantics, search exact NPID, open the correct record, and inspect 357 source record/version/timestamps and safe field claims.
+4. Verify no evidence label, `mô phỏng đề xuất`, implementation disclaimer, unsupported endorsement, or HouseNow brand byline appears in the UI.
+
+### Seller → Agent → HouseNow → correction
+
+5. As Seller, open `Tin bán của tôi`; verify only own PLID appears. Hide detailed location and images, save draft, confirm Public output is unchanged, then apply and confirm both groups are absent.
+6. As Agent, open the same represented Listing, verify the Industry projection remains complete within its allowlist, register to cooperate, and send to HouseNow.
+7. Intercept/inspect the local payload and assert exact applied Public keys/version; no hidden group or Restricted data may exist in the object, DOM, log, search snippet, or event.
+8. As Seller, request the configured price correction. As Brokerage, inspect the queue and apply it. Verify new price/version/revision, `Cần cập nhật`, and reconciliation event; verify there is no remote-update claim.
+
+### Buyer, notarization, and both outcomes
+
+9. Complete Representation for a transaction dossier and verify PLID is created in `Đã khởi tạo` with Seller and representative facts consistently present.
+10. As Brokerage, declare Buyer. Verify Agent has no declaration action; Buyer sees masked identity, contract details, checklist, and 357 panel; Seller/external roles do not see Buyer identity.
+11. Confirm readiness, test Bank consent off/on, then hand off the notarization dossier as Brokerage.
+12. Open VPCC role. Search/filter/open the journey row and verify the entire workspace is read-only.
+13. As VMLS, receive VPCC events in order. For Phú Thượng, reach `Yêu cầu bổ sung`; as Seller, submit the PDF handoff; continue receiving events.
+14. Verify duplicate/retry interaction does not append a second event and status cannot regress.
+15. Receive each final VPCC event. Verify distinct PTIDs, automatic routes, Tax handoffs, and the land handoff only where applicable.
+16. Progress Tax independently, complete S2-12A through Developer/HĐMB, and complete Phú Thượng through received VPĐKĐĐ events. Verify Tax does not gate either outcome.
+
+### Cross-role processing and external queues
+
+17. In Agent, Brokerage, Seller, and Buyer queues/details, verify processing milestone and organization derive from the same source history and use no invented percentage.
+18. Verify each role's timeline omits fields outside its projection. In particular, Seller and external agencies must not render Buyer identity.
+19. Open VPCC, VPĐKĐĐ, and Tax queues at initial and handed-off states. Verify 5–6+ rows, all normalized states, search/filter/detail, source and received timestamps, and no action button/keyboard target.
+20. Verify the application catalog distinguishes navigable implementations, read-only records, event-only flows, and unavailable modules without false hover/chevron/action.
+21. Reload direct hash routes and verify valid `v4`, marketplace, and VNeID replay. Reset business data and verify only the VNeID session remains; logout then removes it.
+
+## Browser, accessibility, and visual verification
 
 Verify at minimum:
 
-- `1440 × 900` and `1920 × 1080` for the primary presentation;
+- `1920 × 1080` and `1440 × 900` for presentation;
 - `1024 × 768` for compact desktop/tablet;
 - `390 × 844` for mobile;
-- keyboard navigation, visible focus, semantic labels, sufficient contrast, and reduced motion;
-- no missing fonts or images, unexpected console errors, or unexpected network requests;
-- readable Vietnamese labels, values, identifiers, validation errors, tables, and forms at the intended recording scale;
-- the landing provides working NPID/keyword, area, developer, and project filters; combined filters use AND semantics; result rows preserve linked identities and open the correct Tin bán or dossier;
-- the application hub makes every configured capability and external flow legible while only implemented and explicitly read-only records are actionable;
-- represented-inventory filters, status tabs, tables, detail facts, privacy copy, preflight, field allowlist, excluded-field list, and outbound event remain usable without horizontal loss;
-- the landing and workspace use the standalone VMLS mark and contain no HouseNow byline, presentation rail, role-handoff prompt, progress percentage, evidence badge, unsupported KPI, or repeated environment disclaimer.
+- keyboard order, visible focus, dialog focus trap/return, Escape behavior, semantic names, contrast, and reduced motion;
+- usable tables, cards, filters, forms, timestamps, identifiers, correction values, source timelines, and action states without clipped essential information;
+- seller toggles express selected state programmatically and Public preview updates accessibly;
+- read-only external tables expose no misleading interactive row/control beyond filter, search, and detail;
+- all fonts/images load locally, no broken asset, no unexpected console/page error, and no unexpected network request;
+- the VNeID flow, 357 source panel, and HouseNow handoff make no external request;
+- all Vietnamese labels follow the domain language: `Mã định danh Bất động sản/Người mua/Người bán`, `Mã hợp đồng`, and no removed reference/digest fields;
+- no `Powered by HouseNow`, presentation rail, role-handoff storytelling prompt, progress percentage, fake KPI, evidence badge, `mô phỏng đề xuất`, or repeated disclaimer.
 
-## End-to-end operational path
+## Independent black-box dogfood
 
-1. Open the root URL and verify the landing contains seven configured records, distinguishes NPID/PLID/PTID, and filters by exact NPID or keyword, area, developer, and project. Combine at least two structured filters and verify AND semantics. Verify malformed public routes recover through the no-result state.
-2. Open `Ứng dụng` as Môi giới. Verify relevant operational modules navigate, VNeID/357/HouseNow open only local read-only records, and event-only or unconfigured modules do not expose an action. Repeat with a role whose capability projection differs.
-3. Open `Nguồn hàng được đại diện`; verify five eligible Tin bán and their responsible Môi giới/Sàn, NPID, PLID, Representation state, and collaboration state. Search each supported dimension and combine filters. Verify no seller identity, contact, evidence, buyer, finance, VPCC, PTID, audit, or correlation data appears.
-4. As Môi giới, open `PLID-HN-31001`, create one `Đăng ký hợp tác bán`, and verify the original responsible Môi giới and seller Representation do not change. Reload the direct hash route and verify the registration persists. As Sàn môi giới, verify the same inventory/detail is read-only and the distribution route is denied.
-5. Open `Phân phối Tin bán`, verify all four preflight conditions, the explicit `Dữ liệu gửi` and `Không chia sẻ` lists, then send to HouseNow. Verify one event with `Đã gửi · Chờ phản hồi kênh`, no claim of publication, no duplicate send, and persistence after reload.
-6. Select a role and enter its transaction queue. Verify role selection and last destination persist; an unconsented Bank opens its empty queue, while a consented Bank opens only the opaque-token projection. Then open each permitted dossier and verify the linked-object strip keeps NPID, PLID, and PTID separate.
-7. As Môi giới, enter the exact NPID, Representation scope and effective period, then choose `Gửi thông tin đến Người bán`. Verify a missing or wrong identifier, an invalid date range, and a wrong role cannot mutate state; no candidate or source-selection control is rendered.
-8. As Người bán, confirm Representation without editing a system confirmation identifier and verify that PLID is created automatically with status `Đã khởi tạo`. Verify the Representation view consistently contains both Người bán and Người đại diện (Môi giới). On dossier Tin bán detail, verify HouseNow uses the supplied icon and remains `Chưa phát hành`; this is distinct from the represented-market outbound event in step 5.
-9. Record the buyer, then verify the buyer sees their name, identifier, Property identifier, contract information, agreed price and expected signing date before confirming the existing readiness checklist. Test finance-sharing both ways. The Ngân hàng queue must omit an unconsented dossier entirely and expose only the permitted projection for a consented dossier. Inspect the Sàn môi giới coordination projection separately.
-10. As VPCC, submit the exact required document set. For the landed-property dossier, request one specific supplement, provide it as Người bán, and verify the same dossier becomes ready for signing without losing prior events.
-11. Record each valid VPCC contract identifier and signing time without a document-digest input. Verify PTID, tax/integration events, and the correct transfer route are created atomically without a manual VMLS action or user-selected route. Complete both the Chủ đầu tư/HĐMB route and the VPĐKĐĐ result route.
-12. Use `Đặt lại dữ liệu` and verify both transaction dossiers return to their configured initial state, all represented-market registrations and distribution events are removed, the five eligible inventory records remain, and reload preserves the reset.
+Run against the exact release candidate without reading reducer state from DevTools:
 
-Store independent browser QA reports, screenshots, traces, and recordings under `output/qa/vmls-data-product-redesign/`. Generated evidence remains local and uncommitted.
+1. common path from local VNeID session through source lookup, Seller Public control, Agent cooperation/distribution, correction, Brokerage Buyer declaration/handoff, VPCC events, PTID, and one completed route;
+2. Phú Thượng supplement exception and VPĐKĐĐ outcome;
+3. S2-12A Developer/HĐMB outcome;
+4. Tax progression before and after route completion;
+5. Agent/Brokerage/Seller/Buyer progress projections and Bank consent boundary;
+6. all three agency queues/details in read-only mode;
+7. reload/reset/logout and corrupted-storage fallback;
+8. keyboard and representative responsive passes.
 
-## Privacy and data-integrity assertions
+Classify findings with severity, reproduction steps, expected/actual result, screenshot/trace, and release disposition. No Critical/High finding may remain open at release; Medium findings require explicit demo-level disposition.
 
-- Test both permitted and nearest wrong-role access for every mutable command.
-- Verify unauthorized records and fields are absent from the rendered projection, global search, metrics, filters, list rows, detail tabs, and audit views—not merely visually hidden.
-- Verify invalid actions leave object state, work items, audit events, integration events, and serialized replay unchanged.
-- Verify each accepted command appends its payload to the command log and appends an audit event with actor, target, time, and correlation data without overwriting prior submissions or supplement events.
-- Verify the two dossiers never share identifiers, command history, transfer result, or persisted replay state.
-- Verify the five represented-market records do not reuse either transaction dossier identifier and that a `CoBrokerRegistration` never mutates the original Representation.
-- Verify the Industry projection and HouseNow payload are explicit allowlists. Injected seller, evidence, buyer, finance, VPCC, PTID, audit, correlation, or unknown fields must fail closed rather than pass through serialization or rendering.
-- Verify the represented-market summary and status tabs derive only from the current Môi giới's registration and distribution events.
-- Verify refresh, direct hash navigation, role switching, search, filters, lists, and details all derive from the same projected record state. Root lookup must preserve the NPID/query, area, developer, and project filters together in the hash and after reload/back navigation.
+## Production and video verification
+
+After preview and production smoke tests pass:
+
+- record the 20–22 minute silent walkthrough at `1920 × 1080` using [the playbook](../product/vmls-demo-playbook.md);
+- burn readable Vietnamese callouts into the visible video and export matching WebVTT;
+- include the local VNeID handoff, record-level 357 provenance, applied HouseNow payload/reconciliation, both route outcomes, cross-role progress, and the three read-only agency queues;
+- never interact with a real VNeID, 357, or HouseNow surface;
+- validate MP4/WebM metadata, resolution, duration, silence, full decode, representative frame samples, subtitle order/duration/coverage, and checksums;
+- inspect frames around every route/status transition to ensure callouts do not cover identifiers, source timestamps, or primary controls.
+
+## Privacy and integrity assertions
+
+- Test the allowed actor and nearest wrong actor for every mutable command.
+- Verify unauthorized records/fields are absent from projection, DOM, global search, metrics, filters, lists, details, histories, serialized storage, and channel payload—not merely visually hidden.
+- Verify every invalid action leaves domain objects, histories, events, derived work, and serialized replay unchanged.
+- Verify accepted user commands append Audit Events while inbound source changes append ExternalStatusEvents; neither overwrites or impersonates the other.
+- Verify Public, Industry, Buyer, Seller, Bank, and external-agency projections use independent fail-closed allowlists.
+- Verify source timestamps are not replaced by VMLS receipt times and raw source status is not overwritten by normalized status.
+- Verify refresh, role switching, hash navigation, filters, queues, and detail all derive from the same projected state.
 
 ## Deliberately not covered
 
-- Real authentication, authorization, API, database, concurrency, backup, recovery, load, or security testing; those systems do not exist in this prototype.
-- VNeID, VPCC, tax, VPĐKĐĐ, Chủ đầu tư, 357, HouseNow, or other external contract tests; configured events and local assets are not live integrations. A local `DistributionEvent` is not an end-to-end HouseNow test.
-- Validation of legal, tax, cadastral, notarization, identity, or developer-transfer policy.
+- Real authentication, authorization, API, database, concurrency, backup, recovery, load, penetration, or production security testing; those systems do not exist in this prototype.
+- Official 357 NPID policy or data accuracy.
+- Live VNeID, 357, VPCC, Tax, VPĐKĐĐ, Developer, HouseNow, or other external contract testing.
+- Validation of legal, tax, cadastral, notarization, identity, representation, Developer-transfer, or completion policy.
 
-Production-grade acceptance criteria remain future work after real-data boundaries and external contracts are approved.
+Production-grade acceptance remains future work after source ownership, real-data boundaries, integration contracts, and authorized policy are approved.

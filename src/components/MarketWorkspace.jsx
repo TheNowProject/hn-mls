@@ -641,11 +641,11 @@ export function DistributionWorkspace({
               </header>
               <dl>
                 <div><dt>Định danh</dt><dd><span className="market-identifier">{preview.propertyId}</span><span className="market-identifier">{preview.listingId}</span></dd></div>
-                <div><dt>Giá chào</dt><dd>{preview.price}</dd></div>
-                <div><dt>Bất động sản</dt><dd>{preview.propertyType} · {preview.area} · {preview.rooms}</dd></div>
-                <div><dt>Dự án</dt><dd>{preview.projectName} · {preview.developerName}</dd></div>
+                {preview.price ? <div><dt>Giá chào</dt><dd>{preview.price}</dd></div> : null}
+                <div><dt>Bất động sản</dt><dd>{[preview.propertyType, preview.area, preview.rooms].filter(Boolean).join(' · ')}</dd></div>
+                {preview.projectName ? <div><dt>Dự án</dt><dd>{[preview.projectName, preview.developerName].filter(Boolean).join(' · ')}</dd></div> : null}
                 <div><dt>Khu vực</dt><dd>{preview.location}</dd></div>
-                <div><dt>Ảnh công khai</dt><dd>{preview.mediaCount} ảnh được chọn</dd></div>
+                {Number.isFinite(preview.mediaCount) ? <div><dt>Ảnh công khai</dt><dd>{preview.mediaCount} ảnh được chọn</dd></div> : null}
                 <div><dt>Liên hệ nghiệp vụ</dt><dd>{preview.businessContact}</dd></div>
               </dl>
             </article>

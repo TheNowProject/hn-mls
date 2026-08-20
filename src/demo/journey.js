@@ -1,17 +1,27 @@
 // @ts-check
 
-import { DEMO_VERSION, demoCases, getDemoCase, roles } from './demoData.js'
+import {
+  DEMO_VERSION,
+  demoCases,
+  externalMonitoringFixtures,
+  getDemoCase,
+  roles,
+} from './demoData.js'
+import {
+  EXTERNAL_SOURCES,
+  EXTERNAL_STATUSES,
+  applyExternalStatusEvent,
+  createExternalProcessingCase,
+} from './externalProgress.js'
 
 export const ACTIONS = Object.freeze({
   REQUEST_SELLER_CONFIRMATION: 'request_seller_confirmation',
   CONFIRM_REPRESENTATION: 'confirm_representation',
-  RECORD_BUYER: 'record_buyer',
+  DECLARE_BUYER: 'declare_buyer',
   VERIFY_READINESS: 'verify_readiness',
-  SUBMIT_NOTARY_DOSSIER: 'submit_notary_dossier',
-  REQUEST_SUPPLEMENT: 'request_supplement',
-  PROVIDE_SUPPLEMENT: 'provide_supplement',
-  RECORD_NOTARY_SIGNING: 'record_notary_signing',
-  APPROVE_LAND_REGISTRY: 'approve_land_registry',
+  HANDOFF_NOTARY_DOSSIER: 'handoff_notary_dossier',
+  SUBMIT_SUPPLEMENT_HANDOFF: 'submit_supplement_handoff',
+  RECEIVE_EXTERNAL_EVENT: 'receive_external_event',
   DEVELOPER_INTAKE: 'developer_intake',
   DEVELOPER_CONFIRM_TRANSFER: 'developer_confirm_transfer',
   BUYER_RECEIVE_CONTRACT: 'buyer_receive_contract',
@@ -28,9 +38,9 @@ export const ACTION_META = Object.freeze({
     label: 'Xác nhận quyền đại diện',
     targetType: 'representation',
   },
-  [ACTIONS.RECORD_BUYER]: {
-    actorRoleId: 'agent',
-    label: 'Ghi nhận người mua',
+  [ACTIONS.DECLARE_BUYER]: {
+    actorRoleId: 'brokerage',
+    label: 'Khai báo Người mua',
     targetType: 'readiness',
   },
   [ACTIONS.VERIFY_READINESS]: {
@@ -38,30 +48,20 @@ export const ACTION_META = Object.freeze({
     label: 'Xác nhận sẵn sàng công chứng',
     targetType: 'readiness',
   },
-  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: {
-    actorRoleId: 'notary',
-    label: 'Tiếp nhận hồ sơ công chứng',
+  [ACTIONS.HANDOFF_NOTARY_DOSSIER]: {
+    actorRoleId: 'brokerage',
+    label: 'Chuyển hồ sơ công chứng',
     targetType: 'notaryDossier',
   },
-  [ACTIONS.REQUEST_SUPPLEMENT]: {
-    actorRoleId: 'notary',
-    label: 'Yêu cầu bổ sung',
-    targetType: 'notaryDossier',
-  },
-  [ACTIONS.PROVIDE_SUPPLEMENT]: {
+  [ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF]: {
     actorRoleId: 'seller',
-    label: 'Cung cấp tài liệu bổ sung',
+    label: 'Chuyển tài liệu bổ sung',
     targetType: 'notaryDossier',
   },
-  [ACTIONS.RECORD_NOTARY_SIGNING]: {
-    actorRoleId: 'notary',
-    label: 'Ghi nhận kết quả công chứng',
-    targetType: 'notaryDossier',
-  },
-  [ACTIONS.APPROVE_LAND_REGISTRY]: {
-    actorRoleId: 'landRegistry',
-    label: 'Ghi nhận kết quả sang tên',
-    targetType: 'transfer',
+  [ACTIONS.RECEIVE_EXTERNAL_EVENT]: {
+    actorRoleId: 'vmls',
+    label: 'Nhận cập nhật',
+    targetType: 'externalProcessing',
   },
   [ACTIONS.DEVELOPER_INTAKE]: {
     actorRoleId: 'developer',
@@ -83,15 +83,45 @@ export const ACTION_META = Object.freeze({
 const clone = (value) => structuredClone(value)
 const roleIds = new Set(roles.map(({ id }) => id))
 
+const SAFE_357_CLAIM_FIELDS = new Set([
+  'propertyType',
+  'project',
+  'developer',
+  'location',
+  'building',
+  'unit',
+  'area',
+])
+
+function buyerSourceRecord357Projection(sourceRecord) {
+  if (!sourceRecord || typeof sourceRecord !== 'object') return null
+  return {
+    sourceId: publicString(sourceRecord.sourceId),
+    sourceName: publicString(sourceRecord.sourceName),
+    sourceRecordId: publicString(sourceRecord.sourceRecordId),
+    version: publicString(sourceRecord.version),
+    npid: publicString(sourceRecord.npid),
+    publicationStatus: publicString(sourceRecord.publicationStatus),
+    sourceUpdatedAt: publicString(sourceRecord.sourceUpdatedAt),
+    receivedAt: publicString(sourceRecord.receivedAt),
+    claims: Array.isArray(sourceRecord.claims)
+      ? sourceRecord.claims
+          .filter((claim) => claim && SAFE_357_CLAIM_FIELDS.has(claim.field))
+          .map((claim) => ({
+            field: publicString(claim.field),
+            label: publicString(claim.label),
+            value: publicString(claim.value),
+          }))
+      : [],
+  }
+}
+
 const SELLER_AUDIT_ACTIONS = new Set([
   ACTIONS.REQUEST_SELLER_CONFIRMATION,
   ACTIONS.CONFIRM_REPRESENTATION,
   ACTIONS.VERIFY_READINESS,
-  ACTIONS.SUBMIT_NOTARY_DOSSIER,
-  ACTIONS.REQUEST_SUPPLEMENT,
-  ACTIONS.PROVIDE_SUPPLEMENT,
-  ACTIONS.RECORD_NOTARY_SIGNING,
-  ACTIONS.APPROVE_LAND_REGISTRY,
+  ACTIONS.HANDOFF_NOTARY_DOSSIER,
+  ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF,
   ACTIONS.DEVELOPER_CONFIRM_TRANSFER,
   ACTIONS.BUYER_RECEIVE_CONTRACT,
 ])
@@ -108,11 +138,27 @@ function blankChecklist() {
   }
 }
 
+const externalSourceIds = Object.values(EXTERNAL_SOURCES)
+
+function nextExternalEventFor(state, source) {
+  const dossier = getDemoCase(state?.caseId)
+  const externalCase = state?.records?.externalProcessing?.[source]
+  const configuration = dossier?.externalProcessing?.[source]
+  if (!dossier || !externalCase || !configuration) return null
+
+  const event = configuration.events[externalCase.lastSequence] ?? null
+  if (event?.effect?.type === 'supplement_received'
+    && state.records.notaryDossier.supplement?.status !== 'Đã chuyển VPCC') {
+    return null
+  }
+  return event
+}
+
 export function createInitialState(caseId = demoCases[0]?.id) {
   const dossier = resolveCase(caseId)
 
   return {
-    version: 3,
+    version: 4,
     dataVersion: DEMO_VERSION,
     caseId: dossier.id,
     records: {
@@ -186,10 +232,16 @@ export function createInitialState(caseId = demoCases[0]?.id) {
         receiptRef: null,
         receivedAt: null,
       },
+      externalProcessing: {
+        notary: null,
+        tax: null,
+        landRegistry: null,
+      },
     },
     parties: clone(dossier.parties),
     auditEvents: [],
     integrationEvents: [],
+    externalEvents: [],
     actionLog: [],
   }
 }
@@ -200,20 +252,28 @@ export function allowedActionsFor(state, roleId) {
   const dossier = getDemoCase(state.caseId)
   if (!dossier) return []
 
-  const { property, representation, listing, readiness, notaryDossier, transaction, transfer } = state.records
+  const { property, representation, listing, readiness, notaryDossier, transfer } = state.records
 
   if (roleId === 'agent') {
     if (property.status === 'Đã định danh' && representation.status === 'Chưa gửi') {
       return [ACTIONS.REQUEST_SELLER_CONFIRMATION]
     }
-    if (listing && !readiness.buyer) return [ACTIONS.RECORD_BUYER]
+    return []
+  }
+
+  if (roleId === 'brokerage') {
+    if (listing && !readiness.buyer) return [ACTIONS.DECLARE_BUYER]
+    if (readiness.status === 'Đã sẵn sàng công chứng'
+      && notaryDossier.status === 'Chưa nộp') {
+      return [ACTIONS.HANDOFF_NOTARY_DOSSIER]
+    }
     return []
   }
 
   if (roleId === 'seller') {
     if (representation.status === 'Chờ xác nhận') return [ACTIONS.CONFIRM_REPRESENTATION]
     if (notaryDossier.supplement?.status === 'Chờ người bán') {
-      return [ACTIONS.PROVIDE_SUPPLEMENT]
+      return [ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF]
     }
     return []
   }
@@ -228,20 +288,12 @@ export function allowedActionsFor(state, roleId) {
     return []
   }
 
-  if (roleId === 'notary') {
-    if (readiness.status === 'Đã sẵn sàng công chứng'
-      && notaryDossier.status === 'Chưa nộp') {
-      return [ACTIONS.SUBMIT_NOTARY_DOSSIER]
-    }
-    if (notaryDossier.status === 'Đã tiếp nhận') {
-      return dossier.notary.requiresSupplement
-        ? [ACTIONS.REQUEST_SUPPLEMENT]
-        : [ACTIONS.RECORD_NOTARY_SIGNING]
-    }
-    if (notaryDossier.status === 'Đủ hồ sơ ký') {
-      return [ACTIONS.RECORD_NOTARY_SIGNING]
-    }
-    return []
+  if (['notary', 'landRegistry', 'tax'].includes(roleId)) return []
+
+  if (roleId === 'vmls') {
+    return externalSourceIds.some((source) => nextExternalEventFor(state, source))
+      ? [ACTIONS.RECEIVE_EXTERNAL_EVENT]
+      : []
   }
 
   if (roleId === 'developer') {
@@ -249,13 +301,6 @@ export function allowedActionsFor(state, roleId) {
     if (transfer.status === 'Chờ chủ đầu tư tiếp nhận') return [ACTIONS.DEVELOPER_INTAKE]
     if (transfer.status === 'Chủ đầu tư đang xử lý') return [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]
     return []
-  }
-
-  if (roleId === 'landRegistry') {
-    return transaction && transfer.route === 'landRegistry'
-      && transfer.status === 'Chờ đăng ký biến động'
-      ? [ACTIONS.APPROVE_LAND_REGISTRY]
-      : []
   }
 
   return []
@@ -287,13 +332,11 @@ const normalizeIdentity = (value) => typeof value === 'string'
 const PAYLOAD_KEYS = Object.freeze({
   [ACTIONS.REQUEST_SELLER_CONFIRMATION]: ['propertyId', 'scope', 'startsOn', 'expiresOn'],
   [ACTIONS.CONFIRM_REPRESENTATION]: ['accepted'],
-  [ACTIONS.RECORD_BUYER]: ['buyerRef', 'agreedPrice', 'expectedSigningOn'],
+  [ACTIONS.DECLARE_BUYER]: ['buyerRef', 'agreedPrice', 'expectedSigningOn'],
   [ACTIONS.VERIFY_READINESS]: ['confirmed', 'bankConsent', 'checklist'],
-  [ACTIONS.SUBMIT_NOTARY_DOSSIER]: ['submissionRef', 'documentIds'],
-  [ACTIONS.REQUEST_SUPPLEMENT]: ['reasonCode', 'documentType', 'dueOn'],
-  [ACTIONS.PROVIDE_SUPPLEMENT]: ['documentId', 'documentType', 'fileName'],
-  [ACTIONS.RECORD_NOTARY_SIGNING]: ['contractId', 'signedAt'],
-  [ACTIONS.APPROVE_LAND_REGISTRY]: ['resultRef', 'approvedAt'],
+  [ACTIONS.HANDOFF_NOTARY_DOSSIER]: ['submissionRef', 'documentIds'],
+  [ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF]: ['documentId', 'documentType', 'fileName'],
+  [ACTIONS.RECEIVE_EXTERNAL_EVENT]: ['caseId', 'source'],
   [ACTIONS.DEVELOPER_INTAKE]: ['intakeRef', 'receivedAt', 'documentCount'],
   [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: ['confirmationRef', 'confirmedAt'],
   [ACTIONS.BUYER_RECEIVE_CONTRACT]: ['receiptRef', 'receivedAt', 'acknowledged'],
@@ -324,11 +367,11 @@ function validPayload(state, action) {
     }
     case ACTIONS.CONFIRM_REPRESENTATION:
       return payload.accepted === true
-    case ACTIONS.RECORD_BUYER:
+    case ACTIONS.DECLARE_BUYER:
       return payload.buyerRef === dossier.parties.buyer.reference
         && Number.isInteger(payload.agreedPrice) && payload.agreedPrice > 0
         && isAugustDate(payload.expectedSigningOn)
-        && isDateOnOrAfter(payload.expectedSigningOn, dossier.actionTimes.record_buyer)
+        && isDateOnOrAfter(payload.expectedSigningOn, dossier.actionTimes.declare_buyer)
         && isDateOnOrBefore(payload.expectedSigningOn, dossier.slaDueAt)
     case ACTIONS.VERIFY_READINESS:
       return payload.confirmed === true
@@ -341,27 +384,18 @@ function validPayload(state, action) {
         ])
         && ['identityReviewed', 'paymentPlanReviewed', 'documentsReviewed']
           .every((key) => payload.checklist[key] === true)
-    case ACTIONS.SUBMIT_NOTARY_DOSSIER:
+    case ACTIONS.HANDOFF_NOTARY_DOSSIER:
       return hasReference(payload.submissionRef)
         && sameMembers(payload.documentIds, dossier.notary.requiredDocumentIds)
-    case ACTIONS.REQUEST_SUPPLEMENT:
-      return Boolean(dossier.notary.supplement)
-        && payload.reasonCode === dossier.notary.supplement?.reasonCode
-        && payload.documentType === dossier.notary.supplement?.documentType
-        && isAugustDate(payload.dueOn)
-        && isDateOnOrAfter(payload.dueOn, dossier.actionTimes.provide_supplement)
-        && isDateOnOrBefore(payload.dueOn, dossier.actionTimes.record_notary_signing)
-    case ACTIONS.PROVIDE_SUPPLEMENT:
+    case ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF:
       return hasReference(payload.documentId)
         && payload.documentType === dossier.notary.supplement?.documentType
         && typeof payload.fileName === 'string'
         && /^[^/\\]+\.pdf$/i.test(payload.fileName)
-    case ACTIONS.RECORD_NOTARY_SIGNING:
-      return hasReference(payload.contractId)
-        && isAugustDateTime(payload.signedAt)
-    case ACTIONS.APPROVE_LAND_REGISTRY:
-      return hasReference(payload.resultRef)
-        && isAugustDateTime(payload.approvedAt)
+    case ACTIONS.RECEIVE_EXTERNAL_EVENT:
+      return payload.caseId === state.caseId
+        && externalSourceIds.includes(payload.source)
+        && Boolean(nextExternalEventFor(state, payload.source))
     case ACTIONS.DEVELOPER_INTAKE:
       return hasReference(payload.intakeRef)
         && isAugustDateTime(payload.receivedAt)
@@ -379,8 +413,6 @@ function validPayload(state, action) {
 }
 
 const ACTION_TIMESTAMP_FIELDS = Object.freeze({
-  [ACTIONS.RECORD_NOTARY_SIGNING]: 'signedAt',
-  [ACTIONS.APPROVE_LAND_REGISTRY]: 'approvedAt',
   [ACTIONS.DEVELOPER_INTAKE]: 'receivedAt',
   [ACTIONS.DEVELOPER_CONFIRM_TRANSFER]: 'confirmedAt',
   [ACTIONS.BUYER_RECEIVE_CONTRACT]: 'receivedAt',
@@ -418,14 +450,12 @@ function targetIdFor(state, actionType) {
   if ([ACTIONS.REQUEST_SELLER_CONFIRMATION, ACTIONS.CONFIRM_REPRESENTATION].includes(actionType)) {
     return state.records.representation.id
   }
-  if ([ACTIONS.RECORD_BUYER, ACTIONS.VERIFY_READINESS].includes(actionType)) {
+  if ([ACTIONS.DECLARE_BUYER, ACTIONS.VERIFY_READINESS].includes(actionType)) {
     return state.records.readiness.id
   }
   if ([
-    ACTIONS.SUBMIT_NOTARY_DOSSIER,
-    ACTIONS.REQUEST_SUPPLEMENT,
-    ACTIONS.PROVIDE_SUPPLEMENT,
-    ACTIONS.RECORD_NOTARY_SIGNING,
+    ACTIONS.HANDOFF_NOTARY_DOSSIER,
+    ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF,
   ].includes(actionType)) return state.records.notaryDossier.id
   return state.records.transaction?.id ?? state.caseId
 }
@@ -448,11 +478,11 @@ function createAuditEvent(state, changedState, action) {
   }
 }
 
-function createIntegrationEvents(state, action, definitions) {
+function createIntegrationEventsAt(state, at, definitions) {
   const dossier = resolveCase(state.caseId)
   return definitions.map((definition, offset) => ({
     id: `INT-${state.caseId}-${String(state.integrationEvents.length + offset + 1).padStart(2, '0')}`,
-    at: eventAt(dossier, action, offset + 1),
+    at: new Date(Date.parse(at) + (offset + 1) * 1000).toISOString(),
     type: definition.type,
     label: definition.label,
     system: definition.system,
@@ -463,6 +493,11 @@ function createIntegrationEvents(state, action, definitions) {
     correlationId: definition.correlationId ?? dossier.notary.correlationId,
     route: definition.route ?? null,
   }))
+}
+
+function createIntegrationEvents(state, action, definitions) {
+  const dossier = resolveCase(state.caseId)
+  return createIntegrationEventsAt(state, eventAt(dossier, action), definitions)
 }
 
 function accept(state, action, records, integrationDefinitions = []) {
@@ -481,16 +516,36 @@ function accept(state, action, records, integrationDefinitions = []) {
   }
 }
 
+function acceptExternal(state, action, records, event, integrationDefinitions = []) {
+  return {
+    ...state,
+    records,
+    integrationEvents: [
+      ...state.integrationEvents,
+      ...createIntegrationEventsAt(state, event.receivedAt, integrationDefinitions),
+    ],
+    externalEvents: [...state.externalEvents, clone(event)],
+    actionLog: [...state.actionLog, clone({
+      type: action.type,
+      actor: action.actor,
+      payload: action.payload,
+    })],
+  }
+}
+
 export function journeyReducer(state, action) {
-  if (!state || !action || ACTION_META[action.type]?.actorRoleId !== action.actor) return state
+  if (!state || !isPlainObject(action) || !hasExactKeys(action, ['type', 'actor', 'payload'])
+    || ACTION_META[action.type]?.actorRoleId !== action.actor) return state
   const lifecycleActions = /** @type {string[]} */ (allowedActionsFor(state, action.actor))
   if (!lifecycleActions.includes(action.type)) return state
   if (!validPayload(state, action)) return state
-  if (!chronologyAllows(state, action)) return state
+  if (action.type !== ACTIONS.RECEIVE_EXTERNAL_EVENT && !chronologyAllows(state, action)) return state
 
   const dossier = resolveCase(state.caseId)
   const records = state.records
-  const at = eventAt(dossier, action)
+  const at = action.type === ACTIONS.RECEIVE_EXTERNAL_EVENT
+    ? nextExternalEventFor(state, action.payload.source)?.receivedAt
+    : eventAt(dossier, action)
 
   switch (action.type) {
     case ACTIONS.REQUEST_SELLER_CONFIRMATION:
@@ -573,7 +628,7 @@ export function journeyReducer(state, action) {
         },
       ])
     }
-    case ACTIONS.RECORD_BUYER:
+    case ACTIONS.DECLARE_BUYER:
       return accept(state, action, {
         ...records,
         readiness: {
@@ -642,59 +697,50 @@ export function journeyReducer(state, action) {
               },
         },
       })
-    case ACTIONS.SUBMIT_NOTARY_DOSSIER:
+    case ACTIONS.HANDOFF_NOTARY_DOSSIER:
       return accept(state, action, {
         ...records,
         notaryDossier: {
           ...records.notaryDossier,
-          status: 'Đã tiếp nhận',
+          status: 'Đã chuyển VPCC',
           submission: {
             ref: action.payload.submissionRef,
             reference: action.payload.submissionRef,
-            receivedAt: at,
+            handedOffAt: at,
             documentIds: [...action.payload.documentIds],
           },
           documents: records.notaryDossier.documents.map((document) => ({
             ...document,
-            status: 'Đã nhận',
+            status: 'Đã chuyển',
           })),
         },
+        externalProcessing: {
+          ...records.externalProcessing,
+          notary: createExternalProcessingCase({
+            source: dossier.externalProcessing.notary.source,
+            sourceCaseId: dossier.externalProcessing.notary.sourceCaseId,
+            processingOrganization: dossier.externalProcessing.notary.processingOrganization,
+            createdAt: at,
+          }),
+        },
       }, [{
-        type: 'notary_dossier_received',
-        label: 'Hồ sơ công chứng đã được tiếp nhận',
+        type: 'notary_dossier_handed_off',
+        label: 'Chuyển hồ sơ công chứng',
         system: 'VPCC',
-        source: 'VPCC',
-        target: 'VMLS',
+        source: 'VMLS',
+        target: 'VPCC',
         targetId: dossier.notary.id,
       }])
-    case ACTIONS.REQUEST_SUPPLEMENT:
+    case ACTIONS.SUBMIT_SUPPLEMENT_HANDOFF:
       return accept(state, action, {
         ...records,
         notaryDossier: {
           ...records.notaryDossier,
-          status: 'Yêu cầu bổ sung',
-          supplement: {
-            status: 'Chờ người bán',
-            reasonCode: action.payload.reasonCode,
-            documentType: action.payload.documentType,
-            dueOn: action.payload.dueOn,
-            requestedAt: at,
-            ownerRoleId: 'seller',
-            document: null,
-            fileName: null,
-          },
-        },
-      })
-    case ACTIONS.PROVIDE_SUPPLEMENT:
-      return accept(state, action, {
-        ...records,
-        notaryDossier: {
-          ...records.notaryDossier,
-          status: 'Đủ hồ sơ ký',
+          status: 'Đã chuyển bổ sung',
           supplement: {
             ...records.notaryDossier.supplement,
-            status: 'Đã bổ sung',
-            providedAt: at,
+            status: 'Đã chuyển VPCC',
+            handedOffAt: at,
             fileName: action.payload.fileName,
             document: {
               id: action.payload.documentId,
@@ -703,110 +749,194 @@ export function journeyReducer(state, action) {
             },
           },
         },
-      })
-    case ACTIONS.RECORD_NOTARY_SIGNING: {
-      const transaction = {
-        id: dossier.transaction.id,
-        propertyId: dossier.property.id,
-        listingId: dossier.listing.id,
-        notaryDossierId: dossier.notary.id,
-        status: 'Đã ký công chứng',
-        createdAt: action.payload.signedAt,
-        route: dossier.expectedRoute,
-      }
-      const routeLabel = dossier.expectedRoute === 'developer'
-        ? 'Chủ đầu tư'
-        : 'Văn phòng đăng ký đất đai'
-      return accept(state, action, {
-        ...records,
-        notaryDossier: {
-          ...records.notaryDossier,
-          status: 'Đã ký công chứng',
-          supplement: records.notaryDossier.supplement
-            ? { ...records.notaryDossier.supplement, status: 'Đã xử lý' }
-            : null,
-          signedResult: {
-            contractId: action.payload.contractId,
-            signedAt: action.payload.signedAt,
-          },
-        },
-        transaction,
-        transfer: {
-          ...records.transfer,
-          route: dossier.expectedRoute,
-          status: dossier.expectedRoute === 'developer'
-            ? 'Chờ chủ đầu tư tiếp nhận'
-            : 'Chờ đăng ký biến động',
-        },
-      }, [
-        {
-          type: 'notary_result_received',
-          label: 'Nhận kết quả công chứng',
-          system: 'VPCC',
-          source: 'VPCC',
-          target: 'VMLS',
-          targetId: dossier.notary.id,
-        },
-        {
-          type: 'transaction_created',
-          label: 'Cấp PTID cho giao dịch',
-          system: 'VMLS',
-          source: 'VMLS',
-          target: 'Giao dịch',
-          targetId: dossier.transaction.id,
-          correlationId: dossier.notary.correlationId,
-        },
-        {
-          type: 'tax_obligation_recorded',
-          label: 'Ghi nhận nghĩa vụ thuế',
-          system: 'Thuế',
-          source: 'VMLS',
-          target: 'Thuế',
-          targetId: dossier.transaction.id,
-          correlationId: dossier.transaction.id,
-        },
-        {
-          type: 'tax_payment_status_recorded',
-          label: 'Ghi nhận trạng thái nghĩa vụ thuế',
-          system: 'Thuế',
-          source: 'Thuế',
-          target: 'VMLS',
-          targetId: dossier.transaction.id,
-          correlationId: dossier.transaction.id,
-        },
-        {
-          type: 'route_determined',
-          label: `Chuyển hồ sơ tới ${routeLabel}`,
-          system: 'VMLS',
-          source: 'VMLS',
-          target: routeLabel,
-          targetId: dossier.transaction.id,
-          correlationId: dossier.transaction.id,
-          route: dossier.expectedRoute,
-        },
-      ])
-    }
-    case ACTIONS.APPROVE_LAND_REGISTRY:
-      return accept(state, action, {
-        ...records,
-        property: { ...records.property, status: 'Đã sang tên' },
-        transaction: { ...records.transaction, status: 'Đã sang tên' },
-        transfer: {
-          ...records.transfer,
-          status: 'Đã sang tên',
-          resultRef: action.payload.resultRef,
-          resultAt: action.payload.approvedAt,
-        },
       }, [{
-        type: 'land_registry_result_received',
-        label: 'Nhận kết quả đăng ký biến động',
-        system: 'VPĐKĐĐ',
-        source: 'VPĐKĐĐ',
-        target: 'VMLS',
-        targetId: dossier.transaction.id,
-        correlationId: dossier.transaction.id,
-        route: 'landRegistry',
+        type: 'notary_supplement_handed_off',
+        label: 'Chuyển tài liệu bổ sung',
+        system: 'VPCC',
+        source: 'VMLS',
+        target: 'VPCC',
+        targetId: dossier.notary.id,
       }])
+    case ACTIONS.RECEIVE_EXTERNAL_EVENT: {
+      const source = action.payload.source
+      const event = nextExternalEventFor(state, source)
+      const externalCase = records.externalProcessing[source]
+      if (!event || !externalCase) return state
+
+      const updatedExternalCase = applyExternalStatusEvent(externalCase, event)
+      if (updatedExternalCase === externalCase) return state
+
+      let nextRecords = {
+        ...records,
+        externalProcessing: {
+          ...records.externalProcessing,
+          [source]: updatedExternalCase,
+        },
+      }
+      let integrationDefinitions = []
+
+      if (source === EXTERNAL_SOURCES.NOTARY) {
+        nextRecords = {
+          ...nextRecords,
+          notaryDossier: {
+            ...records.notaryDossier,
+            status: event.status,
+          },
+        }
+
+        if (event.effect?.type === 'supplement_required') {
+          nextRecords = {
+            ...nextRecords,
+            notaryDossier: {
+              ...nextRecords.notaryDossier,
+              supplement: {
+                status: 'Chờ người bán',
+                reasonCode: event.effect.reasonCode,
+                documentType: event.effect.documentType,
+                dueOn: event.effect.dueOn,
+                requestedAt: event.sourceUpdatedAt,
+                ownerRoleId: 'seller',
+                document: null,
+                fileName: null,
+              },
+            },
+          }
+        }
+
+        if (event.effect?.type === 'supplement_received') {
+          nextRecords = {
+            ...nextRecords,
+            notaryDossier: {
+              ...nextRecords.notaryDossier,
+              supplement: {
+                ...nextRecords.notaryDossier.supplement,
+                status: 'Đã tiếp nhận',
+                receivedAt: event.sourceUpdatedAt,
+              },
+            },
+          }
+        }
+
+        if (event.effect?.type === 'notary_completed') {
+          const transaction = {
+            id: dossier.transaction.id,
+            propertyId: dossier.property.id,
+            listingId: dossier.listing.id,
+            notaryDossierId: dossier.notary.id,
+            status: 'Đã ký công chứng',
+            createdAt: event.effect.signedAt,
+            route: dossier.expectedRoute,
+          }
+          const taxConfiguration = dossier.externalProcessing.tax
+          const landConfiguration = dossier.externalProcessing.landRegistry
+          const routeLabel = dossier.expectedRoute === 'developer'
+            ? 'Chủ đầu tư'
+            : 'Văn phòng đăng ký đất đai'
+
+          nextRecords = {
+            ...nextRecords,
+            notaryDossier: {
+              ...nextRecords.notaryDossier,
+              status: 'Đã ký công chứng',
+              supplement: nextRecords.notaryDossier.supplement
+                ? { ...nextRecords.notaryDossier.supplement, status: 'Đã xử lý' }
+                : null,
+              signedResult: {
+                contractId: event.effect.contractId,
+                signedAt: event.effect.signedAt,
+              },
+            },
+            transaction,
+            transfer: {
+              ...records.transfer,
+              route: dossier.expectedRoute,
+              status: dossier.expectedRoute === 'developer'
+                ? 'Chờ chủ đầu tư tiếp nhận'
+                : 'Chờ đăng ký biến động',
+            },
+            externalProcessing: {
+              ...nextRecords.externalProcessing,
+              tax: createExternalProcessingCase({
+                source: taxConfiguration.source,
+                sourceCaseId: taxConfiguration.sourceCaseId,
+                processingOrganization: taxConfiguration.processingOrganization,
+                createdAt: event.receivedAt,
+              }),
+              landRegistry: landConfiguration
+                ? createExternalProcessingCase({
+                    source: landConfiguration.source,
+                    sourceCaseId: landConfiguration.sourceCaseId,
+                    processingOrganization: landConfiguration.processingOrganization,
+                    createdAt: event.receivedAt,
+                  })
+                : null,
+            },
+          }
+          integrationDefinitions = [
+            {
+              type: 'transaction_created',
+              label: 'Cấp PTID cho giao dịch',
+              system: 'VMLS',
+              source: 'VMLS',
+              target: 'Giao dịch',
+              targetId: dossier.transaction.id,
+              correlationId: dossier.notary.correlationId,
+            },
+            {
+              type: 'tax_dossier_handed_off',
+              label: 'Chuyển hồ sơ nghĩa vụ tài chính',
+              system: 'Thuế',
+              source: 'VMLS',
+              target: 'Cơ quan thuế',
+              targetId: taxConfiguration.sourceCaseId,
+              correlationId: dossier.transaction.id,
+            },
+            {
+              type: 'route_determined',
+              label: `Chuyển hồ sơ tới ${routeLabel}`,
+              system: 'VMLS',
+              source: 'VMLS',
+              target: routeLabel,
+              targetId: dossier.transaction.id,
+              correlationId: dossier.transaction.id,
+              route: dossier.expectedRoute,
+            },
+          ]
+          if (landConfiguration) {
+            integrationDefinitions.push({
+              type: 'land_registry_dossier_handed_off',
+              label: 'Chuyển hồ sơ đăng ký biến động',
+              system: 'VPĐKĐĐ',
+              source: 'VMLS',
+              target: 'VPĐKĐĐ',
+              targetId: landConfiguration.sourceCaseId,
+              correlationId: dossier.transaction.id,
+              route: 'landRegistry',
+            })
+          }
+        }
+      }
+
+      if (source === EXTERNAL_SOURCES.LAND_REGISTRY
+        && event.effect?.type === 'land_registry_completed') {
+        nextRecords = {
+          ...nextRecords,
+          property: { ...records.property, status: 'Đã sang tên' },
+          transaction: { ...records.transaction, status: 'Đã sang tên' },
+          transfer: {
+            ...records.transfer,
+            status: 'Đã sang tên',
+            resultRef: event.effect.resultRef,
+            resultAt: event.effect.approvedAt,
+          },
+        }
+      }
+
+      return acceptExternal(state, action, nextRecords, {
+        ...event,
+        processingOrganization: updatedExternalCase.processingOrganization,
+      }, integrationDefinitions)
+    }
     case ACTIONS.DEVELOPER_INTAKE:
       return accept(state, action, {
         ...records,
@@ -905,6 +1035,9 @@ export function getCaseStatus(state) {
   }
   if (notaryDossier.status === 'Đã tiếp nhận') {
     return { code: 'notary_received', label: 'VPCC đã tiếp nhận', tone: 'info' }
+  }
+  if (['Đã chuyển VPCC', 'Đang xử lý', 'Đã chuyển bổ sung'].includes(notaryDossier.status)) {
+    return { code: 'notary_processing', label: 'Đang xử lý công chứng', tone: 'info' }
   }
   if (readiness.status === 'Đã sẵn sàng công chứng') {
     return { code: 'notary_submission_pending', label: 'Sẵn sàng công chứng', tone: 'success' }
@@ -1114,12 +1247,10 @@ function isVisibleToRole(state, roleId) {
   if (roleId === 'seller') return state.records.representation.status !== 'Chưa gửi'
   if (roleId === 'buyer') return Boolean(state.records.readiness.buyer)
   if (roleId === 'bank') return state.records.readiness.financeSharing.status === 'Đã đồng ý'
-  if (roleId === 'notary') {
-    return state.records.readiness.status === 'Đã sẵn sàng công chứng'
-      || state.records.notaryDossier.status !== 'Chưa nộp'
-  }
+  if (roleId === 'notary') return Boolean(state.records.externalProcessing.notary)
   if (roleId === 'developer') return state.records.transfer.route === 'developer'
-  if (roleId === 'landRegistry') return state.records.transfer.route === 'landRegistry'
+  if (roleId === 'landRegistry') return Boolean(state.records.externalProcessing.landRegistry)
+  if (roleId === 'tax') return Boolean(state.records.externalProcessing.tax)
   return false
 }
 
@@ -1175,9 +1306,122 @@ export function deriveWorkItems(caseStatesOrState, roleId) {
         nextAction: next?.action ?? null,
         nextActionLabel: next?.label ?? 'Không có việc đang chờ',
         actionable: next?.roleId === roleId,
+        processing: projected.processing
+          ? `${projected.processing.milestone} · ${projected.processing.status}`
+          : null,
+        processingOrganization: projected.processing?.processingOrganization ?? null,
       }
     })
     .filter(Boolean)
+}
+
+const processingMilestone = Object.freeze({
+  notary: 'Công chứng',
+  landRegistry: 'Đăng ký biến động',
+  tax: 'Nghĩa vụ tài chính',
+})
+
+function marketProcessingSnapshot(externalCase) {
+  if (!externalCase) return null
+  return {
+    source: externalCase.source,
+    milestone: processingMilestone[externalCase.source],
+    status: externalCase.status,
+    processingOrganization: externalCase.processingOrganization,
+    sourceUpdatedAt: externalCase.sourceUpdatedAt,
+    receivedAt: externalCase.receivedAt,
+  }
+}
+
+function marketProcessingTimeline(externalCase) {
+  if (!externalCase) return []
+  if (!Array.isArray(externalCase.history) || externalCase.history.length === 0) {
+    const snapshot = marketProcessingSnapshot(externalCase)
+    return snapshot ? [snapshot] : []
+  }
+  return externalCase.history.map((event) => ({
+    source: externalCase.source,
+    milestone: processingMilestone[externalCase.source],
+    status: event.status,
+    processingOrganization: externalCase.processingOrganization,
+    sourceUpdatedAt: event.sourceUpdatedAt,
+    receivedAt: event.receivedAt,
+  }))
+}
+
+export function getProcessingProjection(state) {
+  if (!state?.records?.externalProcessing) return null
+  const { externalProcessing, transfer, property } = state.records
+  const timeline = externalSourceIds
+    .flatMap((source) => marketProcessingTimeline(externalProcessing[source]))
+    .sort((left, right) => Date.parse(left.sourceUpdatedAt) - Date.parse(right.sourceUpdatedAt))
+
+  let primary = marketProcessingSnapshot(externalProcessing.notary)
+  if (externalProcessing.landRegistry) {
+    primary = marketProcessingSnapshot(externalProcessing.landRegistry)
+  } else if (transfer.route === 'developer') {
+    const developerName = property.sourceRecord357?.claims
+      ?.find(({ field }) => field === 'developer')?.value ?? 'Chủ đầu tư'
+    primary = {
+      source: 'developer',
+      milestone: 'Chuyển nhượng HĐMB',
+      status: transfer.status,
+      processingOrganization: developerName,
+      sourceUpdatedAt: transfer.confirmedAt ?? transfer.intakeAt
+        ?? externalProcessing.notary?.sourceUpdatedAt ?? null,
+      receivedAt: transfer.confirmedAt ?? transfer.intakeAt
+        ?? externalProcessing.notary?.receivedAt ?? null,
+    }
+  }
+
+  if (!primary) return null
+  return {
+    milestone: primary.milestone,
+    status: primary.status,
+    processingOrganization: primary.processingOrganization,
+    sourceUpdatedAt: primary.sourceUpdatedAt,
+    receivedAt: primary.receivedAt,
+    timeline,
+  }
+}
+
+const externalSourceForRole = Object.freeze({
+  notary: EXTERNAL_SOURCES.NOTARY,
+  landRegistry: EXTERNAL_SOURCES.LAND_REGISTRY,
+  tax: EXTERNAL_SOURCES.TAX,
+})
+
+function externalQueueRow(state, source) {
+  const externalCase = state.records.externalProcessing[source]
+  if (!externalCase) return null
+  const dossier = resolveCase(state.caseId)
+  return {
+    id: `MON-${source}-${externalCase.sourceCaseId}`,
+    source,
+    sourceCaseId: externalCase.sourceCaseId,
+    caseId: state.caseId,
+    propertyId: state.records.property.id,
+    transactionId: state.records.transaction?.id ?? null,
+    propertyLabel: dossier.title,
+    status: externalCase.status,
+    rawStatus: externalCase.rawStatus,
+    processingOrganization: externalCase.processingOrganization,
+    sourceUpdatedAt: externalCase.sourceUpdatedAt,
+    receivedAt: externalCase.receivedAt,
+    history: clone(externalCase.history),
+    actionable: false,
+  }
+}
+
+export function deriveExternalQueue(caseStatesOrState, roleId) {
+  const source = externalSourceForRole[roleId]
+  if (!source) return []
+
+  const journeyRows = normalizeStates(caseStatesOrState)
+    .map((state) => externalQueueRow(state, source))
+    .filter(Boolean)
+  return [...journeyRows, ...clone(externalMonitoringFixtures[source])]
+    .sort((left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt))
 }
 
 function searchable(value) {
@@ -1222,6 +1466,7 @@ function commonProjection(state, roleId) {
     status: getCaseStatus(state),
     nextWorkItem: getNextWorkItem(state),
     allowedActions: allowedActionsFor(state, roleId),
+    processing: getProcessingProjection(state),
   }
 }
 
@@ -1261,6 +1506,22 @@ export function projectStateForRole(state, roleId) {
     }
   }
 
+  if (roleId === 'agent') {
+    return {
+      ...common,
+      records: {
+        property: clone(records.property),
+        representation: clone(records.representation),
+        listing: clone(records.listing),
+        readiness: clone(records.readiness),
+        notaryDossier: clone(records.notaryDossier),
+        transaction: clone(records.transaction),
+        transfer: clone(records.transfer),
+      },
+      parties: clone(state.parties),
+    }
+  }
+
   if (roleId === 'brokerage') {
     return {
       ...common,
@@ -1273,7 +1534,7 @@ export function projectStateForRole(state, roleId) {
         },
         representation: clone(records.representation),
         listing: clone(records.listing),
-        readiness: { status: records.readiness.status },
+        readiness: clone(records.readiness),
         notaryDossier: {
           id: records.notaryDossier.id,
           status: records.notaryDossier.status,
@@ -1285,6 +1546,7 @@ export function projectStateForRole(state, roleId) {
       parties: {
         seller: clone(state.parties.seller),
         agent: clone(state.parties.agent),
+        buyer: clone(state.parties.buyer),
       },
     }
   }
@@ -1323,6 +1585,7 @@ export function projectStateForRole(state, roleId) {
           type: records.property.type,
           location: records.property.location,
           areas: clone(records.property.areas),
+          sourceRecord357: buyerSourceRecord357Projection(records.property.sourceRecord357),
         },
         listing: clone(records.listing),
         readiness: clone(records.readiness),
@@ -1339,9 +1602,26 @@ export function projectStateForRole(state, roleId) {
     }
   }
 
-  if (roleId === 'notary') {
+  if (['notary', 'landRegistry', 'tax'].includes(roleId)) {
+    const source = externalSourceForRole[roleId]
+    const externalCase = records.externalProcessing[source]
     return {
-      ...common,
+      caseId: common.caseId,
+      roleId: common.roleId,
+      title: common.title,
+      status: {
+        code: `external_${source}`,
+        label: externalCase.status,
+        tone: externalCase.status === EXTERNAL_STATUSES.COMPLETED
+          ? 'success'
+          : externalCase.status === EXTERNAL_STATUSES.SUPPLEMENT_REQUIRED
+            ? 'warning'
+            : externalCase.status === EXTERNAL_STATUSES.PROCESSING
+              ? 'info'
+              : 'neutral',
+      },
+      nextWorkItem: null,
+      allowedActions: [],
       records: {
         property: {
           id: records.property.id,
@@ -1349,28 +1629,10 @@ export function projectStateForRole(state, roleId) {
           type: records.property.type,
           location: records.property.location,
         },
-        representation: clone(records.representation),
-        listing: records.listing ? { id: records.listing.id } : null,
-        readiness: {
-          status: records.readiness.status,
-          buyer: records.readiness.buyer
-            ? {
-                reference: records.readiness.buyer.reference,
-                displayName: records.readiness.buyer.displayName,
-              }
-            : null,
-          agreedPrice: records.readiness.agreedPrice,
-          expectedSigningOn: records.readiness.expectedSigningOn,
-          contractConfirmation: clone(records.readiness.contractConfirmation),
-          checklist: clone(records.readiness.checklist),
-        },
-        notaryDossier: clone(records.notaryDossier),
-        transaction: clone(records.transaction),
-      },
-      parties: {
-        seller: clone(state.parties.seller),
-        agent: clone(state.parties.agent),
-        buyer: clone(state.parties.buyer),
+        transaction: records.transaction
+          ? { id: records.transaction.id, status: records.transaction.status }
+          : null,
+        externalCase: clone(externalCase),
       },
     }
   }
@@ -1398,39 +1660,19 @@ export function projectStateForRole(state, roleId) {
     }
   }
 
-  if (roleId === 'landRegistry') {
-    return {
-      ...common,
-      records: {
-        property: {
-          id: records.property.id,
-          location: records.property.location,
-          areas: clone(records.property.areas),
-        },
-        notaryDossier: {
-          id: records.notaryDossier.id,
-          status: records.notaryDossier.status,
-          signedResult: clone(records.notaryDossier.signedResult),
-        },
-        transaction: clone(records.transaction),
-        transfer: clone(records.transfer),
-      },
-      parties: { buyer: clone(state.parties.buyer) },
-    }
-  }
-
   return {
     ...common,
     records: clone(records),
     parties: clone(state.parties),
     auditEvents: clone(state.auditEvents),
     integrationEvents: roleId === 'vmls' ? clone(state.integrationEvents) : [],
+    externalEvents: roleId === 'vmls' ? clone(state.externalEvents) : [],
   }
 }
 
 export function serializeDemoState(state) {
   return JSON.stringify({
-    version: 3,
+    version: 4,
     caseId: state.caseId,
     actions: clone(state.actionLog),
   })
@@ -1444,14 +1686,16 @@ export function restoreDemoState(serialized, expectedCaseId) {
   try {
     const parsed = JSON.parse(serialized)
     const storedCase = getDemoCase(parsed?.caseId)
-    if (parsed?.version !== 3 || !storedCase || !Array.isArray(parsed.actions)
-      || parsed.actions.length > 20 || (expectedCase && expectedCase.id !== storedCase.id)) {
+    if (!isPlainObject(parsed) || !hasExactKeys(parsed, ['version', 'caseId', 'actions'])
+      || parsed.version !== 4 || !storedCase || !Array.isArray(parsed.actions)
+      || parsed.actions.length > 30 || (expectedCase && expectedCase.id !== storedCase.id)) {
       return fallback()
     }
 
     let state = createInitialState(storedCase.id)
     for (const action of parsed.actions) {
-      if (!isPlainObject(action) || !isPlainObject(action.payload)) return fallback()
+      if (!isPlainObject(action) || !hasExactKeys(action, ['type', 'actor', 'payload'])
+        || !isPlainObject(action.payload)) return fallback()
       const next = journeyReducer(state, action)
       if (next === state) return fallback()
       state = next
