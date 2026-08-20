@@ -904,6 +904,11 @@ select:focus-visible,
   content: '';
 }
 
+.dossier-content {
+  display: grid;
+  gap: var(--space-4);
+}
+
 .overview-layout {
   display: grid;
   grid-template-columns: minmax(28rem, 1.35fr) minmax(18rem, 0.65fr);
