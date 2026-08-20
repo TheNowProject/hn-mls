@@ -1270,20 +1270,22 @@ function Sidebar({ role, activePage }) {
   const items = NAV_ITEMS[role.id] ?? NAV_ITEMS.agent
   return (
     <aside className="app-sidebar">
-      <div className="sidebar-context">
-        <small>Không gian làm việc</small>
-        <strong>{role.label}</strong>
-        <span>{WORKSPACE_TITLES[role.id]}</span>
+      <div className="app-sidebar__inner">
+        <div className="sidebar-context">
+          <small>Không gian làm việc</small>
+          <strong>{role.label}</strong>
+          <span>{WORKSPACE_TITLES[role.id]}</span>
+        </div>
+        <nav aria-label="Phân hệ nghiệp vụ">
+          {items.map(([id, label, Icon]) => (
+            <button key={id} type="button" className={activePage === id ? 'is-active' : ''} onClick={() => navigate(rolePath(role.id, id))}>
+              <Icon weight={activePage === id ? 'fill' : 'regular'} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-foot"><span>Địa bàn</span><strong>Hà Nội</strong></div>
       </div>
-      <nav aria-label="Phân hệ nghiệp vụ">
-        {items.map(([id, label, Icon]) => (
-          <button key={id} type="button" className={activePage === id ? 'is-active' : ''} onClick={() => navigate(rolePath(role.id, id))}>
-            <Icon weight={activePage === id ? 'fill' : 'regular'} aria-hidden="true" />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
-      <div className="sidebar-foot"><span>Địa bàn</span><strong>Hà Nội</strong></div>
     </aside>
   )
 }

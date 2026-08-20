@@ -629,6 +629,35 @@ test('kết quả VPCC tự tạo PTID và tuyến Chủ đầu tư hoàn tất 
   await expect(page.getByTestId(`case-row-${CASES.developer.id}`)).toContainText('Nhận cập nhật')
 })
 
+test('sidebar desktop phủ toàn chiều cao trang ứng dụng dài và giữ điều hướng sticky', async ({ page }) => {
+  await clearBrowserState(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/#/vai-tro/agent/ung-dung')
+  await expect(page.getByTestId('app-shell')).toBeVisible()
+
+  const dimensions = await page.evaluate(() => {
+    const frame = document.querySelector('.app-frame')
+    const sidebar = document.querySelector('.app-sidebar')
+    const main = document.querySelector('.app-frame > main')
+    return {
+      frame: frame?.getBoundingClientRect().height ?? 0,
+      sidebar: sidebar?.getBoundingClientRect().height ?? 0,
+      main: main?.getBoundingClientRect().height ?? 0,
+      viewport: window.innerHeight,
+    }
+  })
+
+  expect(dimensions.sidebar).toBeGreaterThan(dimensions.viewport)
+  expect(Math.abs(dimensions.sidebar - dimensions.frame)).toBeLessThanOrEqual(1)
+  expect(Math.abs(dimensions.sidebar - dimensions.main)).toBeLessThanOrEqual(1)
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  const stickyTop = await page.locator('.app-sidebar__inner').evaluate((element) => element.getBoundingClientRect().top)
+  expect(stickyTop).toBeGreaterThanOrEqual(67)
+  expect(stickyTop).toBeLessThanOrEqual(69)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('responsive, bàn phím, focus trap, reduced motion và wording vận hành đạt gate', async ({ page }) => {
   await clearBrowserState(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
