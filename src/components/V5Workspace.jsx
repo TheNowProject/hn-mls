@@ -716,6 +716,7 @@ export function V5Workspace({
   onOpenDossier,
   onOpenLanding,
   onReset,
+  vneidControl = null,
 }) {
   const [title, description] = roleIntro(role.id, projection)
   const RoleIcon = ROLE_ICONS[role.id] ?? User
@@ -771,6 +772,7 @@ export function V5Workspace({
         <button type="button" className="v5-brand-button" onClick={onOpenLanding} aria-label="Về trang chủ VMLS"><BrandMark inverse /></button>
         <div className="v5-data-label"><span>Sổ bộ dữ liệu</span><strong>{projection.dataLabel}</strong></div>
         <div className="v5-header-actions">
+          {vneidControl}
           <NotificationCenter notifications={notifications} unreadCount={unreadCount} onOpen={openNotification} />
           <label className="v5-role-switcher"><span className="sr-only">Đổi tài khoản demo</span><RoleIcon aria-hidden="true" /><select value={role.id} onChange={(event) => onSwitchRole(event.target.value)} data-testid="role-switcher">{roles.map((item) => <option value={item.id} key={item.id}>{item.label}{unreadByRole[item.id] ? ` · ${unreadByRole[item.id]} mới` : ''}</option>)}</select></label>
           <button type="button" className="v5-reset-button" onClick={onReset} data-testid="reset-data">Đặt lại demo</button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   Check,
@@ -46,7 +47,8 @@ export function VNeIDSessionDialog({
     document.body.style.overflow = 'hidden'
     const firstTarget = dialogRef.current?.querySelector('[data-dialog-autofocus]')
       ?? focusableElements(dialogRef.current)[0]
-    firstTarget?.focus()
+    dialogRef.current?.scrollTo({ top: 0 })
+    firstTarget?.focus({ preventScroll: true })
 
     return () => {
       document.body.style.overflow = previousOverflow
@@ -237,16 +239,19 @@ export function VNeIDSessionControl({
         <IdentificationCard aria-hidden="true" />
         <span>Đăng nhập bằng VNeID</span>
       </button>
-      <VNeIDSessionDialog
-        open={dialogOpen}
-        step={dialogStep}
-        identity={identityPreview}
-        scopes={scopes}
-        onContinue={() => setDialogStep('identity')}
-        onBack={() => setDialogStep('scope')}
-        onConfirm={confirmLogin}
-        onCancel={closeDialog}
-      />
+      {typeof document === 'undefined' ? null : createPortal(
+        <VNeIDSessionDialog
+          open={dialogOpen}
+          step={dialogStep}
+          identity={identityPreview}
+          scopes={scopes}
+          onContinue={() => setDialogStep('identity')}
+          onBack={() => setDialogStep('scope')}
+          onConfirm={confirmLogin}
+          onCancel={closeDialog}
+        />,
+        document.body,
+      )}
     </>
   )
 }

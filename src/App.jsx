@@ -288,6 +288,7 @@ export default function App() {
         onOpenDossier={(transactionId) => navigate(`#/vai-tro/${role.id}/ho-so/${transactionId}`)}
         onOpenLanding={() => navigate('#/')}
         onReset={resetDemo}
+        vneidControl={vneidControl}
       />
       <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
     </>
