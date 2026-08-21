@@ -168,7 +168,7 @@ export const PRIMARY_REPRESENTATION = deepFreeze({
       maskedName: 'Trần V••• A•••',
     },
     representative: {
-      reference: 'PARTY-AGENT-HN-0246',
+      reference: '14067095123456',
       maskedName: 'Phạm Q••• M•••',
       organization: 'HouseNow',
     },
