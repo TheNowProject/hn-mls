@@ -222,7 +222,7 @@ test('hai nút Ops độc lập: trạng thái chạy trước 357 và cả hai 
   await expect(page.getByText('Cần thực hiện nghĩa vụ tài chính', { exact: true })).toBeVisible()
   await page.getByTestId('sync-357').click()
   await expect(page.getByTestId('sync-357')).toBeDisabled()
-  await expect(page.getByTestId('sync-357')).toContainText('Đã đồng bộ từ 357')
+  await expect(page.getByTestId('sync-357')).toContainText('Đã đồng bộ từ Hệ thống thông tin về nhà ở và thị trường bất động sản')
   await expect(page.getByTestId('reconciliation-panel')).toContainText('357-GD-2026-000812')
   await expect(page.getByTestId('reconciliation-panel').getByText('Khớp', { exact: true })).toHaveCount(7)
 
@@ -235,7 +235,7 @@ test('sáu lần đồng bộ tạo đúng Seller notification, hai dòng đã �
   await submitDeclaration(page)
   await switchRole(page, 'vmls')
   await page.getByTestId('sync-357').click()
-  await expect(page.getByTestId('sync-357')).toContainText('Đã đồng bộ từ 357')
+  await expect(page.getByTestId('sync-357')).toContainText('Đã đồng bộ từ Hệ thống thông tin về nhà ở và thị trường bất động sản')
   await expect(page.getByTestId('reconciliation-panel').getByText('Khớp', { exact: true })).toHaveCount(7)
   const advance = page.getByTestId('advance-processing')
 

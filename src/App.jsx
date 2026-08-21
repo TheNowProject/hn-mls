@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import LandingPage from './components/LandingPage.jsx'
 import V5Workspace from './components/V5Workspace.jsx'
+import VNeIDSessionControl from './components/VNeIDSession.jsx'
 import {
   PRIMARY_LISTING_ID,
   V5_ROLES,
@@ -15,11 +16,17 @@ import {
   serializeV5State,
   v5Reducer,
 } from './demo/v5Journey.js'
+import {
+  VNEID_SESSION_ACTIONS,
+  VNEID_SESSION_STORAGE_KEY,
+  restoreVneidSession,
+  serializeVneidSession,
+  vneidSessionReducer,
+} from './demo/vneidSession.js'
 
 const LEGACY_DEMO_KEYS = Object.freeze([
   'vmls:operations:2026-08:v4',
   'vmls:represented-market:2026-08:v2',
-  'vmls:vneid-session:2026-08:v1',
   'vmls:phu-thuong:2026-08:v5',
 ])
 
@@ -65,6 +72,14 @@ function initialState() {
     return restoreV5State(window.localStorage.getItem(V5_STORAGE_KEY))
   } catch {
     return createV5InitialState()
+  }
+}
+
+function initialVneidSession() {
+  try {
+    return restoreVneidSession(window.localStorage.getItem(VNEID_SESSION_STORAGE_KEY))
+  } catch {
+    return restoreVneidSession(null)
   }
 }
 
@@ -118,6 +133,7 @@ export default function App() {
   const hash = useSyncExternalStore(subscribeToHash, getHash, () => '#/')
   const route = parseRoute(hash)
   const [state, setState] = useState(initialState)
+  const [vneidSession, setVneidSession] = useState(initialVneidSession)
   const stateRef = useRef(state)
   const [announcement, setAnnouncement] = useState('')
   const validDossierRoute = route.page !== 'ho-so'
@@ -165,6 +181,14 @@ export default function App() {
     }
   }, [state])
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VNEID_SESSION_STORAGE_KEY, serializeVneidSession(vneidSession))
+    } catch {
+      // The runtime stays usable in privacy modes that deny localStorage writes.
+    }
+  }, [vneidSession])
+
   const publicProjection = useMemo(() => projectV5Public(state), [state])
   const landingListings = useMemo(
     () => (publicProjection?.listings ?? []).map(normalizeLandingListing),
@@ -199,6 +223,37 @@ export default function App() {
     navigate('#/')
   }
 
+  function confirmVneidLogin() {
+    setVneidSession((current) => vneidSessionReducer(current, {
+      type: VNEID_SESSION_ACTIONS.CONFIRM_LOGIN,
+      payload: { accepted: true },
+    }))
+    setAnnouncement('Đã đăng nhập VNeID.')
+  }
+
+  function logoutVneid() {
+    setVneidSession((current) => vneidSessionReducer(current, {
+      type: VNEID_SESSION_ACTIONS.LOGOUT,
+    }))
+    setAnnouncement('Đã đăng xuất VNeID.')
+  }
+
+  const vneidIdentity = vneidSession.status === 'authenticated' ? vneidSession.identity : null
+  const vneidControl = (
+    <VNeIDSessionControl
+      session={vneidIdentity}
+      identityPreview={{
+        reference: 'VNEID-HN-0001',
+        displayName: 'N••• H••• N••',
+        status: 'Đã xác thực',
+      }}
+      scopes={['Mã phiên định danh', 'Họ tên đã che', 'Kết quả xác thực']}
+      onLogin={confirmVneidLogin}
+      onLogout={logoutVneid}
+      variant="header"
+    />
+  )
+
   if (route.page === 'landing' || !route.roleId || !validDossierRoute) {
     return (
       <>
@@ -207,6 +262,7 @@ export default function App() {
           roles={V5_ROLES}
           unreadByRole={unreadByRole}
           onEnterDemo={enterRole}
+          vneidControl={vneidControl}
         />
         <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
       </>

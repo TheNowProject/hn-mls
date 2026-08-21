@@ -14,6 +14,7 @@ import {
   Sparkle,
 } from '@phosphor-icons/react'
 import BrandMark from './BrandMark.jsx'
+import { HOUSING_MARKET_INFORMATION_SYSTEM_NAME } from '../demo/v5Data.js'
 import '../styles/landing.css'
 
 const NETWORK_NODES = Object.freeze([
@@ -21,7 +22,7 @@ const NETWORK_NODES = Object.freeze([
   { id: 'plid', label: 'PLID', detail: 'Định danh Tin bán' },
   { id: 'ptid', label: 'PTID', detail: 'Dấu vết Giao dịch' },
   { id: 'housenow', label: 'HouseNow', detail: 'Ảnh chụp Tin bán' },
-  { id: 'source-357', label: '357', detail: 'Nguồn Giao dịch' },
+  { id: 'source-357', label: HOUSING_MARKET_INFORMATION_SYSTEM_NAME, detail: 'Nguồn Giao dịch' },
   { id: 'tax', label: 'Thuế', detail: 'Nghĩa vụ tài chính' },
   { id: 'land', label: 'VPĐKĐĐ', detail: 'Đăng ký sang tên' },
 ])
@@ -259,6 +260,7 @@ export function LandingPage({
   roles = [],
   unreadByRole = {},
   onEnterDemo = () => {},
+  vneidControl = null,
 }) {
   const [query, setQuery] = useState('')
   const searchInputRef = useRef(null)
@@ -305,14 +307,17 @@ export function LandingPage({
             <button type="button" onClick={scrollToSearch}>Tra cứu Tin bán</button>
             <a href="#landing-v5-registry">Living Registry</a>
           </nav>
-          <DemoAccountMenu
-            menuId="header-demo-accounts"
-            roles={roles}
-            unreadByRole={unreadByRole}
-            onEnterDemo={onEnterDemo}
-            variant="header"
-            triggerAriaLabel="Chọn vai trò demo"
-          />
+          <div className="landing-v5-header__actions">
+            {vneidControl}
+            <DemoAccountMenu
+              menuId="header-demo-accounts"
+              roles={roles}
+              unreadByRole={unreadByRole}
+              onEnterDemo={onEnterDemo}
+              variant="header"
+              triggerAriaLabel="Chọn vai trò demo"
+            />
+          </div>
         </div>
       </header>
 
@@ -414,7 +419,7 @@ export function LandingPage({
               <li><span>01</span><Fingerprint aria-hidden="true" /><div><strong>Bất động sản</strong><small>NPID giữ định danh bền vững</small></div></li>
               <li><span>02</span><ShieldCheck aria-hidden="true" /><div><strong>Quyền đại diện</strong><small>Người bán xác nhận phạm vi và thời hạn</small></div></li>
               <li><span>03</span><Signpost aria-hidden="true" /><div><strong>Tin bán</strong><small>PLID gắn với ảnh chụp HouseNow</small></div></li>
-              <li><span>04</span><Buildings aria-hidden="true" /><div><strong>Giao dịch</strong><small>357, Thuế và VPĐKĐĐ giữ dấu vết riêng</small></div></li>
+              <li><span>04</span><Buildings aria-hidden="true" /><div><strong>Giao dịch</strong><small>{HOUSING_MARKET_INFORMATION_SYSTEM_NAME}, Thuế và VPĐKĐĐ giữ dấu vết riêng</small></div></li>
             </ol>
           </div>
         </section>

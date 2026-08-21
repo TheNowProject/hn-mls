@@ -17,7 +17,10 @@ import {
   Warning,
 } from '@phosphor-icons/react'
 import BrandMark from './BrandMark.jsx'
-import { TRANSACTION_357_FIXTURE } from '../demo/v5Data.js'
+import {
+  HOUSING_MARKET_INFORMATION_SYSTEM_NAME,
+  TRANSACTION_357_FIXTURE,
+} from '../demo/v5Data.js'
 import { V5_ACTIONS } from '../demo/v5Journey.js'
 import '../styles/v5.css'
 
@@ -75,7 +78,7 @@ function reconciliationLabel(value) {
     matched: 'Khớp',
     mismatched: 'Lệch',
     missing_in_vmls: 'Thiếu ở VMLS',
-    missing_in_357: 'Thiếu ở 357',
+    missing_in_357: `Thiếu ở ${HOUSING_MARKET_INFORMATION_SYSTEM_NAME}`,
     review_required: 'Cần xem xét',
   }[value] ?? readableStatus(value)
 }
@@ -551,7 +554,7 @@ function OpsControls({ projection, nextMilestone, onDispatch }) {
       <div className="v5-sync-grid">
         <article>
           <Database aria-hidden="true" />
-          <div><h3>Giao dịch từ 357</h3><p>Nhận một snapshot nguồn riêng và đối soát từng trường với khai báo VMLS.</p></div>
+          <div><h3>Giao dịch từ {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</h3><p>Nhận một snapshot nguồn riêng và đối soát từng trường với khai báo VMLS.</p></div>
           <StatusBadge>{synced357 ? 'Đã đồng bộ' : transactionReady ? 'Sẵn sàng' : 'Chờ PTID'}</StatusBadge>
           <button
             type="button"
@@ -564,7 +567,7 @@ function OpsControls({ projection, nextMilestone, onDispatch }) {
             })}
           >
             {synced357 ? <Check aria-hidden="true" /> : <Database aria-hidden="true" />}
-            {synced357 ? 'Đã đồng bộ từ 357' : 'Đồng bộ từ 357'}
+            {synced357 ? `Đã đồng bộ từ ${HOUSING_MARKET_INFORMATION_SYSTEM_NAME}` : `Đồng bộ từ ${HOUSING_MARKET_INFORMATION_SYSTEM_NAME}`}
           </button>
         </article>
         <article>
@@ -596,16 +599,16 @@ function ReconciliationPanel({ source, reconciliation }) {
   return (
     <section className="v5-panel" data-testid="reconciliation-panel">
       <header>
-        <div><span className="v5-eyebrow">Đối soát hai nguồn</span><h2>VMLS ↔ 357</h2></div>
+        <div><span className="v5-eyebrow">Đối soát hai nguồn</span><h2>VMLS ↔ {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</h2></div>
         <StatusBadge>{reconciliationLabel(reconciliation?.status ?? reconciliation?.overallStatus ?? 'Đã đồng bộ')}</StatusBadge>
       </header>
       <dl className="v5-facts v5-facts--compact">
-        <div><dt>Mã giao dịch 357</dt><dd className="v5-mono">{source?.transactionCode}</dd></div>
+        <div><dt>Mã giao dịch của {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</dt><dd className="v5-mono">{source?.transactionCode}</dd></div>
         <div><dt>Cập nhật tại nguồn</dt><dd>{formatTimestamp(source?.sourceUpdatedAt)}</dd></div>
       </dl>
       {fields.length ? (
         <div className="v5-table-scroll"><table className="v5-reconciliation-table">
-          <thead><tr><th>Trường</th><th>Khai báo VMLS</th><th>Nguồn 357</th><th>Kết quả</th></tr></thead>
+          <thead><tr><th>Trường</th><th>Khai báo VMLS</th><th>Nguồn {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</th><th>Kết quả</th></tr></thead>
           <tbody>{fields.map((field) => (
             <tr key={field.field ?? field.key}>
               <th>{field.label ?? reconciliationFieldLabel(field.field)}</th>
@@ -696,7 +699,7 @@ function roleIntro(roleId, projection) {
     buyer: projection.transaction?.id
       ? ['Hồ sơ của Người mua', 'Theo dõi tiến độ và nhận thông báo đến lấy Giấy chứng nhận khi hoàn tất.']
       : ['Hồ sơ của Người mua', 'Chưa có giao dịch nào được chia sẻ với tài khoản này.'],
-    vmls: ['Điều phối nguồn dữ liệu', 'Đồng bộ giao dịch 357 và nhận từng event Thuế → VPĐKĐĐ.'],
+    vmls: ['Điều phối nguồn dữ liệu', `Đồng bộ giao dịch từ ${HOUSING_MARKET_INFORMATION_SYSTEM_NAME} và nhận từng event Thuế → VPĐKĐĐ.`],
   }
   return copy[roleId] ?? copy.agent
 }

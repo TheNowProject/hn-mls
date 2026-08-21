@@ -156,7 +156,7 @@ export const workspaceDefinitions = Object.freeze({
 export const sourceRegistry = Object.freeze([
   {
     id: 'source-357',
-    name: 'Cổng thông tin về nhà ở và thị trường bất động sản',
+    name: 'Hệ thống thông tin về nhà ở và thị trường bất động sản',
     owner: 'Bộ Xây dựng',
     category: 'Nguồn dữ liệu công khai',
     dataCategory: 'Thông tin nhà ở và thị trường bất động sản',

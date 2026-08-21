@@ -6,6 +6,7 @@ export const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v6'
 export const V5_PRIMARY_CASE_ID = 'phu-thuong-title-transfer'
 export const PRIMARY_PROPERTY_ID = 'NPID-HN-10421'
 export const PRIMARY_LISTING_ID = 'PLID-HN-00208'
+export const HOUSING_MARKET_INFORMATION_SYSTEM_NAME = 'Hệ thống thông tin về nhà ở và thị trường bất động sản'
 
 function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -51,7 +52,7 @@ export const V5_ROLES = deepFreeze([
     label: 'Vận hành VMLS',
     shortLabel: 'VMLS',
     organization: 'VMLS Hà Nội',
-    purpose: 'Đồng bộ nguồn 357 và trạng thái xử lý ngoài VMLS.',
+    purpose: `Đồng bộ nguồn ${HOUSING_MARKET_INFORMATION_SYSTEM_NAME} và trạng thái xử lý ngoài VMLS.`,
   },
 ])
 

@@ -2,6 +2,7 @@
 
 import {
   HOUSE_NOW_SNAPSHOT,
+  HOUSING_MARKET_INFORMATION_SYSTEM_NAME,
   PRIMARY_DECLARATION_PAYLOAD,
   PRIMARY_LISTING,
   PRIMARY_LISTING_ID,
@@ -1013,7 +1014,7 @@ function syncTransactionFrom357(state, action) {
         type: 'transaction_357_sync_requested',
         actorRole: 'vmls',
         actorOrganization: roleOrganization('vmls'),
-        reason: 'Đồng bộ bản ghi giao dịch từ nguồn 357',
+        reason: `Đồng bộ bản ghi giao dịch từ nguồn ${HOUSING_MARKET_INFORMATION_SYSTEM_NAME}`,
         targetType: 'Transaction',
         targetId: state.records.transaction.id,
         before: { transactionSource357: null },

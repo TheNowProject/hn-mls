@@ -53,6 +53,8 @@ _Avoid_: BuyerDeclaration, Listing edit, 357 source record, proof of legal valid
 An independent transaction source record synchronized after the VMLS declaration. It preserves source transaction ID, NPID, contract/value facts, masked Buyer/Seller values, notary organization, source timestamp, VMLS receipt timestamp, and provenance. It does not issue the V5 NPID, replace the HouseNow snapshot, or overwrite the Agent declaration.
 _Avoid_: PropertySourceRecord357, TransactionDeclaration, Giao dịch/PTID, live 357 API response, official approval
 
+The user-facing source name is `Hệ thống thông tin về nhà ở và thị trường bất động sản`. `357` remains only in internal identifiers, fixture codes, command names, and historical/research language where changing it would alter a technical contract or evidence reference.
+
 **Kết quả đối soát / ReconciliationResult**:
 An append-oriented comparison between the Agent declaration and one 357 source record. Each configured field is `matched`, `mismatched`, `missing_in_vmls`, or `missing_in_357`. A difference creates visible investigation context but does not silently merge, overwrite, or block the V5 status demo.
 _Avoid_: Merge Decision, corrected source record, authoritative legal determination, synchronization success flag

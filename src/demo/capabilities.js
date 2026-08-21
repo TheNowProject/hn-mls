@@ -203,7 +203,7 @@ const CONNECTION_CAPABILITIES = Object.freeze([
   {
     id: 'source-357',
     group: 'Kết nối theo hồ sơ',
-    name: 'Hệ thống thông tin 357',
+    name: 'Hệ thống thông tin về nhà ở và thị trường bất động sản',
     description: 'Nguồn cấp NPID và dữ liệu Bất động sản có thông tin xuất xứ.',
     roles: ['agent', 'brokerage', 'seller', 'buyer', 'developer', 'vmls'],
     mode: 'readOnly',

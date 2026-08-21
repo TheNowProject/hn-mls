@@ -5,6 +5,7 @@ import {
   MapPin,
   Ruler,
 } from '@phosphor-icons/react'
+import { HOUSING_MARKET_INFORMATION_SYSTEM_NAME } from '../demo/v5Data.js'
 import '../styles/governance.css'
 
 function pick(object, ...paths) {
@@ -42,7 +43,7 @@ export function Property357Panel({ record, compact = false }) {
     return (
       <section className="gov-357-panel gov-empty-state" aria-live="polite">
         <Database aria-hidden="true" />
-        <strong>Chưa có dữ liệu Bất động sản từ 357</strong>
+        <strong>Chưa có dữ liệu Bất động sản từ {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</strong>
         <span>Hồ sơ chưa nhận được bản ghi nguồn tương ứng.</span>
       </section>
     )
@@ -79,9 +80,9 @@ export function Property357Panel({ record, compact = false }) {
       <header className="gov-section-heading">
         <div>
           <span className="gov-eyebrow">Nguồn dữ liệu Bất động sản</span>
-          <h2 id="property-357-title">Dữ liệu Bất động sản từ 357</h2>
+          <h2 id="property-357-title">Dữ liệu Bất động sản từ {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</h2>
         </div>
-        <span className="gov-source-badge"><Database aria-hidden="true" /> 357</span>
+        <span className="gov-source-badge"><Database aria-hidden="true" /> {HOUSING_MARKET_INFORMATION_SYSTEM_NAME}</span>
       </header>
 
       <div className="gov-357-identity">
