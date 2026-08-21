@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v6'
+const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v7'
 
 async function openRole(page, roleId) {
   await page.goto(`/#/vai-tro/${roleId}/cong-viec`)
@@ -43,8 +43,14 @@ async function completeRepresentation(page) {
   await page.getByTestId('confirm-representation').click()
   await expect(page.getByTestId('object-plid')).toContainText('PLID-HN-00208')
   await expect(page.getByTestId('listing-created-panel')).toContainText('Tin bán đã khởi tạo')
+  await page.getByRole('checkbox', {
+    name: /Tôi đã kiểm tra và xác nhận các thông tin được chia sẻ/,
+  }).check()
+  await page.getByTestId('confirm-listing-sharing').click()
 
   await switchRole(page, 'agent')
+  await page.getByTestId('publish-to-housenow').click()
+  await expect(page.getByTestId('housenow-publication-panel')).toContainText('Đã phát hành')
   await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
 }
 
@@ -106,7 +112,7 @@ test('landing công khai chỉ hiện Listing đã tồn tại và mở đúng n
   await expect(page.getByTestId('app-shell')).not.toContainText('Phú Thượng')
 })
 
-test('Môi giới xin quyền, Người bán xác nhận rồi VMLS mới khởi tạo PLID và khớp HouseNow', async ({ page }) => {
+test('Người bán xác nhận quyền và dữ liệu chia sẻ trước khi Môi giới đăng Tin bán lên HouseNow', async ({ page }) => {
   await openRole(page, 'agent')
   await expect(page.getByTestId('representation-request-form')).toBeVisible()
   await expect(page.getByTestId('object-plid')).toContainText('Chưa cấp')
@@ -142,10 +148,22 @@ test('Môi giới xin quyền, Người bán xác nhận rồi VMLS mới khởi
   await expect(page.getByTestId('object-plid')).toContainText('PLID-HN-00208')
   await expect(page.getByTestId('listing-created-panel')).toContainText('Đã khởi tạo')
   await expect(page.getByTestId('listing-created-panel')).toContainText('Chưa phát hành')
+  await expect(page.getByTestId('listing-sharing-panel')).toContainText('Xác nhận thông tin được chia sẻ')
+  await expect(page.getByTestId('house-now-snapshot')).toHaveCount(0)
+  await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
+  await page.getByRole('checkbox', {
+    name: /Tôi đã kiểm tra và xác nhận các thông tin được chia sẻ/,
+  }).check()
+  await page.getByTestId('confirm-listing-sharing').click()
+  await expect(page.getByTestId('listing-sharing-panel')).toContainText('Thông tin chia sẻ đã được xác nhận')
   await page.reload()
   await expect(page.getByTestId('object-plid')).toContainText('PLID-HN-00208')
 
   await switchRole(page, 'agent')
+  await expect(page.getByTestId('housenow-publication-panel')).toContainText('Sẵn sàng đăng')
+  await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
+  await page.getByTestId('publish-to-housenow').click()
+  await expect(page.getByTestId('listing-created-panel')).toContainText('Đã phát hành')
   await expect(page.getByTestId('house-now-snapshot')).toContainText('HN-LST-78421')
   await expect(page.getByTestId('house-now-snapshot')).toContainText('2026.08.19-03')
   await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
@@ -184,8 +202,8 @@ test('Môi giới chỉ submit khi có PDF và hệ thống tạo đồng thời
   await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
 
   const persisted = await page.evaluate((storageKey) => JSON.parse(window.localStorage.getItem(storageKey)), V5_STORAGE_KEY)
-  expect(persisted.actionLog).toHaveLength(4)
-  expect(persisted.actionLog[3].payload.documents.transferContract).toEqual({
+  expect(persisted.actionLog).toHaveLength(5)
+  expect(persisted.actionLog[4].payload.documents.transferContract).toEqual({
     fileName: 'hop-dong-chuyen-nhuong-cong-chung.pdf',
     mimeType: 'application/pdf',
     sizeBytes: 16,

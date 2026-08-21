@@ -21,7 +21,9 @@ Kịch bản trình diễn một hành trình duy nhất cho nhà ở có Giấy
 Đã có Property/NPID
 → Môi giới gửi yêu cầu xác nhận quyền đại diện
 → Người bán xác nhận
-→ VMLS cấp PLID `Đã khởi tạo` và khớp snapshot HouseNow mẫu
+→ VMLS cấp PLID `Đã khởi tạo`
+→ Người bán xác nhận thông tin được chia sẻ
+→ Môi giới đăng Tin bán lên HouseNow; VMLS ghi nhận acknowledgement/snapshot mẫu
 → Môi giới khai báo giao dịch đã công chứng
 → VMLS đối soát bản ghi giao dịch 357
 → Thuế
@@ -48,7 +50,7 @@ Phiên đạt yêu cầu khi người xem nhận ra từ chính giao diện:
 
 `PROPOSAL`: Representation request/confirmation, thời điểm cấp PLID, snapshot matching, command, record, sáu event, wording trạng thái và notification dưới đây là hợp đồng demo client-side. Chúng không khẳng định có API thật, Listing đã Active/công khai/gửi HouseNow, hồ sơ đã được cơ quan nhận, số tiền thuế, người có nghĩa vụ pháp lý, hoặc Giấy chứng nhận thật đã được cấp.
 
-Storyboard V2/V3 vẫn `SUPERSEDED`. V5 chỉ khôi phục seam Representation ba bước nêu trên; không khôi phục VNeID, Buyer readiness, VPCC workspace, publication flow, hoặc hai nhánh chuyển nhượng cũ.
+Storyboard V2/V3 vẫn `SUPERSEDED`. V5 khôi phục seam trước giao dịch tới Seller sharing confirmation và Agent publication HouseNow; không khôi phục Buyer readiness, VPCC workspace hoặc hai nhánh chuyển nhượng cũ.
 
 ## Kiểm tra trước khi chạy
 
@@ -67,7 +69,7 @@ Storyboard V2/V3 vẫn `SUPERSEDED`. V5 chỉ khôi phục seam Representation b
 | Bất động sản | Nhà ở · Phú Thượng, `NPID-HN-10421` | Có sẵn |
 | Quyền đại diện | `REP-HN-00044` | `Chưa gửi`; chưa có request/confirmation |
 | Tin bán | `PLID-HN-00208` | Chưa tồn tại; Seller confirmation mới tạo với `Đã khởi tạo` |
-| HouseNow source | external Listing ID + version + source/VMLS timestamps đã cấu hình | Chưa được chiếu như snapshot đã khớp; xuất hiện sau confirmation |
+| HouseNow source | external Listing ID + version + source/VMLS timestamps đã cấu hình | Chỉ xuất hiện sau Seller sharing confirmation và Agent publication |
 | Khai báo giao dịch | Môi giới submit sau công chứng | Chưa có |
 | Giao dịch | PTID VMLS | Chưa có; tạo khi submit |
 | 357 transaction source | source transaction ID + provenance đã cấu hình | Chưa sync |
@@ -90,8 +92,8 @@ Tất cả identity, organization, document, timestamp, source record, obligatio
 5. Trong tài khoản Môi giới, mở Property Phú Thượng. Xác nhận có `NPID-HN-10421`, Representation `Chưa gửi`, chưa có PLID và chưa chiếu snapshot HouseNow đã khớp.
 6. Gửi `REQUEST_SELLER_CONFIRMATION` với NPID, phạm vi và thời hạn đã cấu hình. Kiểm tra Representation thành `Chờ xác nhận` nhưng PLID vẫn chưa tồn tại.
 7. Chuyển sang Người bán. Mở đúng pending request và chọn `CONFIRM_REPRESENTATION`; không dùng VNeID hoặc một agency workspace giả.
-8. Kiểm tra confirmation tạo `PLID-HN-00208` với trạng thái `Đã khởi tạo` và làm xuất hiện snapshot HouseNow mẫu đã khớp. Giao diện không được hiển thị Active, đã phê duyệt, đã công khai, đã phân phối, đã gửi HouseNow, hay HouseNow đã xác nhận.
-9. Quay lại landing và xác nhận catalogue nay có năm kết quả, Phú Thượng được ưu tiên, và Public chỉ nhận allowlist từ snapshot HouseNow với trạng thái nguồn `Đang bán`. Đối chiếu rằng Listing nội bộ vẫn `Đã khởi tạo`, kênh outbound vẫn `Chưa phát hành`; việc xuất hiện trong local demo catalogue không được mô tả là VMLS publication/distribution acknowledgement.
+8. Kiểm tra confirmation tạo `PLID-HN-00208` với trạng thái `Đã khởi tạo`, nhưng chưa có snapshot/Listing công khai. Người bán xác nhận các nhóm thông tin được chia sẻ.
+9. Quay lại Môi giới, bấm đăng Tin bán lên HouseNow. Xác nhận acknowledgement/snapshot mẫu xuất hiện, declaration được mở và landing nay có năm kết quả với Phú Thượng được ưu tiên.
 
 ### C — Môi giới khai báo giao dịch đã công chứng
 
@@ -155,8 +157,8 @@ Command sai actor, sai state, thừa/thiếu key, hoặc payload không hợp l�
 | Actor | Command | Contract chính |
 |---|---|---|
 | Môi giới | `REQUEST_SELLER_CONFIRMATION` | Chỉ dùng NPID đã có và exact `propertyId/scope/startsOn/expiresOn`; từ `Chưa gửi` sang `Chờ xác nhận`; chưa tạo PLID |
-| Người bán | `CONFIRM_REPRESENTATION` | Exact `{ accepted: true }` cho request đang chờ; tạo PLID `Đã khởi tạo` và snapshot match; không activation/publication/distribution/HouseNow send |
-| Môi giới | `SUBMIT_TRANSACTION_DECLARATION` | Chỉ sau confirmation; một PLID được gán; exact post-notary fields; required notarized-contract PDF metadata; optional deposit PDF metadata; one-shot |
+| Người bán | `CONFIRM_REPRESENTATION`, `CONFIRM_LISTING_SHARING` | Xác nhận quyền đại diện, tạo PLID `Đã khởi tạo`, rồi xác nhận allowlist chia sẻ |
+| Môi giới | `PUBLISH_LISTING_TO_HOUSENOW`, `SUBMIT_TRANSACTION_DECLARATION` | Publish chỉ sau sharing consent; declaration chỉ sau acknowledgement/snapshot; cả hai one-shot |
 | Vận hành VMLS | `SYNC_TRANSACTION_FROM_357` | Chỉ sau declaration; exact configured source record; one-shot; không overwrite, không gate |
 | Vận hành VMLS | `ADVANCE_EXTERNAL_PROCESSING` | Reducer tự chọn event kế tiếp; caller không truyền source/status/index; tối đa sáu lần hợp lệ |
 | Tài khoản nhận | `MARK_NOTIFICATION_READ` | Chỉ notification của chính tài khoản; chỉ đổi read metadata |
@@ -165,7 +167,7 @@ Không có mutable command cho Brokerage. Không có runtime command/workspace c
 
 ## Kiểm tra projection và lịch sử
 
-- Public result serialize bằng allowlist và structurally omit Representation evidence cùng mọi private transaction field; Phú Thượng PLID chỉ có thể xuất hiện sau confirmation.
+- Public result serialize bằng allowlist và structurally omit Representation evidence cùng mọi private transaction field; Phú Thượng chỉ có thể xuất hiện sau HouseNow publication.
 - RepresentationRequest, RepresentationConfirmation, Listing, và `HouseNowListingSnapshot` là các record/decision boundary riêng; confirmation không tạo Distribution Event.
 - `HouseNowListingSnapshot`, `TransactionDeclaration`, và `TransactionSourceRecord357` là ba record riêng với provenance riêng.
 - Reconciliation output không mutate source input; mismatch/missing chỉ tạo cảnh báo cho Ops.
@@ -194,7 +196,7 @@ Không có mutable command cho Brokerage. Không có runtime command/workspace c
 ## Fallback khi trình diễn
 
 - Nếu Representation request/confirmation không tiến, kiểm tra đúng Agent/Seller, state hiện tại và exact payload; không tự tạo PLID bằng DevTools.
-- Nếu declaration không submit, kiểm tra Representation đã xác nhận, PLID/snapshot đã có, đúng Agent, required PDF metadata, media type, value/date, và không có extra field; không chỉnh fixture bằng DevTools.
+- Nếu declaration không submit, kiểm tra Representation, Seller sharing consent, HouseNow publication/snapshot, đúng Agent, required PDF metadata, media type, value/date, và extra field.
 - Nếu 357 không sync, kiểm tra declaration đã tồn tại và nút chưa chạy; không dùng source record để overwrite khai báo.
 - Nếu status không tiến, kiểm tra đúng Ops và preview next event; không truyền/ép source hoặc status tùy ý.
 - Nếu Seller/Buyer thấy dữ liệu của Party kia, dừng demo: đây là lỗi privacy, không dùng CSS/crop để che.
@@ -207,8 +209,8 @@ Không có mutable command cho Brokerage. Không có runtime command/workspace c
 - [ ] Public catalogue có 4 Listings ban đầu; sau Seller confirmation có 5 và Phú Thượng ưu tiên; không lộ Representation/private transaction data.
 - [ ] Account switcher có đúng 5 tài khoản và badge theo tài khoản.
 - [ ] Agent request từ NPID; Seller confirm; PLID `Đã khởi tạo` chỉ xuất hiện sau confirm.
-- [ ] Confirmation không claim Active/phê duyệt/publication/distribution/HouseNow send hay acknowledgement.
-- [ ] HouseNow snapshot chỉ được match sau confirmation, có external ID/version/timestamps và không bị mutate.
+- [ ] Representation confirmation chỉ tạo PLID; Seller sharing confirmation và Agent publication là hai bước riêng.
+- [ ] HouseNow snapshot chỉ xuất hiện sau publication, có external ID/version/timestamps và không bị mutate.
 - [ ] Sau seam trên, Agent submit post-notary declaration; Sàn monitoring-only.
 - [ ] Submit tạo PTID, Tax handoff, Audit Event, và Integration Event atomically.
 - [ ] 357 là transaction source riêng, one-shot, đối soát từng field, không overwrite/gate.

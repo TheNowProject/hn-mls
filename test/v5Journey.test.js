@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 import {
   HOUSE_NOW_SNAPSHOT,
   PRIMARY_DECLARATION_PAYLOAD,
+  PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
   PRIMARY_LISTING_ID,
+  PRIMARY_LISTING_SHARING_PAYLOAD,
   PRIMARY_REPRESENTATION_REQUEST_PAYLOAD,
   PUBLIC_LISTINGS,
   TRANSACTION_357_FIXTURE,
@@ -33,6 +35,8 @@ function createListedState() {
     PRIMARY_REPRESENTATION_REQUEST_PAYLOAD,
   )
   state = reduce(state, V5_ACTIONS.CONFIRM_REPRESENTATION, 'seller', { accepted: true })
+  state = reduce(state, V5_ACTIONS.CONFIRM_LISTING_SHARING, 'seller', PRIMARY_LISTING_SHARING_PAYLOAD)
+  state = reduce(state, V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW, 'agent', PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD)
   return state
 }
 
@@ -57,6 +61,8 @@ test('the V5 fixture starts before representation with unborn PLID and PTID', ()
   assert.equal(state.records.transaction.listingId, null)
   assert.equal(state.records.declaration, null)
   assert.equal(state.records.houseNowSnapshot, null)
+  assert.equal(state.records.listingSharing, null)
+  assert.equal(state.records.houseNowDistribution, null)
   assert.equal(state.records.transactionSource357, null)
   assert.equal(state.records.taxCase, null)
   assert.equal(state.records.landRegistryCase, null)
@@ -107,20 +113,42 @@ test('Agent request and Seller confirmation create the PLID seam before declarat
   assert.equal(confirmed.records.listing.status, 'Đã khởi tạo')
   assert.equal(confirmed.records.listing.propertyId, initial.records.property.id)
   assert.equal(confirmed.records.listing.representationId, 'REP-HN-00044')
-  assert.equal(confirmed.records.houseNowSnapshot.externalListingId, HOUSE_NOW_SNAPSHOT.externalListingId)
-  assert.equal(Object.isFrozen(confirmed.records.houseNowSnapshot), true)
+  assert.equal(confirmed.records.houseNowSnapshot, null)
+  assert.equal(confirmed.records.listingSharing, null)
+  assert.equal(confirmed.records.houseNowDistribution, null)
   assert.equal(confirmed.records.transaction.id, null)
   assert.equal(confirmed.records.transaction.listingId, PRIMARY_LISTING_ID)
   assert.equal(confirmed.records.declaration, null)
   assert.equal(confirmed.records.taxCase, null)
   assert.equal(confirmed.workItems[0].status, 'resolved')
   assert.equal(confirmed.notifications[0].readAt, '2026-08-12T10:10:00+07:00')
-  assert.equal(getUnreadNotificationCount(confirmed, 'seller'), 0)
+  assert.equal(getUnreadNotificationCount(confirmed, 'seller'), 1)
   assert.deepEqual(confirmed.integrationEvents.map(({ type }) => type), [
     'representation_request_sent',
     'representation_confirmation_received',
     'listing_created',
   ])
+
+  const sharingConfirmed = reduce(
+    confirmed,
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    'seller',
+    PRIMARY_LISTING_SHARING_PAYLOAD,
+  )
+  assert.equal(sharingConfirmed.records.listingSharing.status, 'Đã xác nhận')
+  assert.equal(sharingConfirmed.records.houseNowSnapshot, null)
+  assert.equal(sharingConfirmed.workItems.find(({ id }) => id === 'WORK-SELLER-CONFIRM-LISTING-SHARING').status, 'resolved')
+
+  const published = reduce(
+    sharingConfirmed,
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+    'agent',
+    PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  )
+  assert.equal(published.records.listing.status, 'Đã phát hành')
+  assert.equal(published.records.houseNowDistribution.status, 'Đã phát hành')
+  assert.equal(published.records.houseNowSnapshot.externalListingId, HOUSE_NOW_SNAPSHOT.externalListingId)
+  assert.equal(Object.isFrozen(published.records.houseNowSnapshot), true)
 })
 
 test('representation commands are exact-shape, actor-scoped and one-shot', () => {
@@ -162,30 +190,64 @@ test('representation commands are exact-shape, actor-scoped and one-shot', () =>
 
   const confirmed = reduce(requested, confirm, 'seller', { accepted: true })
   assert.strictEqual(reduce(confirmed, confirm, 'seller', { accepted: true }), confirmed)
+  assert.deepEqual(allowedV5ActionsFor(confirmed, 'seller'), [
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    V5_ACTIONS.MARK_NOTIFICATION_READ,
+  ])
+  assert.deepEqual(allowedV5ActionsFor(confirmed, 'agent'), [])
 
   const expiredRequest = reduce(initial, request, 'agent', {
     ...PRIMARY_REPRESENTATION_REQUEST_PAYLOAD,
     expiresOn: '2026-08-12',
   })
   const expiredRepresentation = reduce(expiredRequest, confirm, 'seller', { accepted: true })
+  const expiredSharing = reduce(
+    expiredRepresentation,
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    'seller',
+    PRIMARY_LISTING_SHARING_PAYLOAD,
+  )
   assert.deepEqual(allowedV5ActionsFor(expiredRepresentation, 'agent'), [])
   assert.strictEqual(reduce(
-    expiredRepresentation,
+    expiredSharing,
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+    'agent',
+    PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  ), expiredSharing)
+  assert.strictEqual(reduce(
+    expiredSharing,
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
     'agent',
     PRIMARY_DECLARATION_PAYLOAD,
-  ), expiredRepresentation)
+  ), expiredSharing)
 
   const laterRequest = reduce(initial, request, 'agent', {
     ...PRIMARY_REPRESENTATION_REQUEST_PAYLOAD,
     startsOn: '2026-08-20',
   })
   const laterRepresentation = reduce(laterRequest, confirm, 'seller', { accepted: true })
+  const laterSharing = reduce(
+    laterRepresentation,
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    'seller',
+    PRIMARY_LISTING_SHARING_PAYLOAD,
+  )
+  const laterPublished = reduce(
+    laterSharing,
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+    'agent',
+    PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  )
   assert.deepEqual(allowedV5ActionsFor(laterRepresentation, 'agent'), [
+  ])
+  assert.deepEqual(allowedV5ActionsFor(laterSharing, 'agent'), [
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+  ])
+  assert.deepEqual(allowedV5ActionsFor(laterPublished, 'agent'), [
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
   ])
   const laterDeclaration = reduce(
-    laterRepresentation,
+    laterPublished,
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
     'agent',
     {
@@ -194,7 +256,7 @@ test('representation commands are exact-shape, actor-scoped and one-shot', () =>
       notarizedAt: '2026-08-20T15:30:00+07:00',
     },
   )
-  assert.notStrictEqual(laterDeclaration, laterRepresentation)
+  assert.notStrictEqual(laterDeclaration, laterPublished)
 })
 
 test('the Agent declaration atomically creates PTID, audit and the Tax handoff', () => {
@@ -296,6 +358,8 @@ test('the Agent declaration atomically creates PTID, audit and the Tax handoff',
   assert.deepEqual(submitted.auditEvents.map(({ type }) => type), [
     'representation_confirmation_requested',
     'representation_confirmed',
+    'listing_sharing_confirmed',
+    'listing_published_to_housenow',
     'transaction_declaration_submitted',
   ])
   const declarationAudit = submitted.auditEvents.at(-1)
@@ -308,6 +372,8 @@ test('the Agent declaration atomically creates PTID, audit and the Tax handoff',
     'representation_request_sent',
     'representation_confirmation_received',
     'listing_created',
+    'listing_sharing_confirmation_received',
+    'housenow_listing_published',
     'tax_dossier_handoff_created',
   ])
   assert.equal(submitted.integrationEvents.at(-1).correlationId, 'PTID-HN-00062')
@@ -316,7 +382,7 @@ test('the Agent declaration atomically creates PTID, audit and the Tax handoff',
     new Set(submitted.integrationEvents.map(({ id }) => id)).size,
     submitted.integrationEvents.length,
   )
-  assert.equal(submitted.actionLog.length, 3)
+  assert.equal(submitted.actionLog.length, 5)
   assert.strictEqual(reduce(submitted, submit, 'agent', PRIMARY_DECLARATION_PAYLOAD), submitted)
 
   const withDeposit = reduce(initial, submit, 'agent', {
@@ -441,9 +507,11 @@ test('VMLS advances exactly one of the six external milestones per command', () 
   ])
   assert.deepEqual(state.notifications.map(({ recipientRole, readAt }) => ({ recipientRole, readAt })), [
     { recipientRole: 'seller', readAt: '2026-08-12T10:10:00+07:00' },
+    { recipientRole: 'seller', readAt: '2026-08-12T10:20:00+07:00' },
     { recipientRole: 'seller', readAt: null },
   ])
   assert.deepEqual(state.workItems.map(({ ownerRole, status }) => ({ ownerRole, status })), [
+    { ownerRole: 'seller', status: 'resolved' },
     { ownerRole: 'seller', status: 'resolved' },
     { ownerRole: 'seller', status: 'open' },
   ])
@@ -477,9 +545,10 @@ test('VMLS advances exactly one of the six external milestones per command', () 
   assert.equal(state.records.transaction.status, 'Đã hoàn thành sang tên')
   assert.deepEqual(
     state.notifications.map(({ recipientRole }) => recipientRole),
-    ['seller', 'seller', 'buyer'],
+    ['seller', 'seller', 'seller', 'buyer'],
   )
   assert.deepEqual(state.workItems.map(({ ownerRole, status }) => ({ ownerRole, status })), [
+    { ownerRole: 'seller', status: 'resolved' },
     { ownerRole: 'seller', status: 'resolved' },
     { ownerRole: 'seller', status: 'resolved' },
     { ownerRole: 'buyer', status: 'open' },
@@ -643,10 +712,19 @@ test('the action contract exposes commands only to the account that can use them
     V5_ACTIONS.MARK_NOTIFICATION_READ,
   ])
   state = reduce(state, V5_ACTIONS.CONFIRM_REPRESENTATION, 'seller', { accepted: true })
+  assert.deepEqual(allowedV5ActionsFor(state, 'agent'), [])
+  assert.deepEqual(allowedV5ActionsFor(state, 'seller'), [
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    V5_ACTIONS.MARK_NOTIFICATION_READ,
+  ])
+  state = reduce(state, V5_ACTIONS.CONFIRM_LISTING_SHARING, 'seller', PRIMARY_LISTING_SHARING_PAYLOAD)
+  assert.deepEqual(allowedV5ActionsFor(state, 'agent'), [
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+  ])
+  state = reduce(state, V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW, 'agent', PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD)
   assert.deepEqual(allowedV5ActionsFor(state, 'agent'), [
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
   ])
-  assert.deepEqual(allowedV5ActionsFor(state, 'seller'), [])
   state = reduce(
     state,
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
@@ -695,17 +773,45 @@ test('every command is an atomic no-op for every unauthorized account', () => {
   const listed = reduce(requested, V5_ACTIONS.CONFIRM_REPRESENTATION, 'seller', {
     accepted: true,
   })
-  for (const actor of roleIds.filter((roleId) => roleId !== 'agent')) {
+  for (const actor of roleIds.filter((roleId) => roleId !== 'seller')) {
     assert.strictEqual(reduce(
       listed,
+      V5_ACTIONS.CONFIRM_LISTING_SHARING,
+      actor,
+      PRIMARY_LISTING_SHARING_PAYLOAD,
+    ), listed)
+  }
+  const sharingConfirmed = reduce(
+    listed,
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    'seller',
+    PRIMARY_LISTING_SHARING_PAYLOAD,
+  )
+  for (const actor of roleIds.filter((roleId) => roleId !== 'agent')) {
+    assert.strictEqual(reduce(
+      sharingConfirmed,
+      V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+      actor,
+      PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+    ), sharingConfirmed)
+  }
+  const published = reduce(
+    sharingConfirmed,
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+    'agent',
+    PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  )
+  for (const actor of roleIds.filter((roleId) => roleId !== 'agent')) {
+    assert.strictEqual(reduce(
+      published,
       V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
       actor,
       PRIMARY_DECLARATION_PAYLOAD,
-    ), listed)
+    ), published)
   }
 
   const submitted = reduce(
-    listed,
+    published,
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
     'agent',
     PRIMARY_DECLARATION_PAYLOAD,
@@ -753,8 +859,23 @@ test('V5 persistence replays accepted commands and fails closed for old or inval
   )
   assert.deepEqual(restoreV5State(serializeV5State(confirmedOnly)), confirmedOnly)
 
-  let state = reduce(
+  const sharingOnly = reduce(
     confirmedOnly,
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    'seller',
+    PRIMARY_LISTING_SHARING_PAYLOAD,
+  )
+  assert.deepEqual(restoreV5State(serializeV5State(sharingOnly)), sharingOnly)
+  const publishedOnly = reduce(
+    sharingOnly,
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+    'agent',
+    PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  )
+  assert.deepEqual(restoreV5State(serializeV5State(publishedOnly)), publishedOnly)
+
+  let state = reduce(
+    publishedOnly,
     V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION,
     'agent',
     PRIMARY_DECLARATION_PAYLOAD,

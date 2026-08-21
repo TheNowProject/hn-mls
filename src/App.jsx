@@ -28,6 +28,7 @@ const LEGACY_DEMO_KEYS = Object.freeze([
   'vmls:operations:2026-08:v4',
   'vmls:represented-market:2026-08:v2',
   'vmls:phu-thuong:2026-08:v5',
+  'vmls:phu-thuong:2026-08:v6',
 ])
 
 const ROLE_IDS = new Set(V5_ROLES.map(({ id }) => id))

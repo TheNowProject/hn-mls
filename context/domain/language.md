@@ -26,8 +26,16 @@ An Agent-authored proposal asking the identified Seller to grant a defined repre
 _Avoid_: confirmed Representation, Listing Input, Listing, seller consent to publication, VNeID authentication proof
 
 **Xác nhận quyền đại diện / RepresentationConfirmation**:
-The identified Seller's decision on a pending RepresentationRequest. An acceptance establishes the scoped Representation but is distinct from Listing activation, publication consent, channel distribution, and HouseNow acknowledgement.
+The identified Seller's decision on a pending RepresentationRequest. An acceptance establishes the scoped Representation and initializes the PLID but is distinct from the later sharing consent and HouseNow publication acknowledgement.
 _Avoid_: Listing approval, Active transition, PublicationProfile, Distribution Event, HouseNow send
+
+**Xác nhận thông tin chia sẻ / ListingSharingConfirmation**:
+The Seller's explicit allowlist of Listing information groups that may be sent to HouseNow. It follows Representation confirmation and does not itself publish the Listing.
+_Avoid_: RepresentationConfirmation, Listing approval, HouseNow acknowledgement
+
+**Phát hành HouseNow / HouseNowDistribution**:
+The Agent's one-shot demo command after Seller sharing consent. It records the configured HouseNow acknowledgement and immutable `HouseNowListingSnapshot`; in V5 this is a deterministic client-side proposal, not evidence of a live API delivery.
+_Avoid_: Listing approval, legal authorization, live integration proof
 
 **Giao dịch / PTID**:
 A separate VMLS orchestration reference created in V5 when the Agent's valid post-notary transaction declaration is accepted. It may later map to an official identifier if an approved integration provides one; it is not an official code, Closing Record, Property, Listing, contract number, or HouseNow billing `Transaction`.

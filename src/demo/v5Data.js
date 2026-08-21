@@ -1,8 +1,8 @@
 // @ts-check
 
-export const V5_SCHEMA_VERSION = 6
-export const V5_SCHEMA = 'vmls-phu-thuong-representation-transaction-v6'
-export const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v6'
+export const V5_SCHEMA_VERSION = 7
+export const V5_SCHEMA = 'vmls-phu-thuong-listing-publication-transaction-v7'
+export const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v7'
 export const V5_PRIMARY_CASE_ID = 'phu-thuong-title-transfer'
 export const PRIMARY_PROPERTY_ID = 'NPID-HN-10421'
 export const PRIMARY_LISTING_ID = 'PLID-HN-00208'
@@ -22,7 +22,7 @@ export const V5_ROLES = deepFreeze([
     label: 'Môi giới',
     shortLabel: 'MG',
     organization: 'HouseNow',
-    purpose: 'Xin quyền đại diện, theo dõi Tin bán được khởi tạo và khai báo giao dịch đã công chứng.',
+    purpose: 'Xin quyền đại diện, phát hành Tin bán lên HouseNow và khai báo giao dịch đã công chứng.',
   },
   {
     id: 'brokerage',
@@ -37,7 +37,7 @@ export const V5_ROLES = deepFreeze([
     shortLabel: 'NB',
     organization: null,
     accountContext: 'Tài khoản cá nhân',
-    purpose: 'Xác nhận quyền đại diện và theo dõi thông báo liên quan.',
+    purpose: 'Xác nhận quyền đại diện, thông tin được chia sẻ và theo dõi thông báo liên quan.',
   },
   {
     id: 'buyer',
@@ -180,6 +180,23 @@ export const PRIMARY_REPRESENTATION_REQUEST_PAYLOAD = deepFreeze({
   scope: 'Độc quyền',
   startsOn: '2026-08-11',
   expiresOn: '2026-09-10',
+})
+
+export const LISTING_SHARING_GROUPS = deepFreeze([
+  { id: 'identity', label: 'Định danh NPID và PLID', required: true },
+  { id: 'property', label: 'Thông tin Bất động sản', required: true },
+  { id: 'price', label: 'Giá chào', required: false },
+  { id: 'content', label: 'Nội dung và hình ảnh Tin bán', required: false },
+  { id: 'brokerage', label: 'Thông tin Môi giới và Sàn', required: true },
+])
+
+export const PRIMARY_LISTING_SHARING_PAYLOAD = deepFreeze({
+  accepted: true,
+  visibleGroups: LISTING_SHARING_GROUPS.map(({ id }) => id),
+})
+
+export const PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD = deepFreeze({
+  listingId: PRIMARY_LISTING_ID,
 })
 
 export const PRIMARY_LISTING = deepFreeze({

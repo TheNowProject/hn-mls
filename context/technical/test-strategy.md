@@ -7,7 +7,7 @@ last_reviewed: 2026-08-21
 
 # Test strategy
 
-This strategy covers the static VMLS V5 demo described by [current state](../product/current-state.md), [acceptance criteria](../product/acceptance-criteria.md), and the [demo playbook](../product/vmls-demo-playbook.md). It verifies one titled-property Phú Thượng journey, five runtime accounts, Agent Representation request → Seller confirmation → initialized PLID/local HouseNow snapshot match, post-notary Agent declaration, separate HouseNow/357 provenance, non-blocking reconciliation, sequential Tax → VPĐKĐĐ events, recipient-scoped notifications, privacy projections, and V5 browser replay.
+This strategy covers the static VMLS V5 demo described by [current state](../product/current-state.md), [acceptance criteria](../product/acceptance-criteria.md), and the [demo playbook](../product/vmls-demo-playbook.md). It verifies one titled-property Phú Thượng journey, five runtime accounts, Agent Representation request → Seller confirmation → initialized PLID → Seller sharing confirmation → Agent HouseNow publication, post-notary Agent declaration, separate HouseNow/357 provenance, non-blocking reconciliation, sequential Tax → VPĐKĐĐ events, recipient-scoped notifications, privacy projections, and versioned browser replay.
 
 It does not validate production authorization, Seller identity/authority, Listing activation/publication/distribution, official identifier ownership, legal/tax correctness, live document upload, or any HouseNow, 357, Tax, or VPĐKĐĐ integration. `SOURCE CLAIM`: the supplied process material describes the high-level sequence. `PROPOSAL`: the tested Representation seam, Listing/snapshot timing, transaction sequence, and command ownership are the deterministic demo contract, not legal policy.
 
@@ -30,7 +30,7 @@ All commands must pass before preview deployment. Browser smoke testing and a bl
 ### Fixture, identity, and provenance
 
 - The fixture exposes exactly five runtime roles/accounts: Agent, Brokerage, Seller, Buyer, and VMLS Ops.
-- Public catalogue contains four Listings initially. Seller confirmation and the matched HouseNow snapshot make Phú Thượng the fifth prioritized Public result with source status `Đang bán`; the internal VMLS Listing remains `Đã khởi tạo` and its outbound channel remains `Chưa phát hành`.
+- Public catalogue contains four Listings initially. Seller sharing confirmation alone changes no Public result; Agent HouseNow publication makes Phú Thượng the fifth prioritized result with source status `Đang bán`.
 - Initial Phú Thượng state has NPID and Representation `Chưa gửi`, but no Phú Thượng PLID/matched `HouseNowListingSnapshot`, declaration, PTID, 357 transaction source, Tax event, Land case, obligation completion, notification, or work item.
 - NPID, PLID, HouseNow external Listing ID, PTID, contract ID, 357 transaction ID, source case ID, notification ID, and event/idempotency IDs remain distinct.
 - After Seller confirmation, the matched HouseNow snapshot retains its own version, source-updated time, VMLS-received time, and safe source claims; Representation and transaction commands never mutate it or create an outbound Distribution Event.
@@ -41,7 +41,8 @@ All commands must pass before preview deployment. Browser smoke testing and a bl
 - Agent is the only accepted request actor; exact payload is `{ propertyId, scope, startsOn, expiresOn }` for the configured NPID/allowed scope/effective period.
 - A valid request moves Representation `Chưa gửi` → `Chờ xác nhận`, appends its configured history, and leaves Listing/PLID and matched snapshot absent.
 - Seller is the only accepted confirmation actor; exact payload is `{ accepted: true }` and requires the pending request.
-- A valid confirmation atomically moves Representation to `Đã xác nhận`, creates `PLID-HN-00208` with `Đã khởi tạo`, and exposes the configured matched HouseNow snapshot once.
+- A valid representation confirmation moves Representation to `Đã xác nhận` and creates `PLID-HN-00208` with `Đã khởi tạo`, but no HouseNow snapshot.
+- Seller then confirms the exact sharing allowlist; Agent publication records one configured HouseNow acknowledgement/snapshot and gates the declaration form.
 - Reject wrong actor, property, scope, date order/range, missing/extra key, confirmation before request, duplicate request, and duplicate confirmation as atomic no-ops.
 - Assert that neither accepted command creates Active/approved/published/distributed state, a PublicationProfile, a Distribution Event, a HouseNow send, or a HouseNow acknowledgement.
 
@@ -117,9 +118,9 @@ All commands must pass before preview deployment. Browser smoke testing and a bl
 ### Full Phú Thượng journey
 
 6. As Agent, open the Phú Thượng Property and verify NPID plus Representation `Chưa gửi`, with no PLID or matched snapshot. Exercise invalid requests, then send the exact valid request and verify `Chờ xác nhận` without Listing creation.
-7. Switch to Seller. Exercise wrong/out-of-order confirmation where applicable, then confirm the pending request. Verify Representation `Đã xác nhận`, PLID status `Đã khởi tạo`, and one configured matched HouseNow snapshot.
-8. Inspect UI state, histories, serialization, and network activity to verify confirmation made no Active/approved/published/distributed/HouseNow-send or acknowledgement claim.
-9. Return to Agent and inspect distinct NPID/PLID/HouseNow source ID/version/timestamps. Exercise invalid declaration states, then submit a valid post-notary declaration with required PDF metadata and optional deposit metadata. Verify PTID and Tax handoff appear once.
+7. Switch to Seller, confirm the pending Representation, and verify `Đã xác nhận` plus PLID `Đã khởi tạo` with no snapshot. Then confirm the information-sharing scope.
+8. Return to Agent, publish the Listing to HouseNow, and verify one configured acknowledgement/snapshot plus the fifth Public result.
+9. Inspect distinct NPID/PLID/HouseNow source ID/version/timestamps. Exercise invalid declaration states, then submit a valid post-notary declaration with required PDF metadata and optional deposit metadata. Verify PTID and Tax handoff appear once.
 10. Switch to Brokerage. Verify monitoring projection and absence of Representation request/confirmation, declaration, and approval controls.
 11. As Ops, run `Đồng bộ từ 357`. Verify both source records remain visible, every main-fixture field matches, and the control becomes `Đã đồng bộ`.
 12. Reset and repeat the complete Representation/declaration seam with `Đồng bộ từ Thuế và VPĐKĐĐ` before 357 to prove reconciliation is not a gate.

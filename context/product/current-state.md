@@ -13,7 +13,9 @@ The executable artifact is a Vietnamese, client-only VMLS V5 demo focused on one
 Đã có Property/NPID
 → Môi giới gửi yêu cầu xác nhận quyền đại diện
 → Người bán xác nhận
-→ VMLS cấp PLID ở trạng thái “Đã khởi tạo” và khớp snapshot HouseNow mẫu
+→ VMLS cấp PLID ở trạng thái “Đã khởi tạo”
+→ Người bán xác nhận phạm vi thông tin được chia sẻ
+→ Môi giới đăng Tin bán lên HouseNow; VMLS ghi nhận acknowledgement và snapshot mẫu
 → Môi giới khai báo giao dịch đã công chứng
 → VMLS đối soát bản ghi giao dịch 357
 → Thuế
@@ -32,10 +34,10 @@ It demonstrates linked identities, source provenance, transaction reconciliation
 | Area | Current state | Evidence boundary |
 |---|---|---|
 | Public entry | Living Registry landing with the headline “Một định danh. Mọi nguồn dữ liệu. Một hành trình có thể truy vết.”, registry search, and a data-network hero | `PROPOSAL` interface; the local build and assets are directly inspectable |
-| Public catalogue | Four configured Listings exist initially; after Seller confirmation creates the Phú Thượng PLID, its allowlisted projection becomes the fifth and is prioritized | Synthetic/configured data only; no PTID, party, contract, representation detail, or processing state is Public |
+| Public catalogue | Four configured Listings exist initially; after HouseNow publication, the Phú Thượng allowlisted projection becomes the fifth and is prioritized | Synthetic/configured data only; no PTID, party, contract, representation detail, or processing state is Public |
 | Representation seam | The responsible Agent requests Seller confirmation against the existing Phú Thượng NPID; only that Seller can confirm | `PROPOSAL`; confirmation is a client-side demo command, not proof of identity, authority, VNeID use, or a legally effective mandate |
 | Listing creation | Seller confirmation creates the Phú Thượng Listing/PLID with status `Đã khởi tạo` | This status does not mean Active, approved, published, publicly distributed, or sent to HouseNow |
-| HouseNow source | After confirmation, the new PLID is matched to a configured versioned `HouseNowListingSnapshot` | `PROPOSAL`; deterministic local fixture matching only, not a live export, feed, outbound send, or publication acknowledgement |
+| Listing sharing and HouseNow publication | Seller confirms the sharing groups, then the Agent publishes the Listing to HouseNow; the demo records a configured acknowledgement and versioned `HouseNowListingSnapshot` | `PROPOSAL`; deterministic client-side fixture only, not a live API or proof of delivery |
 | Transaction declaration | The responsible Agent submits a post-notarization declaration with Buyer reference, value, contract/notary facts, and document metadata | `PROPOSAL` command ownership and data contract; document bytes are not stored |
 | Transaction identity | A successful declaration atomically creates the `Transaction` and VMLS PTID, Tax handoff, Audit Event, and Integration Event | `PROPOSAL`; PTID is a demo orchestration reference, not an official identifier or Closing Record |
 | 357 source | VMLS Ops may import one configured `TransactionSourceRecord357` and reconcile it against the Agent declaration field by field | `PROPOSAL`; source records remain separate and 357 never overwrites the declaration |
@@ -46,21 +48,21 @@ It demonstrates linked identities, source provenance, transaction reconciliation
 | Persistence | Versioned V5 browser store replays the demo; malformed, incompatible, or tampered state fails closed to the initial fixture | Browser convenience only, not authoritative persistence |
 | Deployment target | `vmls.housenow.com.vn` | Deployment status must be verified separately |
 
-Historical Phase 5–6 plans and [ADR 0001](../decisions/0001-local-mvp-architecture.md) describe a replaced Node/SQLite exploration slice. [Transaction flow v2](./vmls-process-v2.md) and [transaction screens v3](./vmls-process-v3.md) remain superseded design history and do not control V5. V5 deliberately restores only their narrow Agent-request → Seller-confirmation → initialized-PLID representation seam under the current contract documented here; it does not restore the old storyboard's VNeID, activation, publication, notary, readiness, or two-route runtime.
+Historical Phase 5–6 plans and [ADR 0001](../decisions/0001-local-mvp-architecture.md) describe a replaced Node/SQLite exploration slice. [Transaction flow v2](./vmls-process-v2.md) and [transaction screens v3](./vmls-process-v3.md) remain superseded design history and do not control V5. V5 restores their narrow pre-transaction seam through Seller sharing confirmation and Agent publication to HouseNow; it does not restore the old storyboard's activation, notary, readiness, or two-route runtime.
 
 ## Information architecture
 
 The public landing provides:
 
 - standalone VMLS branding and Living Registry visual language;
-- an allowlisted search across the four Listings available initially and, after representation confirmation, the fifth Phú Thượng Listing/PLID;
+- an allowlisted search across the four Listings available initially and, after HouseNow publication, the fifth Phú Thượng Listing/PLID;
 - a network visualization connecting NPID, PLID, PTID, HouseNow, 357, Tax, and VPĐKĐĐ concepts without revealing a private transaction;
 - `Mở tài khoản demo`, followed by an account switcher containing exactly five runtime accounts;
 - unread counts scoped to the selected account.
 
 The authenticated demo workspace provides:
 
-- one Phú Thượng Property/NPID for the Agent to request representation confirmation, followed by the post-notary declaration form only after Seller confirmation creates the Listing;
+- one Phú Thượng Property/NPID for the Agent to request representation confirmation, Seller sharing consent, Agent publication to HouseNow, then the post-notary declaration;
 - organization-level read-only monitoring for the Brokerage;
 - recipient-scoped inbox, work items, and safe transaction milestones for Seller and Buyer;
 - source records, reconciliation, event history, and two independent synchronization controls for VMLS Ops.
@@ -73,9 +75,9 @@ Legacy or unknown hashes fail closed to the landing. They must not silently gran
 
 | Runtime account | V5 job |
 |---|---|
-| Môi giới | Request Seller confirmation for the assigned NPID; after confirmation, inspect the matched HouseNow snapshot, submit the post-notary transaction declaration, and monitor the resulting PTID |
+| Môi giới | Request Seller confirmation, publish the initialized Listing to HouseNow after Seller sharing consent, then submit the post-notary transaction declaration and monitor the PTID |
 | Sàn môi giới | Monitor the Organization's Listing/transaction and derived milestones; no declaration or approval gate |
-| Người bán | Confirm the pending representation request, later receive/open the tax-obligation notification/work item, and inspect only the permitted Seller projection |
+| Người bán | Confirm the pending representation request, confirm the information shared for publication, later receive/open the tax-obligation notification/work item, and inspect only the permitted Seller projection |
 | Người mua | Inspect only the permitted Buyer projection and receive/open the completion notification to collect the updated certificate at VPĐKĐĐ |
 | Vận hành VMLS | Inspect provenance and histories, synchronize the configured 357 transaction record once, review reconciliation, and advance the next configured external event |
 
@@ -102,7 +104,7 @@ The V5 runtime does not create `BuyerDeclaration`, a notary-processing case, a t
 
 ### HouseNow and 357 provenance
 
-`PROPOSAL`: The HouseNow source fixture is not projected as a matched Phú Thượng snapshot before Seller confirmation. Confirmation creates the PLID and exposes the configured match. The snapshot is evidence of the Listing input used by this demo; it never becomes the Property itself and is not edited when the transaction progresses. Matching does not assert Listing activation, publication, outbound delivery, or HouseNow acknowledgement.
+`PROPOSAL`: Seller representation confirmation creates only the initialized PLID. Seller then confirms an allowlisted sharing scope, and the Agent runs the explicit HouseNow publication command. That command records a deterministic acknowledgement and immutable source snapshot; it never becomes the Property itself and does not prove a live API delivery.
 
 `PROPOSAL`: The 357 record is a transaction source received after declaration. VMLS stores source transaction ID, NPID, contract facts, transaction value, masked Buyer/Seller values, notary organization, source timestamp, and VMLS receipt timestamp. It remains distinct from both the HouseNow snapshot and Agent declaration.
 
@@ -123,11 +125,11 @@ The initial/reset Phú Thượng journey contains the Property/NPID and an unreq
 
 The responsible Agent requests Seller confirmation for the existing NPID. The request records the configured representation scope and effective period but does not create a Listing. Only the selected Seller can confirm the pending request.
 
-`PROPOSAL`: An accepted Seller confirmation atomically marks the Representation confirmed, creates the Phú Thượng Listing/PLID with status `Đã khởi tạo`, and exposes the configured matched HouseNow snapshot. This is a preparation state only: it does not activate or approve the Listing, apply a publication profile, distribute it publicly, send it to HouseNow, or record a HouseNow acknowledgement.
+`PROPOSAL`: An accepted Seller representation confirmation atomically marks the Representation confirmed and creates the Phú Thượng Listing/PLID with status `Đã khởi tạo`. Seller must next confirm the exact information groups shared for publication. Only then may the Agent publish to HouseNow; publication records a deterministic acknowledgement and snapshot and makes the allowlisted Public projection available.
 
 ### Declaration
 
-Only after the Representation is confirmed and the initialized PLID exists, the Agent submits that configured PLID with Buyer reference, whole-VND transaction value, contract number/date, notary organization/date, and file metadata. The notarized transfer contract PDF is required; the deposit contract PDF is optional. Only filename, media type, size, and configured reference metadata are retained.
+Only after the Representation is confirmed, the initialized PLID exists, Seller sharing consent is recorded, and HouseNow publication is acknowledged, the Agent submits that configured PLID with Buyer reference, whole-VND transaction value, contract number/date, notary organization/date, and file metadata. The notarized transfer contract PDF is required; the deposit contract PDF is optional. Only filename, media type, size, and configured reference metadata are retained.
 
 An accepted `SUBMIT_TRANSACTION_DECLARATION` atomically:
 
@@ -160,8 +162,8 @@ There is no VPĐKĐĐ case before both obligation rows complete. Duplicate, stal
 
 ## Projection and notification boundary
 
-- Public search uses an explicit allowlist and never serializes Representation requests/confirmation evidence, PTID, parties, document metadata, contract facts, financial-obligation detail, notifications, work items, or internal events. The Phú Thượng PLID cannot appear before it is created by Seller confirmation; afterwards its Public `Đang bán` status comes from the matched HouseNow source snapshot, while the internal VMLS Listing remains `Đã khởi tạo` and outbound distribution remains `Chưa phát hành`.
-- Agent sees the assigned Property and request state; after confirmation, the initialized Listing snapshot, full declaration needed for the job, and safe processing milestones.
+- Public search uses an explicit allowlist and never serializes Representation requests/confirmation evidence, PTID, parties, document metadata, contract facts, financial-obligation detail, notifications, work items, or internal events. Phú Thượng appears only after the explicit HouseNow publication command records its snapshot.
+- Agent sees the assigned Property and request state; after Seller sharing consent, the Agent publishes to HouseNow and then receives the declaration form and safe processing milestones.
 - Brokerage sees its Organization's safe monitoring projection and cannot mutate the transaction.
 - Seller and Buyer see only their own safe transaction projection and recipient-scoped inbox/work items. Neither sees the other party's private reference, and the fixed Buyer account sees no Phú Thượng identity/inbox/work when no declaration exists or when its configured Party reference is not the declared Buyer.
 - Seller notification says that financial obligations require action; it shows no amount and makes no assertion about which party legally owes a particular charge.

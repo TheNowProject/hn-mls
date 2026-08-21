@@ -447,12 +447,54 @@
 
 .v5-representation-lifecycle ol {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 1px;
   margin: 0;
   padding: 1px;
   background: var(--color-border);
   list-style: none;
+}
+
+.v5-sharing-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 1.2rem 1.3rem;
+}
+
+.v5-sharing-groups label {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f8faf8;
+}
+
+.v5-sharing-groups label.is-required {
+  border-color: #9ec1b5;
+  background: #eaf4ef;
+}
+
+.v5-sharing-groups input {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  accent-color: var(--registry-green);
+}
+
+.v5-sharing-groups label > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.v5-sharing-groups small {
+  color: var(--color-ink-muted);
+  font-size: 0.74rem;
 }
 
 .v5-representation-lifecycle li {
@@ -1075,6 +1117,7 @@
 
   .v5-form-grid,
   .v5-upload-grid,
+  .v5-sharing-groups,
   .v5-sync-grid,
   .v5-facts,
   .v5-facts--compact,

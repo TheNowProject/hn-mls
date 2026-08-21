@@ -69,12 +69,12 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 
 | Runtime account | Mutable commands in VMLS | Read projection |
 |---|---|---|
-| Môi giới | `REQUEST_SELLER_CONFIRMATION` for the assigned NPID; after confirmation, `SUBMIT_TRANSACTION_DECLARATION` for the created PLID | Assigned NPID and Representation request state; after confirmation, PLID, matched HouseNow snapshot, accepted declaration, PTID, and safe processing milestones |
+| Môi giới | `REQUEST_SELLER_CONFIRMATION`; after Seller sharing consent, `PUBLISH_LISTING_TO_HOUSENOW`; after publication, `SUBMIT_TRANSACTION_DECLARATION` | Assigned NPID, Representation, initialized PLID, sharing status, HouseNow publication/snapshot, declaration, PTID, and safe processing milestones |
 | Sàn môi giới | None | Organization-scoped Listing/transaction monitoring projection |
-| Người bán | `CONFIRM_REPRESENTATION` for the selected pending request; later `MARK_NOTIFICATION_READ` only for a notification addressed to the selected Seller | Own Representation request/confirmation, safe dossier milestone, own notification, and own work item; no Buyer reference, amount, source comparison, or internal history |
+| Người bán | `CONFIRM_REPRESENTATION`, then `CONFIRM_LISTING_SHARING`; later `MARK_NOTIFICATION_READ` only for own notifications | Own Representation and sharing decisions, safe dossier milestone, own notification, and own work item; no Buyer reference, amount, source comparison, or internal history |
 | Người mua | `MARK_NOTIFICATION_READ` only for a notification addressed to the selected Buyer | Own safe dossier milestone, own completion notification, and own collection work item; no Seller reference or tax detail |
 | Vận hành VMLS | `SYNC_TRANSACTION_FROM_357` once; `ADVANCE_EXTERNAL_PROCESSING` for exactly the next configured event | Both source records, per-field reconciliation, external cases/events, obligations, Audit Events, and Integration Events |
-| Public visitor | None | Explicitly allowlisted facts for Listings that currently exist; Phú Thượng PLID/HouseNow provenance appears only after Seller confirmation creates and matches it |
+| Public visitor | None | Explicitly allowlisted facts for Listings that currently exist; Phú Thượng appears only after HouseNow publication |
 
 Only these five accounts are available in the V5 account switcher. Bank, Developer, VPCC, Tax, VPĐKĐĐ, VNeID, and agency-operation workspaces are outside V5 runtime scope. This does not remove their distinct Party/Organization/Role concepts from the broader canonical model.
 
@@ -82,13 +82,14 @@ Only these five accounts are available in the V5 account switcher. Bank, Develop
 
 - `PROPOSAL`: the initial/reset Phú Thượng state contains the Property/NPID and a `Representation` in `Chưa gửi`; it contains no Phú Thượng Listing/PLID and no matched HouseNow snapshot in a role projection.
 - `REQUEST_SELLER_CONFIRMATION` is Agent-only. Its exact payload is `{ propertyId, scope, startsOn, expiresOn }`; it must target the configured NPID and an allowed scope/effective period. Success moves Representation from `Chưa gửi` to `Chờ xác nhận` but creates no Listing.
-- `CONFIRM_REPRESENTATION` is Seller-only, accepts only `{ accepted: true }`, and requires the pending request. Success atomically moves Representation to `Đã xác nhận`, creates the configured PLID with status `Đã khởi tạo`, and exposes the configured matched `HouseNowListingSnapshot`.
+- `CONFIRM_REPRESENTATION` is Seller-only, accepts only `{ accepted: true }`, and requires the pending request. Success moves Representation to `Đã xác nhận` and creates the configured PLID with status `Đã khởi tạo`, without a HouseNow snapshot.
+- `CONFIRM_LISTING_SHARING` is Seller-only and records an exact allowlist containing all required groups. `PUBLISH_LISTING_TO_HOUSENOW` is Agent-only, one-shot, and unavailable until that consent exists; success records the configured acknowledgement and immutable `HouseNowListingSnapshot`.
 - Wrong actor, malformed/extra input, out-of-order request/confirmation, or replay leaves every record and history unchanged.
-- `Đã khởi tạo` and snapshot matching grant no Listing activation, approval, publication, public-distribution, HouseNow-send, or HouseNow-acknowledgement claim. V5 provides no command for those outcomes.
+- `Đã khởi tạo` alone grants no publication claim. The explicit publication command demonstrates a configured client-side handoff/acknowledgement only, not a live API or legal approval.
 
 ### Transaction-declaration rules
 
-- `SUBMIT_TRANSACTION_DECLARATION` is Agent-only, scoped to the configured Phú Thượng PLID, and unavailable until the Representation is `Đã xác nhận` and effective for the configured contract/notarization/submission dates, the Listing is `Đã khởi tạo`, and the HouseNow snapshot is matched.
+- `SUBMIT_TRANSACTION_DECLARATION` is Agent-only, scoped to the configured Phú Thượng PLID, and unavailable until Representation is confirmed/effective, Seller sharing consent exists, and HouseNow publication/snapshot are recorded.
 - The command takes only Buyer reference, whole-VND transaction value, contract number/date, notary organization/date, required notarized-transfer-contract PDF metadata, and optional deposit-contract PDF metadata. NPID, PLID, and Seller are resolved from the Listing, not trusted from editable input.
 - The form may open when the Representation is effective at the fixture submission timestamp; the reducer separately requires contract date ≤ notarization timestamp ≤ submission timestamp and requires all configured dates to remain inside that Representation period.
 - File metadata is validated and stored; file bytes, base64, object URLs, and local paths are not domain state.
@@ -97,7 +98,7 @@ Only these five accounts are available in the V5 account switcher. Bank, Develop
 
 ### HouseNow and 357 source rules
 
-- After Seller confirmation, Public search and the Agent view may consume the allowlisted matched `HouseNowListingSnapshot`; the Public result uses the source snapshot's `Đang bán` status while the internal VMLS Listing remains `Đã khởi tạo` and the outbound channel remains `Chưa phát hành`. The snapshot is separate from Property and Listing and cannot be mutated by transaction commands. Its appearance records deterministic fixture matching only, not an outbound distribution event.
+- After the explicit HouseNow publication command, Public search and the Agent view may consume the allowlisted `HouseNowListingSnapshot`; before it, Phú Thượng remains private and declaration stays gated. The snapshot is separate from Property and Listing and cannot be mutated by transaction commands.
 - `SYNC_TRANSACTION_FROM_357` is VMLS Ops-only and one-shot after declaration. It accepts the exact configured source record shape and never accepts VMLS fields as authoritative source updates.
 - Declaration and 357 records remain side by side. Reconciliation assigns `matched`, `mismatched`, `missing_in_vmls`, or `missing_in_357` per configured field.
 - Mismatch or missing values do not overwrite either source and do not gate external-status progression. Only Ops sees detailed reconciliation.

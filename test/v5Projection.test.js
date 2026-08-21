@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   PRIMARY_DECLARATION_PAYLOAD,
+  PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  PRIMARY_LISTING_SHARING_PAYLOAD,
   PRIMARY_REPRESENTATION_REQUEST_PAYLOAD,
   TRANSACTION_357_FIXTURE,
 } from '../src/demo/v5Data.js'
@@ -27,6 +29,8 @@ function createListedState() {
     PRIMARY_REPRESENTATION_REQUEST_PAYLOAD,
   )
   state = reduce(state, V5_ACTIONS.CONFIRM_REPRESENTATION, 'seller', { accepted: true })
+  state = reduce(state, V5_ACTIONS.CONFIRM_LISTING_SHARING, 'seller', PRIMARY_LISTING_SHARING_PAYLOAD)
+  state = reduce(state, V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW, 'agent', PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD)
   return state
 }
 
@@ -71,11 +75,27 @@ test('the Public projection withholds the unborn primary PLID and pending Repres
     { accepted: true },
   )
   const listedProjection = projectV5Public(listed)
-  assert.equal(listedProjection.listings.length, 5)
-  assert.equal(listedProjection.listings[0].id, 'PLID-HN-00208')
-  assert.equal(listedProjection.listings[0].status, 'Đang bán')
-  assert.equal(listedProjection.listings[0].provenance.source, 'HouseNow')
+  assert.equal(listedProjection.listings.length, 4)
   assert.equal(listed.records.listing.status, 'Đã khởi tạo')
+
+  const sharingConfirmed = reduce(
+    listed,
+    V5_ACTIONS.CONFIRM_LISTING_SHARING,
+    'seller',
+    PRIMARY_LISTING_SHARING_PAYLOAD,
+  )
+  assert.equal(projectV5Public(sharingConfirmed).listings.length, 4)
+  const published = reduce(
+    sharingConfirmed,
+    V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+    'agent',
+    PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+  )
+  const publishedProjection = projectV5Public(published)
+  assert.equal(publishedProjection.listings.length, 5)
+  assert.equal(publishedProjection.listings[0].id, 'PLID-HN-00208')
+  assert.equal(publishedProjection.listings[0].status, 'Đang bán')
+  assert.equal(publishedProjection.listings[0].provenance.source, 'HouseNow')
 
   const completed = advance(submit(), 6)
   const projected = projectV5Public(completed)
@@ -195,9 +215,9 @@ test('five account projections independently allowlist operational data', () => 
   assert.equal('declaration' in seller, false)
   assert.equal('houseNowSnapshot' in seller, false)
   assert.equal('reconciliation' in seller, false)
-  assert.equal(seller.notifications.length, 2)
+  assert.equal(seller.notifications.length, 3)
   assert.equal(seller.notifications.every(({ recipientRole }) => recipientRole === 'seller'), true)
-  assert.equal(seller.workItems.length, 2)
+  assert.equal(seller.workItems.length, 3)
   assert.equal(seller.unreadCount, 1)
   assert.equal('sourceCaseId' in seller.processing.tax, false)
   assert.equal('appointmentRef' in seller.processing.tax, false)
@@ -237,10 +257,12 @@ test('Seller and Buyer inboxes never expose another account notification', () =>
 
   assert.deepEqual(seller.notifications.map(({ id }) => id), [
     'NOTIF-SELLER-REPRESENTATION-REQUEST',
+    'NOTIF-SELLER-LISTING-SHARING',
     'NOTIF-SELLER-TAX-DUE',
   ])
   assert.deepEqual(seller.workItems.map(({ id }) => id), [
     'WORK-SELLER-CONFIRM-REPRESENTATION',
+    'WORK-SELLER-CONFIRM-LISTING-SHARING',
     'WORK-SELLER-TAX-DUE',
   ])
   assert.deepEqual(buyer.notifications.map(({ id }) => id), ['NOTIF-BUYER-LAND-COMPLETE'])

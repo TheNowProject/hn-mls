@@ -19,6 +19,8 @@ import {
 import BrandMark from './BrandMark.jsx'
 import {
   HOUSING_MARKET_INFORMATION_SYSTEM_NAME,
+  LISTING_SHARING_GROUPS,
+  PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
   TRANSACTION_357_FIXTURE,
 } from '../demo/v5Data.js'
 import { V5_ACTIONS } from '../demo/v5Journey.js'
@@ -360,10 +362,12 @@ function RepresentationConfirmationPanel({ property, representation, parties, on
   )
 }
 
-function RepresentationLifecycle({ representation, listing }) {
+function RepresentationLifecycle({ representation, listing, listingSharing, houseNowDistribution }) {
   const requested = Boolean(representation?.request ?? representation?.requestedAt)
   const confirmed = representation?.status === 'Đã xác nhận'
-  const currentIndex = !requested ? 0 : !confirmed ? 1 : !listing ? 2 : -1
+  const sharingConfirmed = listingSharing?.status === 'Đã xác nhận'
+  const published = houseNowDistribution?.status === 'Đã phát hành'
+  const currentIndex = !requested ? 0 : !confirmed ? 1 : !listing ? 2 : !sharingConfirmed ? 3 : !published ? 4 : -1
   const stages = [
     {
       label: 'Môi giới gửi thông tin',
@@ -380,12 +384,22 @@ function RepresentationLifecycle({ representation, listing }) {
       status: listing ? 'Tin bán đã khởi tạo' : 'Chưa cấp PLID',
       done: Boolean(listing),
     },
+    {
+      label: 'Người bán xác nhận chia sẻ',
+      status: sharingConfirmed ? 'Đã xác nhận' : listing ? 'Chờ xác nhận' : 'Chưa bắt đầu',
+      done: sharingConfirmed,
+    },
+    {
+      label: 'Đăng lên HouseNow',
+      status: published ? 'Đã phát hành' : sharingConfirmed ? 'Sẵn sàng đăng' : 'Chưa bắt đầu',
+      done: published,
+    },
   ]
   return (
     <section className="v5-representation-lifecycle" aria-labelledby="representation-lifecycle-title" data-testid="representation-lifecycle">
       <header>
         <div><span className="v5-eyebrow">Trình tự trước giao dịch</span><h2 id="representation-lifecycle-title">Quyền đại diện → Tin bán</h2></div>
-        <StatusBadge>{listing ? 'Tin bán đã khởi tạo' : representation?.status ?? 'Chưa gửi'}</StatusBadge>
+        <StatusBadge>{published ? 'Đã phát hành lên HouseNow' : listing ? 'Tin bán đã khởi tạo' : representation?.status ?? 'Chưa gửi'}</StatusBadge>
       </header>
       <ol>
         {stages.map((stage, index) => (
@@ -399,7 +413,7 @@ function RepresentationLifecycle({ representation, listing }) {
   )
 }
 
-function ListingCreatedPanel({ listing, representation }) {
+function ListingCreatedPanel({ listing, representation, houseNowDistribution }) {
   if (!listing) return null
   return (
     <section className="v5-panel" data-testid="listing-created-panel">
@@ -410,8 +424,101 @@ function ListingCreatedPanel({ listing, representation }) {
       <dl className="v5-facts">
         <div><dt>PLID</dt><dd className="v5-mono">{listing.id}</dd></div>
         <div><dt>Quyền đại diện</dt><dd>{representation?.status ?? 'Đã xác nhận'}</dd></div>
-        <div><dt>Kênh HouseNow</dt><dd><StatusBadge>Chưa phát hành</StatusBadge></dd></div>
+        <div><dt>Kênh HouseNow</dt><dd><StatusBadge>{houseNowDistribution?.status ?? 'Chưa phát hành'}</StatusBadge></dd></div>
       </dl>
+    </section>
+  )
+}
+
+function ListingSharingPanel({ listing, sharing, canConfirm, onDispatch }) {
+  const [selectedGroups, setSelectedGroups] = useState(() => new Set(LISTING_SHARING_GROUPS.map(({ id }) => id)))
+  const [accepted, setAccepted] = useState(false)
+  if (!listing || (!canConfirm && !sharing)) return null
+
+  const visibleGroups = sharing?.visibleGroups ?? LISTING_SHARING_GROUPS
+    .filter(({ id }) => selectedGroups.has(id))
+    .map(({ id }) => id)
+
+  function toggleGroup(group) {
+    if (group.required || sharing) return
+    setSelectedGroups((current) => {
+      const next = new Set(current)
+      if (next.has(group.id)) next.delete(group.id)
+      else next.add(group.id)
+      return next
+    })
+  }
+
+  function submit(event) {
+    event.preventDefault()
+    if (!accepted) return
+    onDispatch({
+      type: V5_ACTIONS.CONFIRM_LISTING_SHARING,
+      actor: 'seller',
+      payload: { accepted: true, visibleGroups },
+    })
+  }
+
+  const formContent = <>
+    <div className="v5-sharing-groups">
+      {LISTING_SHARING_GROUPS.map((group) => {
+        const checked = visibleGroups.includes(group.id)
+        return (
+          <label key={group.id} className={group.required ? 'is-required' : ''}>
+            <input type="checkbox" checked={checked} disabled={Boolean(sharing) || group.required} onChange={() => toggleGroup(group)} />
+            <span><strong>{group.label}</strong><small>{group.required ? 'Bắt buộc để nhận biết Tin bán' : 'Người bán có thể chọn chia sẻ'}</small></span>
+          </label>
+        )
+      })}
+    </div>
+    {canConfirm ? <>
+      <label className="v5-review-checkbox">
+        <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
+        <span>Tôi đã kiểm tra và xác nhận các thông tin được chia sẻ khi đăng Tin bán lên HouseNow.</span>
+      </label>
+      <button className="v5-primary-button" type="submit" disabled={!accepted} data-testid="confirm-listing-sharing">
+        Xác nhận thông tin chia sẻ <Check weight="bold" aria-hidden="true" />
+      </button>
+    </> : null}
+  </>
+
+  return canConfirm ? (
+    <form id="listing-sharing" className="v5-panel" onSubmit={submit} data-testid="listing-sharing-panel" tabIndex="-1">
+      <header><div><span className="v5-eyebrow">Người bán</span><h2>Xác nhận thông tin được chia sẻ</h2><p>Chọn đúng phạm vi dữ liệu trước khi Môi giới đăng Tin bán.</p></div><StatusBadge>Chờ xác nhận</StatusBadge></header>
+      {formContent}
+    </form>
+  ) : (
+    <section id="listing-sharing" className="v5-panel" data-testid="listing-sharing-panel" tabIndex="-1">
+      <header><div><span className="v5-eyebrow">Phạm vi công khai</span><h2>Thông tin chia sẻ đã được xác nhận</h2></div><StatusBadge>Đã xác nhận</StatusBadge></header>
+      {formContent}
+    </section>
+  )
+}
+
+function HouseNowPublicationPanel({ listing, sharing, distribution, canPublish, onDispatch }) {
+  if (!listing || (!sharing && !distribution)) return null
+  return (
+    <section className="v5-panel" data-testid="housenow-publication-panel">
+      <header>
+        <div><span className="v5-eyebrow">Kênh phân phối Tin bán</span><h2>Đăng Tin bán lên HouseNow</h2><p>Chỉ phát hành các nhóm thông tin Người bán đã xác nhận.</p></div>
+        <StatusBadge>{distribution?.status ?? (canPublish ? 'Sẵn sàng đăng' : 'Chờ Môi giới')}</StatusBadge>
+      </header>
+      <dl className="v5-facts v5-facts--compact">
+        <div><dt>PLID</dt><dd className="v5-mono">{listing.id}</dd></div>
+        <div><dt>Kênh nhận</dt><dd>HouseNow</dd></div>
+        <div><dt>Xác nhận của Người bán</dt><dd>{sharing?.status ?? 'Chưa có'}</dd></div>
+        <div><dt>HouseNow acknowledgement</dt><dd>{distribution ? formatTimestamp(distribution.acknowledgedAt) : 'Chưa có'}</dd></div>
+      </dl>
+      {canPublish ? <button
+        className="v5-primary-button"
+        type="button"
+        data-testid="publish-to-housenow"
+        onClick={() => onDispatch({
+          type: V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW,
+          actor: 'agent',
+          payload: PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
+        })}
+      >Đăng Tin bán lên HouseNow <ArrowRight aria-hidden="true" /></button> : null}
     </section>
   )
 }
@@ -536,7 +643,7 @@ function HouseNowSnapshotPanel({ snapshot }) {
         <div><dt>Cập nhật tại HouseNow</dt><dd>{formatTimestamp(snapshot.sourceUpdatedAt)}</dd></div>
         <div><dt>VMLS nhận snapshot</dt><dd>{formatTimestamp(snapshot.retrievedAt)}</dd></div>
         <div><dt>Đối soát định danh</dt><dd>Đã khớp NPID · PLID</dd></div>
-        <div><dt>Phân phối từ VMLS</dt><dd>Chưa phát hành</dd></div>
+        <div><dt>Phân phối từ VMLS</dt><dd>Đã phát hành</dd></div>
       </dl>
     </section>
   )
@@ -688,14 +795,22 @@ function roleIntro(roleId, projection) {
   const listingReady = Boolean(projection.listing)
   const copy = {
     agent: listingReady
-      ? ['Khai báo giao dịch', 'Tin bán đã được khởi tạo; tiếp tục khai báo giao dịch đã công chứng và bàn giao hồ sơ sang Thuế.']
+      ? projection.houseNowDistribution
+        ? ['Khai báo giao dịch', 'Tin bán đã phát hành lên HouseNow; tiếp tục khai báo giao dịch đã công chứng và bàn giao hồ sơ sang Thuế.']
+        : projection.listingSharing
+          ? ['Đăng Tin bán', 'Người bán đã xác nhận thông tin chia sẻ; phát hành Tin bán lên HouseNow.']
+          : ['Chờ xác nhận thông tin chia sẻ', 'Tin bán đã khởi tạo; Người bán cần xác nhận phạm vi dữ liệu trước khi phát hành.']
       : ['Thiết lập quyền đại diện', 'Gửi phạm vi và thời hạn đại diện để Người bán kiểm tra trước khi VMLS khởi tạo Tin bán.'],
     brokerage: listingReady
       ? ['Giám sát giao dịch', 'Theo dõi Tin bán, khai báo của Môi giới và tiến độ liên cơ quan, không có gate duyệt.']
       : ['Giám sát quyền đại diện', 'Theo dõi đề nghị của Môi giới và xác nhận của Người bán; Sàn không xác nhận thay hai bên.'],
     seller: representationPending
       ? ['Xác nhận quyền đại diện', 'Kiểm tra Bất động sản, Môi giới, phạm vi và thời hạn trước khi xác nhận.']
-      : ['Hồ sơ của Người bán', listingReady ? 'Theo dõi Tin bán và các thông báo liên quan đến hồ sơ.' : 'Chờ Môi giới gửi thông tin quyền đại diện.'],
+      : ['Hồ sơ của Người bán', projection.listingSharing
+        ? 'Thông tin chia sẻ đã được xác nhận; theo dõi Tin bán và các thông báo liên quan.'
+        : listingReady
+          ? 'Xác nhận thông tin được chia sẻ trước khi Tin bán được đăng lên HouseNow.'
+          : 'Chờ Môi giới gửi thông tin quyền đại diện.'],
     buyer: projection.transaction?.id
       ? ['Hồ sơ của Người mua', 'Theo dõi tiến độ và nhận thông báo đến lấy Giấy chứng nhận khi hoàn tất.']
       : ['Hồ sơ của Người mua', 'Chưa có giao dịch nào được chia sẻ với tài khoản này.'],
@@ -735,9 +850,11 @@ export function V5Workspace({
     }
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        const representationPanel = document.getElementById('representation')
-        representationPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        representationPanel?.focus({ preventScroll: true })
+        const target = notification.listingId
+          ? document.getElementById('listing-sharing')
+          : document.getElementById('representation')
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        target?.focus({ preventScroll: true })
       })
     })
   }
@@ -748,7 +865,9 @@ export function V5Workspace({
     if (projection.processing?.tax) return readableStatus(projection.processing.tax.status)
     if (projection.transaction?.id) return 'Đã tạo giao dịch và chuyển sang Thuế'
     if (role.id === 'buyer') return 'Chưa có giao dịch được chia sẻ'
-    if (projection.listing) return 'Tin bán đã khởi tạo'
+    if (projection.houseNowDistribution?.status === 'Đã phát hành') return 'Tin bán đã phát hành lên HouseNow'
+    if (projection.listingSharing?.status === 'Đã xác nhận') return 'Chờ Môi giới đăng Tin bán lên HouseNow'
+    if (projection.listing) return 'Chờ Người bán xác nhận thông tin chia sẻ'
     if (!projection.representation) return 'Chưa có giao dịch được chia sẻ'
     if (projection.representation?.status === 'Chờ xác nhận') return 'Chờ Người bán xác nhận'
     return 'Chờ gửi thông tin đến Người bán'
@@ -761,6 +880,10 @@ export function V5Workspace({
   const canSubmitDeclaration = role.id === 'agent'
     && Boolean(projection.listing)
     && hasAction(projection, V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION)
+  const canConfirmListingSharing = role.id === 'seller'
+    && hasAction(projection, V5_ACTIONS.CONFIRM_LISTING_SHARING)
+  const canPublishToHouseNow = role.id === 'agent'
+    && hasAction(projection, V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW)
   const showPendingRepresentation = projection.representation?.status === 'Chờ xác nhận'
     && !canConfirmRepresentation
   const hasDossier = Boolean(projection.property)
@@ -814,11 +937,29 @@ export function V5Workspace({
             </> : <header><div><span>Hồ sơ được chia sẻ</span><h2>Chưa có hồ sơ</h2><p>Tài khoản này chưa được gắn với giao dịch nào.</p></div></header>}
           </section>
 
-          {projection.representation ? <RepresentationLifecycle representation={projection.representation} listing={projection.listing} /> : null}
+          {projection.representation ? <RepresentationLifecycle
+            representation={projection.representation}
+            listing={projection.listing}
+            listingSharing={projection.listingSharing}
+            houseNowDistribution={projection.houseNowDistribution}
+          /> : null}
           {canRequestRepresentation ? <RepresentationRequestForm property={projection.property} representation={projection.representation} parties={parties} onDispatch={onDispatch} /> : null}
           {canConfirmRepresentation ? <RepresentationConfirmationPanel property={projection.property} representation={projection.representation} parties={parties} onDispatch={onDispatch} /> : null}
           {showPendingRepresentation ? <RepresentationPendingSummary representation={projection.representation} parties={parties} /> : null}
-          <ListingCreatedPanel listing={projection.listing} representation={projection.representation} />
+          <ListingCreatedPanel listing={projection.listing} representation={projection.representation} houseNowDistribution={projection.houseNowDistribution} />
+          <ListingSharingPanel
+            listing={projection.listing}
+            sharing={projection.listingSharing}
+            canConfirm={canConfirmListingSharing}
+            onDispatch={onDispatch}
+          />
+          <HouseNowPublicationPanel
+            listing={projection.listing}
+            sharing={projection.listingSharing}
+            distribution={projection.houseNowDistribution}
+            canPublish={canPublishToHouseNow}
+            onDispatch={onDispatch}
+          />
           <HouseNowSnapshotPanel snapshot={projection.houseNowSnapshot} />
           {canSubmitDeclaration ? <DeclarationForm listing={projection.listing} onDispatch={onDispatch} /> : null}
           {role.id === 'vmls' ? <OpsControls projection={projection} nextMilestone={nextMilestone} onDispatch={onDispatch} /> : null}

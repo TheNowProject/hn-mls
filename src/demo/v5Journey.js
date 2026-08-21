@@ -3,7 +3,9 @@
 import {
   HOUSE_NOW_SNAPSHOT,
   HOUSING_MARKET_INFORMATION_SYSTEM_NAME,
+  LISTING_SHARING_GROUPS,
   PRIMARY_DECLARATION_PAYLOAD,
+  PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD,
   PRIMARY_LISTING,
   PRIMARY_LISTING_ID,
   PRIMARY_PROPERTY,
@@ -19,6 +21,8 @@ import {
 export const V5_ACTIONS = Object.freeze({
   REQUEST_SELLER_CONFIRMATION: 'REQUEST_SELLER_CONFIRMATION',
   CONFIRM_REPRESENTATION: 'CONFIRM_REPRESENTATION',
+  CONFIRM_LISTING_SHARING: 'CONFIRM_LISTING_SHARING',
+  PUBLISH_LISTING_TO_HOUSENOW: 'PUBLISH_LISTING_TO_HOUSENOW',
   SUBMIT_TRANSACTION_DECLARATION: 'SUBMIT_TRANSACTION_DECLARATION',
   SYNC_TRANSACTION_FROM_357: 'SYNC_TRANSACTION_FROM_357',
   ADVANCE_EXTERNAL_PROCESSING: 'ADVANCE_EXTERNAL_PROCESSING',
@@ -27,6 +31,8 @@ export const V5_ACTIONS = Object.freeze({
 
 const REPRESENTATION_REQUESTED_AT = '2026-08-11T08:38:00+07:00'
 const REPRESENTATION_CONFIRMED_AT = '2026-08-12T10:10:00+07:00'
+const LISTING_SHARING_CONFIRMED_AT = '2026-08-12T10:20:00+07:00'
+const HOUSENOW_PUBLISHED_AT = '2026-08-20T08:30:00+07:00'
 const SUBMITTED_AT = '2026-08-21T08:45:00+07:00'
 const SOURCE_357_RECEIVED_AT = '2026-08-21T09:06:00+07:00'
 const TRANSACTION_ID = 'PTID-HN-00062'
@@ -146,6 +152,25 @@ function isRepresentationRequestPayload(payload) {
 
 function isRepresentationConfirmationPayload(payload) {
   return hasExactKeys(payload, ['accepted']) && payload.accepted === true
+}
+
+function isListingSharingPayload(payload) {
+  if (!hasExactKeys(payload, ['accepted', 'visibleGroups']) || payload.accepted !== true) return false
+  return hasValidVisibleGroups(payload.visibleGroups)
+}
+
+function hasValidVisibleGroups(groups) {
+  if (!Array.isArray(groups) || new Set(groups).size !== groups.length) return false
+  const allowed = LISTING_SHARING_GROUPS.map(({ id }) => id)
+  const required = LISTING_SHARING_GROUPS.filter(({ required }) => required).map(({ id }) => id)
+  return groups.every((group) => allowed.includes(group))
+    && required.every((group) => groups.includes(group))
+    && groups.every((group, index) => group === allowed.filter((id) => groups.includes(id))[index])
+}
+
+function isHouseNowPublicationPayload(payload) {
+  return hasExactKeys(payload, ['listingId'])
+    && payload.listingId === PRIMARY_HOUSENOW_PUBLICATION_PAYLOAD.listingId
 }
 
 function representationCoversDate(representation, date) {
@@ -293,11 +318,41 @@ function hasValidRepresentationState(representation) {
   return false
 }
 
+function hasValidListingSharing(sharing) {
+  return hasExactKeys(sharing, ['listingId', 'status', 'visibleGroups', 'confirmedAt', 'confirmedBy'])
+    && sharing.listingId === PRIMARY_LISTING_ID
+    && sharing.status === 'Đã xác nhận'
+    && sharing.confirmedBy === 'seller'
+    && sharing.confirmedAt === LISTING_SHARING_CONFIRMED_AT
+    && hasValidVisibleGroups(sharing.visibleGroups)
+}
+
+function hasValidHouseNowDistribution(distribution) {
+  return hasExactKeys(distribution, [
+    'id',
+    'listingId',
+    'channel',
+    'status',
+    'sentAt',
+    'acknowledgedAt',
+    'externalListingId',
+  ])
+    && distribution.id === 'DIST-HN-PLID-HN-00208'
+    && distribution.listingId === PRIMARY_LISTING_ID
+    && distribution.channel === 'HouseNow'
+    && distribution.status === 'Đã phát hành'
+    && distribution.sentAt === HOUSENOW_PUBLISHED_AT
+    && distribution.acknowledgedAt === HOUSENOW_PUBLISHED_AT
+    && distribution.externalListingId === HOUSE_NOW_SNAPSHOT.externalListingId
+}
+
 function isV5State(state) {
   const records = state?.records
   const representation = records?.representation
   const transaction = records?.transaction
   const hasUnbornListing = records?.listing === null
+    && records?.listingSharing === null
+    && records?.houseNowDistribution === null
     && records?.houseNowSnapshot === null
     && transaction?.listingId === null
     && transaction?.id === null
@@ -311,9 +366,19 @@ function isV5State(state) {
     && records?.listing?.propertyId === records?.property?.id
     && records?.listing?.representationId === PRIMARY_REPRESENTATION.id
     && records?.listing?.seller?.reference === PRIMARY_REPRESENTATION.parties.seller.reference
-    && records?.houseNowSnapshot?.id === HOUSE_NOW_SNAPSHOT.id
     && transaction?.listingId === PRIMARY_LISTING_ID
     && representation?.status === 'Đã xác nhận'
+    && (
+      (records?.listingSharing === null
+        && records?.houseNowDistribution === null
+        && records?.houseNowSnapshot === null)
+      || (hasValidListingSharing(records?.listingSharing)
+        && records?.houseNowDistribution === null
+        && records?.houseNowSnapshot === null)
+      || (hasValidListingSharing(records?.listingSharing)
+        && hasValidHouseNowDistribution(records?.houseNowDistribution)
+        && records?.houseNowSnapshot?.id === HOUSE_NOW_SNAPSHOT.id)
+    )
 
   return Boolean(
     state
@@ -429,9 +494,23 @@ export function allowedV5ActionsFor(state, roleId) {
   if (roleId === 'seller' && state.records.representation.status === 'Chờ xác nhận') {
     allowed.push(V5_ACTIONS.CONFIRM_REPRESENTATION)
   }
+  if (roleId === 'seller'
+    && state.records.representation.status === 'Đã xác nhận'
+    && state.records.listing
+    && !state.records.listingSharing) {
+    allowed.push(V5_ACTIONS.CONFIRM_LISTING_SHARING)
+  }
+  if (roleId === 'agent'
+    && state.records.listingSharing?.status === 'Đã xác nhận'
+    && representationCoversDate(state.records.representation, HOUSENOW_PUBLISHED_AT.slice(0, 10))
+    && !state.records.houseNowDistribution) {
+    allowed.push(V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW)
+  }
   if (roleId === 'agent'
     && state.records.representation.status === 'Đã xác nhận'
     && state.records.listing
+    && state.records.houseNowDistribution?.status === 'Đã phát hành'
+    && state.records.houseNowSnapshot
     && representationCoversDate(
       state.records.representation,
       SUBMITTED_AT.slice(0, 10),
@@ -472,7 +551,8 @@ function projectPublicListing(listing) {
 export function projectV5Public(state) {
   if (!isV5State(state)) return { dataLabel: 'Bộ dữ liệu mẫu', listings: [] }
   const otherListings = PUBLIC_LISTINGS.filter(({ id }) => id !== PRIMARY_LISTING_ID)
-  const primarySourceListing = state.records.listing && state.records.houseNowSnapshot
+  const primarySourceListing = state.records.houseNowDistribution?.status === 'Đã phát hành'
+    && state.records.houseNowSnapshot
     ? PUBLIC_LISTINGS.find(({ id }) => id === PRIMARY_LISTING_ID)
     : null
   const listings = primarySourceListing
@@ -596,6 +676,10 @@ export function projectV5StateForRole(state, roleId) {
     dataLabel: state.dataLabel,
     property: buyerHasDossier ? projectProperty(state.records.property) : null,
     listing: buyerHasDossier ? projectPublicListing(state.records.listing) : null,
+    listingSharing: buyerHasDossier && roleId !== 'buyer' ? clone(state.records.listingSharing) : null,
+    houseNowDistribution: buyerHasDossier && roleId !== 'buyer'
+      ? clone(state.records.houseNowDistribution)
+      : null,
     transaction: buyerHasDossier ? projectTransaction(state.records.transaction) : null,
     processing: {
       tax: buyerHasDossier ? projectCase(state.records.taxCase, canViewSourceDetails) : null,
@@ -664,6 +748,8 @@ export function createV5InitialState() {
         parties: clone(PRIMARY_REPRESENTATION.parties),
       },
       listing: null,
+      listingSharing: null,
+      houseNowDistribution: null,
       houseNowSnapshot: null,
       declaration: null,
       transaction: {
@@ -818,23 +904,48 @@ function confirmRepresentation(state, action) {
       ...state.records,
       representation,
       listing,
-      houseNowSnapshot: HOUSE_NOW_SNAPSHOT,
       transaction: {
         ...state.records.transaction,
         listingId: listing.id,
-        status: 'Chờ khai báo',
+        status: 'Chờ xác nhận thông tin chia sẻ',
       },
     },
-    notifications: state.notifications.map((notification) => (
-      notification.id === 'NOTIF-SELLER-REPRESENTATION-REQUEST' && !notification.readAt
-        ? { ...notification, readAt: REPRESENTATION_CONFIRMED_AT }
-        : notification
-    )),
-    workItems: state.workItems.map((item) => (
-      item.id === 'WORK-SELLER-CONFIRM-REPRESENTATION'
-        ? { ...item, status: 'resolved', resolvedAt: REPRESENTATION_CONFIRMED_AT }
-        : item
-    )),
+    notifications: [
+      ...state.notifications.map((notification) => (
+        notification.id === 'NOTIF-SELLER-REPRESENTATION-REQUEST' && !notification.readAt
+          ? { ...notification, readAt: REPRESENTATION_CONFIRMED_AT }
+          : notification
+      )),
+      {
+        id: 'NOTIF-SELLER-LISTING-SHARING',
+        recipientRole: 'seller',
+        caseId: state.caseId,
+        listingId: listing.id,
+        title: 'Cần xác nhận thông tin chia sẻ',
+        message: 'Kiểm tra phạm vi thông tin của Tin bán trước khi Môi giới phát hành lên HouseNow.',
+        route: '#/vai-tro/seller/cong-viec',
+        createdAt: REPRESENTATION_CONFIRMED_AT,
+        readAt: null,
+      },
+    ],
+    workItems: [
+      ...state.workItems.map((item) => (
+        item.id === 'WORK-SELLER-CONFIRM-REPRESENTATION'
+          ? { ...item, status: 'resolved', resolvedAt: REPRESENTATION_CONFIRMED_AT }
+          : item
+      )),
+      {
+        id: 'WORK-SELLER-CONFIRM-LISTING-SHARING',
+        ownerRole: 'seller',
+        caseId: state.caseId,
+        listingId: listing.id,
+        label: 'Xác nhận thông tin chia sẻ của Tin bán',
+        status: 'open',
+        resolution: 'Cần xác nhận trong VMLS',
+        createdAt: REPRESENTATION_CONFIRMED_AT,
+        resolvedAt: null,
+      },
+    ],
     auditEvents: [
       ...state.auditEvents,
       {
@@ -878,11 +989,131 @@ function confirmRepresentation(state, action) {
   }
 }
 
+function confirmListingSharing(state, action) {
+  if (action.actor !== 'seller' || !isListingSharingPayload(action.payload)) return state
+  if (state.records.representation.status !== 'Đã xác nhận'
+    || !state.records.listing
+    || state.records.listingSharing) return state
+
+  const listingSharing = {
+    listingId: state.records.listing.id,
+    status: 'Đã xác nhận',
+    visibleGroups: [...action.payload.visibleGroups],
+    confirmedAt: LISTING_SHARING_CONFIRMED_AT,
+    confirmedBy: 'seller',
+  }
+  const auditId = `AUDIT-V5-${String(state.auditEvents.length + 1).padStart(3, '0')}`
+  const integrationId = `INTEGRATION-V5-${String(state.integrationEvents.length + 1).padStart(3, '0')}`
+
+  return {
+    ...state,
+    records: {
+      ...state.records,
+      listingSharing,
+      transaction: { ...state.records.transaction, status: 'Chờ phát hành HouseNow' },
+    },
+    notifications: state.notifications.map((notification) => (
+      notification.id === 'NOTIF-SELLER-LISTING-SHARING' && !notification.readAt
+        ? { ...notification, readAt: LISTING_SHARING_CONFIRMED_AT }
+        : notification
+    )),
+    workItems: state.workItems.map((item) => (
+      item.id === 'WORK-SELLER-CONFIRM-LISTING-SHARING'
+        ? { ...item, status: 'resolved', resolution: 'Đã xác nhận', resolvedAt: LISTING_SHARING_CONFIRMED_AT }
+        : item
+    )),
+    auditEvents: [...state.auditEvents, {
+      id: auditId,
+      type: 'listing_sharing_confirmed',
+      actorRole: 'seller',
+      actorOrganization: roleOrganization('seller'),
+      actorContext: roleAccountContext('seller'),
+      reason: 'Người bán xác nhận thông tin được chia sẻ của Tin bán',
+      targetType: 'Listing',
+      targetId: state.records.listing.id,
+      before: { status: 'Chờ xác nhận' },
+      after: { status: 'Đã xác nhận', visibleGroups: [...listingSharing.visibleGroups] },
+      correlationId: state.records.listing.id,
+      occurredAt: LISTING_SHARING_CONFIRMED_AT,
+    }],
+    integrationEvents: [...state.integrationEvents, {
+      id: integrationId,
+      type: 'listing_sharing_confirmation_received',
+      source: 'seller_account',
+      destination: 'VMLS',
+      listingId: state.records.listing.id,
+      correlationId: state.records.listing.id,
+      occurredAt: LISTING_SHARING_CONFIRMED_AT,
+    }],
+    actionLog: [...state.actionLog, clone(action)],
+  }
+}
+
+function publishListingToHouseNow(state, action) {
+  if (action.actor !== 'agent' || !isHouseNowPublicationPayload(action.payload)) return state
+  if (!state.records.listing
+    || state.records.listingSharing?.status !== 'Đã xác nhận'
+    || !representationCoversDate(state.records.representation, HOUSENOW_PUBLISHED_AT.slice(0, 10))
+    || state.records.houseNowDistribution
+    || state.records.houseNowSnapshot) return state
+
+  const listing = { ...state.records.listing, status: 'Đã phát hành' }
+  const houseNowDistribution = {
+    id: 'DIST-HN-PLID-HN-00208',
+    listingId: listing.id,
+    channel: 'HouseNow',
+    status: 'Đã phát hành',
+    sentAt: HOUSENOW_PUBLISHED_AT,
+    acknowledgedAt: HOUSENOW_PUBLISHED_AT,
+    externalListingId: HOUSE_NOW_SNAPSHOT.externalListingId,
+  }
+  const auditId = `AUDIT-V5-${String(state.auditEvents.length + 1).padStart(3, '0')}`
+  const integrationId = `INTEGRATION-V5-${String(state.integrationEvents.length + 1).padStart(3, '0')}`
+
+  return {
+    ...state,
+    records: {
+      ...state.records,
+      listing,
+      houseNowDistribution,
+      houseNowSnapshot: HOUSE_NOW_SNAPSHOT,
+      transaction: { ...state.records.transaction, status: 'Chờ khai báo' },
+    },
+    auditEvents: [...state.auditEvents, {
+      id: auditId,
+      type: 'listing_published_to_housenow',
+      actorRole: 'agent',
+      actorOrganization: roleOrganization('agent'),
+      reason: 'Môi giới phát hành Tin bán lên HouseNow theo phạm vi Người bán đã xác nhận',
+      targetType: 'Listing',
+      targetId: listing.id,
+      before: { status: 'Đã khởi tạo' },
+      after: { status: 'Đã phát hành', channel: 'HouseNow' },
+      correlationId: listing.id,
+      occurredAt: HOUSENOW_PUBLISHED_AT,
+    }],
+    integrationEvents: [...state.integrationEvents, {
+      id: integrationId,
+      type: 'housenow_listing_published',
+      source: 'VMLS',
+      destination: 'HouseNow',
+      listingId: listing.id,
+      externalListingId: HOUSE_NOW_SNAPSHOT.externalListingId,
+      correlationId: listing.id,
+      occurredAt: HOUSENOW_PUBLISHED_AT,
+    }],
+    actionLog: [...state.actionLog, clone(action)],
+  }
+}
+
 function submitTransactionDeclaration(state, action) {
   if (action.actor !== 'agent' || !isDeclarationPayload(action.payload)) return state
   if (state.records.declaration || state.records.transaction.id) return state
   if (state.records.representation.status !== 'Đã xác nhận'
-    || !state.records.listing || !state.records.houseNowSnapshot) return state
+    || !state.records.listing
+    || state.records.listingSharing?.status !== 'Đã xác nhận'
+    || state.records.houseNowDistribution?.status !== 'Đã phát hành'
+    || !state.records.houseNowSnapshot) return state
 
   const payload = clone(action.payload)
   if (!representationSupportsDeclaration(state.records.representation, payload)) return state
@@ -1308,6 +1539,10 @@ export function v5Reducer(state, action) {
       return requestSellerConfirmation(state, action)
     case V5_ACTIONS.CONFIRM_REPRESENTATION:
       return confirmRepresentation(state, action)
+    case V5_ACTIONS.CONFIRM_LISTING_SHARING:
+      return confirmListingSharing(state, action)
+    case V5_ACTIONS.PUBLISH_LISTING_TO_HOUSENOW:
+      return publishListingToHouseNow(state, action)
     case V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION:
       return submitTransactionDeclaration(state, action)
     case V5_ACTIONS.SYNC_TRANSACTION_FROM_357:
