@@ -54,6 +54,7 @@ function toPublicListing(listing, index) {
     propertyId,
     title,
     propertyType: listing?.propertyType ?? 'Bất động sản',
+    status: listing?.status ?? null,
     location,
     askingPriceDisplay: listing?.askingPriceDisplay ?? 'Liên hệ',
     areaLabel: listing?.areaLabel ?? null,
@@ -218,7 +219,7 @@ function PublicListingCard({ listing }) {
       <header>
         <div>
           {listing.isPrimary ? <span className="landing-v5-primary-label"><Sparkle weight="fill" aria-hidden="true" /> Phú Thượng · hồ sơ demo</span> : <span className="landing-v5-listing-kind">Tin bán công khai</span>}
-          <span className="landing-v5-property-type">{listing.propertyType}</span>
+          <span className="landing-v5-property-type">{listing.propertyType}{listing.status ? ` · ${listing.status}` : ''}</span>
         </div>
         <ShieldCheck weight="duotone" aria-label="Dữ liệu công khai có nguồn" />
       </header>
@@ -266,6 +267,7 @@ export function LandingPage({
     .map(toPublicListing)
     .sort((left, right) => Number(right.isPrimary) - Number(left.isPrimary)
       || left.title.localeCompare(right.title, 'vi')), [listings])
+  const hasPrimaryListing = publicListings.some(({ isPrimary }) => isPrimary)
 
   const normalizedQuery = normalizeText(query).trim()
   const visibleListings = useMemo(() => {
@@ -370,7 +372,11 @@ export function LandingPage({
 
             <div className="landing-v5-result-meta" role="status" aria-live="polite">
               <strong>{visibleListings.length} Tin bán</strong>
-              <span>{normalizedQuery ? `Kết quả cho “${query.trim()}”` : 'Phú Thượng được ghim làm hành trình demo chính'}</span>
+              <span>{normalizedQuery
+                ? `Kết quả cho “${query.trim()}”`
+                : hasPrimaryListing
+                  ? 'Phú Thượng được ghim làm hành trình demo chính'
+                  : 'Hành trình Phú Thượng bắt đầu trong tài khoản Môi giới'}</span>
             </div>
 
             {visibleListings.length ? (
@@ -406,9 +412,9 @@ export function LandingPage({
             </header>
             <ol className="landing-v5-story-steps">
               <li><span>01</span><Fingerprint aria-hidden="true" /><div><strong>Bất động sản</strong><small>NPID giữ định danh bền vững</small></div></li>
-              <li><span>02</span><Signpost aria-hidden="true" /><div><strong>Tin bán</strong><small>PLID gắn với ảnh chụp HouseNow</small></div></li>
-              <li><span>03</span><Database aria-hidden="true" /><div><strong>Đối soát nguồn</strong><small>357 được giữ như một source record</small></div></li>
-              <li><span>04</span><Buildings aria-hidden="true" /><div><strong>Xử lý bên ngoài</strong><small>Thuế và VPĐKĐĐ theo dấu vết sự kiện</small></div></li>
+              <li><span>02</span><ShieldCheck aria-hidden="true" /><div><strong>Quyền đại diện</strong><small>Người bán xác nhận phạm vi và thời hạn</small></div></li>
+              <li><span>03</span><Signpost aria-hidden="true" /><div><strong>Tin bán</strong><small>PLID gắn với ảnh chụp HouseNow</small></div></li>
+              <li><span>04</span><Buildings aria-hidden="true" /><div><strong>Giao dịch</strong><small>357, Thuế và VPĐKĐĐ giữ dấu vết riêng</small></div></li>
             </ol>
           </div>
         </section>

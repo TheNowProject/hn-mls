@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v5'
+const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v6'
 
 async function openRole(page, roleId) {
   await page.goto(`/#/vai-tro/${roleId}/cong-viec`)
@@ -8,7 +8,7 @@ async function openRole(page, roleId) {
 }
 
 async function submitDeclaration(page) {
-  await openRole(page, 'agent')
+  await completeRepresentation(page)
   await page.getByLabel('Hợp đồng chuyển nhượng đã công chứng').setInputFiles({
     name: 'hop-dong-chuyen-nhuong-cong-chung.pdf',
     mimeType: 'application/pdf',
@@ -23,20 +23,46 @@ async function switchRole(page, roleId) {
   await expect(page).toHaveURL(new RegExp(`#\/vai-tro\/${roleId}\/cong-viec$`))
 }
 
+async function completeRepresentation(page) {
+  await openRole(page, 'agent')
+  await expect(page.getByTestId('object-plid')).toContainText('Chưa cấp')
+  await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
+  await page.getByTestId('request-seller-confirmation').click()
+  await expect(page.getByTestId('representation-lifecycle')).toContainText('Chờ xác nhận')
+
+  await switchRole(page, 'seller')
+  await expect(page.getByTestId('notification-bell')).toHaveAccessibleName(/1 chưa đọc/)
+  await page.getByTestId('role-inbox').getByRole('button', {
+    name: /Có yêu cầu xác nhận quyền đại diện/,
+  }).click()
+  await expect(page).toHaveURL(/#\/vai-tro\/seller\/cong-viec$/)
+  await expect(page.getByTestId('representation-confirmation-panel')).toBeFocused()
+  await page.getByRole('checkbox', {
+    name: /Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn/,
+  }).check()
+  await page.getByTestId('confirm-representation').click()
+  await expect(page.getByTestId('object-plid')).toContainText('PLID-HN-00208')
+  await expect(page.getByTestId('listing-created-panel')).toContainText('Tin bán đã khởi tạo')
+
+  await switchRole(page, 'agent')
+  await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => window.localStorage.clear())
   await page.reload()
 })
 
-test('landing công khai ưu tiên Phú Thượng, tra cứu theo allowlist và mở đúng năm tài khoản', async ({ page }) => {
+test('landing công khai chỉ hiện Listing đã tồn tại và mở đúng năm tài khoản', async ({ page }) => {
   await expect(page.getByTestId('landing-page')).toBeVisible()
   await expect(page.getByRole('heading', {
     name: 'Một định danh. Mọi nguồn dữ liệu. Một hành trình có thể truy vết.',
   })).toBeVisible()
 
-  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(5)
-  await expect(page.getByRole('heading', { name: /Phú Thượng/ }).first()).toBeVisible()
+  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(4)
+  await expect(page.getByRole('heading', { name: /Phú Thượng/ })).toHaveCount(0)
+  await expect(page.getByText('Hành trình Phú Thượng bắt đầu trong tài khoản Môi giới')).toBeVisible()
   for (const restrictedValue of [
     'PTID-HN-00062',
     'PARTY-BUYER-HN-0518',
@@ -47,15 +73,12 @@ test('landing công khai ưu tiên Phú Thượng, tra cứu theo allowlist và 
   }
 
   await page.getByTestId('landing-search').fill('NPID-HN-10421')
-  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(1)
-  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toContainText('HouseNow')
-  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toContainText('2026.08.19-03')
-  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toContainText('Hành trình giao dịch mở qua tài khoản demo')
+  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Chưa tìm thấy Tin bán phù hợp' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Xem Tin bán' })).toHaveCount(0)
 
   await page.getByTestId('landing-search').fill('PLID-HN-00208')
-  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(1)
-  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toBeVisible()
+  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(0)
   await page.getByTestId('landing-search').fill('Long Biên')
   await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(1)
   await expect(page.getByTestId('public-listing-PLID-HN-00210')).toBeVisible()
@@ -75,10 +98,68 @@ test('landing công khai ưu tiên Phú Thượng, tra cứu theo allowlist và 
   await expect(page).toHaveURL(/#\/vai-tro\/agent\/cong-viec$/)
   await expect(page.getByTestId('app-shell')).toBeVisible()
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+
+  await switchRole(page, 'buyer')
+  await expect(page.getByRole('heading', { name: 'Chưa có hồ sơ' })).toBeVisible()
+  await expect(page.getByTestId('app-shell')).not.toContainText('NPID-HN-10421')
+  await expect(page.getByTestId('app-shell')).not.toContainText('PLID-HN-00208')
+  await expect(page.getByTestId('app-shell')).not.toContainText('Phú Thượng')
+})
+
+test('Môi giới xin quyền, Người bán xác nhận rồi VMLS mới khởi tạo PLID và khớp HouseNow', async ({ page }) => {
+  await openRole(page, 'agent')
+  await expect(page.getByTestId('representation-request-form')).toBeVisible()
+  await expect(page.getByTestId('object-plid')).toContainText('Chưa cấp')
+  await expect(page.getByTestId('house-now-snapshot')).toHaveCount(0)
+  await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
+  await expect(page.getByTestId('representation-request-form')).toContainText('Trần V••• A•••')
+  await expect(page.getByTestId('representation-request-form')).toContainText('HouseNow')
+
+  await page.getByTestId('request-seller-confirmation').click()
+  await expect(page.getByTestId('representation-pending-summary')).toContainText('Đang chờ Người bán xác nhận')
+  await expect(page.getByTestId('object-plid')).toContainText('Chưa cấp')
+  await page.reload()
+  await expect(page.getByTestId('representation-pending-summary')).toBeVisible()
+
+  await switchRole(page, 'brokerage')
+  await expect(page.getByTestId('representation-pending-summary')).toBeVisible()
+  await expect(page.getByTestId('request-seller-confirmation')).toHaveCount(0)
+  await expect(page.getByTestId('confirm-representation')).toHaveCount(0)
+
+  await switchRole(page, 'seller')
+  await expect(page.getByTestId('notification-bell')).toHaveAccessibleName(/1 chưa đọc/)
+  await page.getByTestId('notification-bell').click()
+  await page.getByRole('region', { name: 'Hộp thông báo' }).getByRole('button', {
+    name: /Có yêu cầu xác nhận quyền đại diện/,
+  }).click()
+  await expect(page).toHaveURL(/#\/vai-tro\/seller\/cong-viec$/)
+  await expect(page.getByTestId('representation-confirmation-panel')).toBeFocused()
+  await page.getByRole('checkbox', {
+    name: /Tôi đã kiểm tra Bất động sản, người đại diện, phạm vi và thời hạn/,
+  }).check()
+  await page.getByTestId('confirm-representation').click()
+
+  await expect(page.getByTestId('object-plid')).toContainText('PLID-HN-00208')
+  await expect(page.getByTestId('listing-created-panel')).toContainText('Đã khởi tạo')
+  await expect(page.getByTestId('listing-created-panel')).toContainText('Chưa phát hành')
+  await page.reload()
+  await expect(page.getByTestId('object-plid')).toContainText('PLID-HN-00208')
+
+  await switchRole(page, 'agent')
+  await expect(page.getByTestId('house-now-snapshot')).toContainText('HN-LST-78421')
+  await expect(page.getByTestId('house-now-snapshot')).toContainText('2026.08.19-03')
+  await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
+
+  await page.goto('/#/')
+  await expect(page.locator('[data-testid^="public-listing-"]')).toHaveCount(5)
+  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toContainText('HouseNow')
+  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toContainText('2026.08.19-03')
+  await expect(page.getByTestId('public-listing-PLID-HN-00208')).toContainText('Đang bán')
+  await expect(page.getByTestId('public-listing-PLID-HN-00208')).not.toContainText('Đã khởi tạo')
 })
 
 test('Môi giới chỉ submit khi có PDF và hệ thống tạo đồng thời PTID cùng Tax handoff', async ({ page }) => {
-  await openRole(page, 'agent')
+  await completeRepresentation(page)
   await expect(page.getByTestId('house-now-snapshot')).toContainText('HN-LST-78421')
   await expect(page.getByTestId('house-now-snapshot')).toContainText('2026.08.19-03')
   await page.getByLabel('Hợp đồng chuyển nhượng đã công chứng').setInputFiles({
@@ -103,8 +184,8 @@ test('Môi giới chỉ submit khi có PDF và hệ thống tạo đồng thời
   await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
 
   const persisted = await page.evaluate((storageKey) => JSON.parse(window.localStorage.getItem(storageKey)), V5_STORAGE_KEY)
-  expect(persisted.actionLog).toHaveLength(1)
-  expect(persisted.actionLog[0].payload.documents.transferContract).toEqual({
+  expect(persisted.actionLog).toHaveLength(4)
+  expect(persisted.actionLog[3].payload.documents.transferContract).toEqual({
     fileName: 'hop-dong-chuyen-nhuong-cong-chung.pdf',
     mimeType: 'application/pdf',
     sizeBytes: 16,
@@ -220,12 +301,14 @@ test('route cũ fail về landing; reset xóa tiến độ V5 nhưng giữ local
     window.localStorage.setItem('vmls:operations:2026-08:v4', 'legacy-v4')
     window.localStorage.setItem('vmls:represented-market:2026-08:v2', 'legacy-market')
     window.localStorage.setItem('vmls:vneid-session:2026-08:v1', 'legacy-vneid')
+    window.localStorage.setItem('vmls:phu-thuong:2026-08:v5', 'legacy-v5')
     window.localStorage.setItem('unrelated:preference', 'keep-me')
   })
   await page.reload()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('vmls:operations:2026-08:v4'))).toBeNull()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('vmls:represented-market:2026-08:v2'))).toBeNull()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('vmls:vneid-session:2026-08:v1'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('vmls:phu-thuong:2026-08:v5'))).toBeNull()
   expect(await page.evaluate(() => window.localStorage.getItem('unrelated:preference'))).toBe('keep-me')
 
   await page.evaluate((storageKey) => {
@@ -239,7 +322,8 @@ test('route cũ fail về landing; reset xóa tiến độ V5 nhưng giữ local
   await page.goto('/#/vai-tro/agent/cong-viec')
   await page.reload()
   await expect(page.getByTestId('object-ptid')).toContainText('Chưa cấp')
-  await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
+  await expect(page.getByTestId('representation-request-form')).toBeVisible()
+  await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
 
   await page.goto('/#/vai-tro/bank/cong-viec')
   await expect(page).toHaveURL(/#\/$/)
@@ -254,6 +338,7 @@ test('route cũ fail về landing; reset xóa tiến độ V5 nhưng giữ local
   await expect(page).toHaveURL(/#\/$/)
   await openRole(page, 'agent')
   await expect(page.getByTestId('object-ptid')).toContainText('Chưa cấp')
+  await expect(page.getByTestId('object-plid')).toContainText('Chưa cấp')
 
   await submitDeclaration(page)
   await page.getByTestId('reset-data').click()
@@ -265,7 +350,9 @@ test('route cũ fail về landing; reset xóa tiến độ V5 nhưng giữ local
 
   await openRole(page, 'agent')
   await expect(page.getByTestId('object-ptid')).toContainText('Chưa cấp')
-  await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
+  await expect(page.getByTestId('object-plid')).toContainText('Chưa cấp')
+  await expect(page.getByTestId('representation-request-form')).toBeVisible()
+  await expect(page.getByTestId('transaction-declaration-form')).toHaveCount(0)
 })
 
 test('landing không tràn ở bốn viewport và reduced motion tắt chuyển động kéo dài', async ({ page }) => {
@@ -297,7 +384,7 @@ test('landing không tràn ở bốn viewport và reduced motion tắt chuyển 
 
     await page.goto('/#/vai-tro/agent/cong-viec')
     await expect(page.getByTestId('app-shell')).toBeVisible()
-    await expect(page.getByTestId('transaction-declaration-form')).toBeVisible()
+    await expect(page.getByTestId('representation-request-form')).toBeVisible()
     await expect(page.getByTestId('object-npid')).toBeVisible()
     const workspaceHasHorizontalOverflow = await page.evaluate(() => (
       document.documentElement.scrollWidth > document.documentElement.clientWidth

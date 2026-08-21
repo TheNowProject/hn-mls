@@ -18,8 +18,16 @@ The workspace label and configured reference for the durable Property. It persis
 _Avoid_: PLID, PTID, Tin bán, Giao dịch, HouseNow Listing ID, 357 transaction ID, established government identifier
 
 **Tin bán / PLID**:
-The workspace rendering of one Listing and its separate configured identifier. A PLID does not imply that the Listing is Active, approved, publicly distributed, or currently synchronized to HouseNow.
+The workspace rendering of one Listing and its separate configured identifier. In the V5 proposal, Seller confirmation creates the PLID with status `Đã khởi tạo`. A PLID does not imply that the Listing is Active, approved, published, publicly distributed, sent to HouseNow, or currently synchronized to HouseNow.
 _Avoid_: Bất động sản, NPID, HouseNow Listing ID, Giao dịch, PTID
+
+**Yêu cầu xác nhận quyền đại diện / RepresentationRequest**:
+An Agent-authored proposal asking the identified Seller to grant a defined representation scope and effective period for an existing Property/NPID. While pending, it is not a Representation and creates no Listing/PLID.
+_Avoid_: confirmed Representation, Listing Input, Listing, seller consent to publication, VNeID authentication proof
+
+**Xác nhận quyền đại diện / RepresentationConfirmation**:
+The identified Seller's decision on a pending RepresentationRequest. An acceptance establishes the scoped Representation but is distinct from Listing activation, publication consent, channel distribution, and HouseNow acknowledgement.
+_Avoid_: Listing approval, Active transition, PublicationProfile, Distribution Event, HouseNow send
 
 **Giao dịch / PTID**:
 A separate VMLS orchestration reference created in V5 when the Agent's valid post-notary transaction declaration is accepted. It may later map to an official identifier if an approved integration provides one; it is not an official code, Closing Record, Property, Listing, contract number, or HouseNow billing `Transaction`.
@@ -34,7 +42,7 @@ The Vietnamese interface labels for configured `Party.reference` values. They ar
 _Avoid_: NPID, PLID, PTID, CCCD as Party record ID, a Public Listing field
 
 **Ảnh chụp Tin bán HouseNow / HouseNowListingSnapshot**:
-An immutable, versioned local source snapshot linked to one VMLS Listing. It retains the external Listing ID, source version, source-updated time, VMLS-received time, and only the configured Listing claims. It is neither the canonical Property nor proof of a live HouseNow export, API, publication, or acknowledgement.
+An immutable, versioned local source snapshot matched to one VMLS Listing. It retains the external Listing ID, source version, source-updated time, VMLS-received time, and only the configured Listing claims. A match is neither the canonical Property nor proof of a live HouseNow export, API, outbound send, publication, or acknowledgement.
 _Avoid_: Listing itself, Property, editable current HouseNow state, live feed response, Distribution Event
 
 **Khai báo giao dịch / TransactionDeclaration**:
@@ -92,6 +100,10 @@ _Avoid_: Incoming Listing, Active Listing
 **Incoming Listing**:
 A submitted Listing with a Listing ID that remains in a restricted preparation or review scope until Active rules are satisfied.
 _Avoid_: Listing Input, Active Listing
+
+**Đã khởi tạo / Initialized Listing**:
+A Listing status meaning that a PLID has been allocated and the offering exists in a restricted preparation scope. It does not mean Active, approved, published, publicly distributed, or delivered to a downstream channel.
+_Avoid_: Active Listing, published Listing, HouseNow-synchronized Listing, Distribution Event
 
 **Active Listing**:
 A Listing that has passed the applicable validation, representation, verification, and approval rules and is discoverable within its permitted distribution scope.
@@ -184,8 +196,8 @@ A temporary exceptional Entitlement to Restricted Fields that requires an explic
 _Avoid_: permanent admin access, silent override
 
 **Representation**:
-The time-bounded authority for an Agent or Organization to act for a Party in a defined transaction or distribution scope.
-_Avoid_: Ownership, Membership
+The time-bounded authority, established after the eligible Party confirms a RepresentationRequest, for an Agent or Organization to act in a defined transaction or distribution scope.
+_Avoid_: RepresentationRequest, RepresentationConfirmation, Ownership, Membership, publication consent
 
 **Đăng ký cùng bán / CoBrokerRegistration**:
 A separate, time-bounded record that an eligible Agent has joined the permitted cooperation scope of an existing Listing. It never creates, replaces, or extends the seller's Representation and never grants access to Restricted seller data.

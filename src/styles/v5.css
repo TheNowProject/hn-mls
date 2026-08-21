@@ -331,6 +331,8 @@
 
 .v5-dossier-card,
 .v5-panel,
+.v5-representation-lifecycle,
+.v5-representation-form,
 .v5-declaration-form,
 .v5-ops-controls {
   margin-bottom: 1.25rem;
@@ -348,6 +350,8 @@
 
 .v5-dossier-card > header,
 .v5-panel > header,
+.v5-representation-lifecycle > header,
+.v5-representation-form > header,
 .v5-declaration-form > header,
 .v5-ops-controls > header {
   display: flex;
@@ -360,6 +364,8 @@
 
 .v5-dossier-card > header span,
 .v5-panel > header > span,
+.v5-representation-lifecycle > header > span,
+.v5-representation-form > header > span,
 .v5-declaration-form > header > span,
 .v5-ops-controls > header > span {
   color: var(--color-ink-muted);
@@ -368,6 +374,8 @@
 
 .v5-dossier-card h2,
 .v5-panel h2,
+.v5-representation-lifecycle h2,
+.v5-representation-form h2,
 .v5-declaration-form h2,
 .v5-ops-controls h2 {
   margin-bottom: 0.2rem;
@@ -376,6 +384,8 @@
 
 .v5-dossier-card header p,
 .v5-panel header p,
+.v5-representation-lifecycle header p,
+.v5-representation-form header p,
 .v5-declaration-form header p,
 .v5-ops-controls header p {
   margin: 0;
@@ -435,6 +445,82 @@
   font-size: 0.82rem;
 }
 
+.v5-representation-lifecycle ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  background: var(--color-border);
+  list-style: none;
+}
+
+.v5-representation-lifecycle li {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  background: #f4f5f2;
+  color: var(--color-ink-muted);
+}
+
+.v5-representation-lifecycle li > span {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border: 1px solid #bdc8c1;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.v5-representation-lifecycle li > span svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.v5-representation-lifecycle li > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.v5-representation-lifecycle li strong {
+  color: var(--ledger-ink);
+  font-size: 0.86rem;
+}
+
+.v5-representation-lifecycle li small {
+  font-size: 0.75rem;
+}
+
+.v5-representation-lifecycle li.is-current {
+  background: #fff2d8;
+  color: #68430a;
+}
+
+.v5-representation-lifecycle li.is-current > span {
+  border-color: #e0b35c;
+  background: #fff8e9;
+  color: #68430a;
+}
+
+.v5-representation-lifecycle li.is-done {
+  background: #eaf4ef;
+  color: #0b5944;
+}
+
+.v5-representation-lifecycle li.is-done > span {
+  border-color: #8bc9b7;
+  background: #d9efe6;
+  color: #0b5944;
+}
+
 .v5-status {
   display: inline-flex;
   width: fit-content;
@@ -467,6 +553,7 @@
   color: #174b3e;
 }
 
+.v5-representation-form > p,
 .v5-declaration-form > p {
   margin: 0;
   padding: 1rem 1.3rem 0;
@@ -492,19 +579,80 @@
   font-weight: 700;
 }
 
-.v5-form-grid input {
+.v5-form-grid input,
+.v5-form-grid select {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: #fff;
+  color: var(--ledger-ink);
 }
 
 .v5-form-grid input[readonly] {
   background: #eef2ef;
   color: var(--color-ink-muted);
   font-family: var(--font-mono);
+}
+
+.v5-form-readonly,
+.v5-confirmation-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 1.3rem 1rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #f7faf8;
+}
+
+.v5-form-readonly > div,
+.v5-confirmation-summary > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.v5-form-readonly > div:nth-child(odd),
+.v5-confirmation-summary > div:nth-child(odd) {
+  border-right: 1px solid var(--color-border);
+}
+
+.v5-form-readonly dt,
+.v5-confirmation-summary dt {
+  color: var(--color-ink-muted);
+  font-size: 0.73rem;
+}
+
+.v5-form-readonly dd,
+.v5-confirmation-summary dd {
+  min-width: 0;
+  margin: 0;
+  font-weight: 700;
+}
+
+.v5-review-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0 1.3rem 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #9ec1b5;
+  border-radius: var(--radius-md);
+  background: #eaf4ef;
+  font-weight: 650;
+}
+
+.v5-review-checkbox input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  accent-color: var(--registry-green);
 }
 
 .v5-upload-grid {
@@ -935,6 +1083,20 @@
     grid-template-columns: 1fr;
   }
 
+  .v5-representation-lifecycle ol {
+    grid-template-columns: 1fr;
+  }
+
+  .v5-form-readonly,
+  .v5-confirmation-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .v5-form-readonly > div:nth-child(odd),
+  .v5-confirmation-summary > div:nth-child(odd) {
+    border-right: 0;
+  }
+
   .v5-processing-cases {
     grid-template-columns: 1fr;
   }
@@ -946,6 +1108,8 @@
 
   .v5-dossier-card > header,
   .v5-panel > header,
+  .v5-representation-lifecycle > header,
+  .v5-representation-form > header,
   .v5-declaration-form > header,
   .v5-ops-controls > header {
     display: grid;

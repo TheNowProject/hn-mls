@@ -20,17 +20,23 @@ These criteria define testable outcomes. They do not approve unresolved legal or
 
 - The public landing uses the Living Registry direction and the headline `Một định danh. Mọi nguồn dữ liệu. Một hành trình có thể truy vết.`
 - A lightly animated NPID–PLID–PTID/HouseNow/357/Tax/VPĐKĐĐ network respects `prefers-reduced-motion`.
-- Public search contains four to five configured Listings, prioritizes Phú Thượng, and returns only allowlisted NPID, PLID, Listing facts, and provenance.
-- Public output contains no PTID, party, contract/document, obligation, processing, notification, work-item, Audit Event, or Integration Event field.
+- Public search contains the four configured Listings that exist initially. After Seller confirmation creates the Phú Thượng PLID and exposes its matched HouseNow source snapshot, that snapshot's allowlisted `Đang bán` projection becomes the fifth result and is prioritized; the internal VMLS Listing remains `Đã khởi tạo` and its outbound channel remains `Chưa phát hành`.
+- Public output contains no Representation request/confirmation evidence, PTID, party, contract/document, obligation, processing, notification, work-item, Audit Event, or Integration Event field.
 - `Mở tài khoản demo` exposes exactly Môi giới, Sàn môi giới, Người bán, Người mua, and Vận hành VMLS; unread badges are scoped per account.
 - Legacy/unknown routes return to the landing and never default to an Agent projection.
 
-### V5-AC-02 Identity, HouseNow snapshot, and declaration
+### V5-AC-02 Representation, identity, HouseNow snapshot, and declaration
 
-- The initial fixture has one Phú Thượng Property/NPID and Listing/PLID, a versioned `HouseNowListingSnapshot`, and no declaration or PTID.
+- The initial/reset fixture has the Phú Thượng Property/NPID and a `Representation` in `Chưa gửi`; it has no Phú Thượng Listing/PLID, matched `HouseNowListingSnapshot`, declaration, or PTID.
+- Only the responsible Agent can run `REQUEST_SELLER_CONFIRMATION` with the exact configured `{ propertyId, scope, startsOn, expiresOn }`. Success changes Representation to `Chờ xác nhận` and does not create a Listing.
+- Only the selected Seller can run `CONFIRM_REPRESENTATION` with exact `{ accepted: true }` against that pending request.
+- Seller confirmation atomically changes Representation to `Đã xác nhận`, creates `PLID-HN-00208` with status `Đã khởi tạo`, and exposes the configured matched HouseNow snapshot.
+- Request/confirmation does not create an Active state, Listing approval, applied publication profile, public-distribution event, HouseNow outbound send, or HouseNow acknowledgement. No V5 command claims those outcomes.
+- Wrong actor, malformed/extra payload, duplicate, skipped, or out-of-order request/confirmation is an atomic no-op.
 - NPID, PLID, external HouseNow Listing ID, contract ID, 357 transaction ID, PTID, source-case IDs, and event IDs remain distinct.
-- Only the responsible Agent can submit the configured post-notary declaration.
+- Only after the Representation is confirmed, remains effective for the configured contract/notarization/submission dates, and the initialized PLID/matched snapshot exist can the responsible Agent submit the configured post-notary declaration.
 - Input contains Buyer reference, whole-VND value, contract number/date, notary organization/date, required notarized-transfer-contract PDF metadata, and optional deposit-contract PDF metadata. NPID, PLID, and Seller derive from the Listing.
+- Contract date cannot follow notarization, notarization cannot follow the fixture submission timestamp, and all three configured dates must fall within the confirmed Representation period. Action availability depends on the submission-time authority, not on the form's default contract values.
 - Wrong actor, PLID, missing/wrong document, malformed value/date, extra field, or second submission produces no partial change.
 - Success atomically creates `TransactionDeclaration`, PTID, Tax case/handoff, Audit Event, and Integration Event while storing no file bytes/base64/path.
 
@@ -55,19 +61,20 @@ These criteria define testable outcomes. They do not approve unresolved legal or
 
 - Event 2 creates exactly one Seller notification and open work item without a tax amount or allocation of legal liability.
 - Event 3 resolves the Seller work item without deleting its notification/history.
-- Event 6 completes PTID and creates exactly one Buyer notification/work item directing certificate collection at VPĐKĐĐ.
+- Event 6 completes PTID and creates exactly one notification/work item for the declared Buyer; the fixed Buyer demo account receives it only when its configured `buyerRef` is the one declared.
 - Only the recipient can mark a notification read; reading does not complete work or advance processing.
 - Opening a notification routes to that account's permitted dossier projection, and unread/read state survives reload.
 - The Buyer has no readiness or certificate-receipt acknowledgement command, and completion creates no `ClosingRecord`.
 
 ### V5-AC-06 Projections, replay, and reset
 
-- Agent can declare and monitor; Brokerage is monitoring-only; Seller/Buyer receive recipient-scoped projections; Ops alone sees source comparison and synchronization controls.
+- Agent can request Representation, later declare and monitor; Seller alone can confirm the pending request and later receives its recipient-scoped notification; Brokerage is monitoring-only; Buyer receives its recipient-scoped projection; Ops alone sees source comparison and synchronization controls.
+- Before the declaration assigns the configured Buyer—or when the declaration names a different Buyer—that Buyer projection contains no Phú Thượng Property, Listing, case, transaction identity, notification, or work item.
 - Seller and Buyer never receive the other party's reference. Seller notification contains no financial amount or payer assertion.
 - Every accepted command appends the appropriate immutable history; user Audit Events, system Integration Events, and external source events remain separate.
 - V5 state round-trips through its versioned browser key. V4, malformed, tampered, or unsupported payloads fail closed to the initial fixture.
 - Successful V5 initialization removes only explicitly named legacy demo/market/VNeID keys and never clears unrelated browser storage.
-- Reset restores the Phú Thượng Listing ready for declaration, removes V5 transaction/notification progress, and returns to the landing.
+- Reset restores the Phú Thượng Property and `Chưa gửi` Representation, removes its PLID/matched snapshot plus V5 transaction/notification progress, restores the four-Listing public catalogue, and returns to the landing.
 - Runtime navigation contains no Bank, Developer, VPCC, Tax, VPĐKĐĐ, VNeID, agency-operation, Buyer-readiness, Developer-transfer, or Closing Record workspace/action.
 
 ## Broader MVP baseline
@@ -209,6 +216,6 @@ Regulator scenarios remain a deferred authorization boundary and are not part of
 
 ## Relationship between V5 and the broader baseline
 
-The V5 executable is accepted against V5-AC-01 through V5-AC-06. It provides visible evidence for the identity, provenance, projection, append-only history, idempotency, and integration-reconciliation principles in AC-01 and AC-04 through AC-06/AC-12. It does not claim to implement the backend enforcement, full Listing lifecycle, consent/access governance, Project inventory, CMA, production administration, or live integrations described by the broader MVP baseline.
+The V5 executable is accepted against V5-AC-01 through V5-AC-06. It provides visible evidence for the narrow Representation request/confirmation seam, identity, provenance, projection, append-only history, idempotency, and integration-reconciliation principles in AC-01 and AC-04 through AC-06/AC-12. It does not claim to implement Listing activation/publication/distribution, backend enforcement, the full Listing lifecycle, consent/access governance, Project inventory, CMA, production administration, or live integrations described by the broader MVP baseline.
 
 All V5 identities and source records must remain synthetic or masked. Passing V5 tests does not validate the supplied process as legal policy or approve official NPID/PTID ownership, Tax rules, VPĐKĐĐ procedure, 357 contracts, HouseNow contracts, or agency SLAs.

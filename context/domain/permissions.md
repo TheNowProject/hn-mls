@@ -69,26 +69,35 @@ Break-glass Access must identify the requester, approver, incident/reference, Re
 
 | Runtime account | Mutable commands in VMLS | Read projection |
 |---|---|---|
-| Môi giới | `SUBMIT_TRANSACTION_DECLARATION` for the one assigned post-notary Listing | Assigned NPID/PLID, HouseNow snapshot, accepted declaration, PTID, and safe processing milestones |
+| Môi giới | `REQUEST_SELLER_CONFIRMATION` for the assigned NPID; after confirmation, `SUBMIT_TRANSACTION_DECLARATION` for the created PLID | Assigned NPID and Representation request state; after confirmation, PLID, matched HouseNow snapshot, accepted declaration, PTID, and safe processing milestones |
 | Sàn môi giới | None | Organization-scoped Listing/transaction monitoring projection |
-| Người bán | `MARK_NOTIFICATION_READ` only for a notification addressed to the selected Seller | Own safe dossier milestone, own notification, and own work item; no Buyer reference, amount, source comparison, or internal history |
+| Người bán | `CONFIRM_REPRESENTATION` for the selected pending request; later `MARK_NOTIFICATION_READ` only for a notification addressed to the selected Seller | Own Representation request/confirmation, safe dossier milestone, own notification, and own work item; no Buyer reference, amount, source comparison, or internal history |
 | Người mua | `MARK_NOTIFICATION_READ` only for a notification addressed to the selected Buyer | Own safe dossier milestone, own completion notification, and own collection work item; no Seller reference or tax detail |
 | Vận hành VMLS | `SYNC_TRANSACTION_FROM_357` once; `ADVANCE_EXTERNAL_PROCESSING` for exactly the next configured event | Both source records, per-field reconciliation, external cases/events, obligations, Audit Events, and Integration Events |
-| Public visitor | None | Explicitly allowlisted NPID, PLID, Listing facts, HouseNow source label/version, and safe provenance only |
+| Public visitor | None | Explicitly allowlisted facts for Listings that currently exist; Phú Thượng PLID/HouseNow provenance appears only after Seller confirmation creates and matches it |
 
 Only these five accounts are available in the V5 account switcher. Bank, Developer, VPCC, Tax, VPĐKĐĐ, VNeID, and agency-operation workspaces are outside V5 runtime scope. This does not remove their distinct Party/Organization/Role concepts from the broader canonical model.
 
+### Representation and Listing-initialization rules
+
+- `PROPOSAL`: the initial/reset Phú Thượng state contains the Property/NPID and a `Representation` in `Chưa gửi`; it contains no Phú Thượng Listing/PLID and no matched HouseNow snapshot in a role projection.
+- `REQUEST_SELLER_CONFIRMATION` is Agent-only. Its exact payload is `{ propertyId, scope, startsOn, expiresOn }`; it must target the configured NPID and an allowed scope/effective period. Success moves Representation from `Chưa gửi` to `Chờ xác nhận` but creates no Listing.
+- `CONFIRM_REPRESENTATION` is Seller-only, accepts only `{ accepted: true }`, and requires the pending request. Success atomically moves Representation to `Đã xác nhận`, creates the configured PLID with status `Đã khởi tạo`, and exposes the configured matched `HouseNowListingSnapshot`.
+- Wrong actor, malformed/extra input, out-of-order request/confirmation, or replay leaves every record and history unchanged.
+- `Đã khởi tạo` and snapshot matching grant no Listing activation, approval, publication, public-distribution, HouseNow-send, or HouseNow-acknowledgement claim. V5 provides no command for those outcomes.
+
 ### Transaction-declaration rules
 
-- `SUBMIT_TRANSACTION_DECLARATION` is Agent-only and scoped to the configured Phú Thượng PLID.
+- `SUBMIT_TRANSACTION_DECLARATION` is Agent-only, scoped to the configured Phú Thượng PLID, and unavailable until the Representation is `Đã xác nhận` and effective for the configured contract/notarization/submission dates, the Listing is `Đã khởi tạo`, and the HouseNow snapshot is matched.
 - The command takes only Buyer reference, whole-VND transaction value, contract number/date, notary organization/date, required notarized-transfer-contract PDF metadata, and optional deposit-contract PDF metadata. NPID, PLID, and Seller are resolved from the Listing, not trusted from editable input.
+- The form may open when the Representation is effective at the fixture submission timestamp; the reducer separately requires contract date ≤ notarization timestamp ≤ submission timestamp and requires all configured dates to remain inside that Representation period.
 - File metadata is validated and stored; file bytes, base64, object URLs, and local paths are not domain state.
 - Wrong actor, PLID, required document, media type, value/date shape, extra key, or second submission leaves all records and histories unchanged.
 - Success atomically creates the declaration, PTID, Tax case/handoff, Audit Event, and Integration Event.
 
 ### HouseNow and 357 source rules
 
-- Public search and the Agent view consume an allowlisted `HouseNowListingSnapshot`; it is separate from Property and Listing and cannot be mutated by transaction commands.
+- After Seller confirmation, Public search and the Agent view may consume the allowlisted matched `HouseNowListingSnapshot`; the Public result uses the source snapshot's `Đang bán` status while the internal VMLS Listing remains `Đã khởi tạo` and the outbound channel remains `Chưa phát hành`. The snapshot is separate from Property and Listing and cannot be mutated by transaction commands. Its appearance records deterministic fixture matching only, not an outbound distribution event.
 - `SYNC_TRANSACTION_FROM_357` is VMLS Ops-only and one-shot after declaration. It accepts the exact configured source record shape and never accepts VMLS fields as authoritative source updates.
 - Declaration and 357 records remain side by side. Reconciliation assigns `matched`, `mismatched`, `missing_in_vmls`, or `missing_in_357` per configured field.
 - Mismatch or missing values do not overwrite either source and do not gate external-status progression. Only Ops sees detailed reconciliation.
@@ -100,13 +109,14 @@ Only these five accounts are available in the V5 account switcher. Bank, Develop
 - A VPĐKĐĐ case cannot exist before both configured obligation rows are complete.
 - Duplicate, stale, skipped, exhausted, malformed, or unauthorized commands are atomic no-ops and cannot regress processing.
 - Event 2 creates one Seller notification and open work item without amount or payer allocation. Event 3 resolves that work item. Event 6 creates one Buyer notification and collection work item.
+- The fixed Buyer demo account is mapped to its configured Party reference. A declaration for another Buyer does not expose the dossier, unread count, notification, work item, or read command to that account.
 - `MARK_NOTIFICATION_READ` requires the selected account to be the notification recipient. It changes only read state and never resolves the work item or advances processing.
 - External status events, user Audit Events, and system Integration Events are separate append-oriented collections.
 
 ### Projection rules
 
 - Public, Agent, Brokerage, Seller, Buyer, and Ops projections use independent fail-closed allowlists; frontend hiding is insufficient.
-- Public output structurally omits PTID, parties, contract/document data, obligations, processing, notifications, work items, and internal histories.
+- Public output structurally omits Representation request/confirmation evidence, PTID, parties, contract/document data, obligations, processing, notifications, work items, and internal histories. Before Seller confirmation it also omits the not-yet-created Phú Thượng PLID and unmatched HouseNow fixture.
 - Brokerage monitors the Organization record but has no declaration, approval, 357-sync, or status-sync command.
 - Seller and Buyer projections are recipient-scoped and omit the other party's reference. The Seller sees no tax amount or legal-liability claim.
 - Ops alone sees raw source comparisons, event identities, idempotency data, and full demo histories.

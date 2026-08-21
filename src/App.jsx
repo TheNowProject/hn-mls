@@ -20,6 +20,7 @@ const LEGACY_DEMO_KEYS = Object.freeze([
   'vmls:operations:2026-08:v4',
   'vmls:represented-market:2026-08:v2',
   'vmls:vneid-session:2026-08:v1',
+  'vmls:phu-thuong:2026-08:v5',
 ])
 
 const ROLE_IDS = new Set(V5_ROLES.map(({ id }) => id))
@@ -97,6 +98,7 @@ function normalizeLandingListing(record) {
     propertyId: record.propertyId,
     title: record.title,
     propertyType: record.propertyType,
+    status: record.status,
     location: typeof record.location === 'string'
       ? record.location
       : [record.location?.ward, record.location?.district, record.location?.city].filter(Boolean).join(', '),

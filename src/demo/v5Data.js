@@ -1,8 +1,8 @@
 // @ts-check
 
-export const V5_SCHEMA_VERSION = 5
-export const V5_SCHEMA = 'vmls-phu-thuong-transaction-v5'
-export const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v5'
+export const V5_SCHEMA_VERSION = 6
+export const V5_SCHEMA = 'vmls-phu-thuong-representation-transaction-v6'
+export const V5_STORAGE_KEY = 'vmls:phu-thuong:2026-08:v6'
 export const V5_PRIMARY_CASE_ID = 'phu-thuong-title-transfer'
 export const PRIMARY_PROPERTY_ID = 'NPID-HN-10421'
 export const PRIMARY_LISTING_ID = 'PLID-HN-00208'
@@ -21,14 +21,14 @@ export const V5_ROLES = deepFreeze([
     label: 'Môi giới',
     shortLabel: 'MG',
     organization: 'HouseNow',
-    purpose: 'Khai báo giao dịch đã công chứng và theo dõi tiến trình.',
+    purpose: 'Xin quyền đại diện, theo dõi Tin bán được khởi tạo và khai báo giao dịch đã công chứng.',
   },
   {
     id: 'brokerage',
     label: 'Sàn môi giới',
     shortLabel: 'SÀN',
     organization: 'Sàn HouseNow',
-    purpose: 'Giám sát hồ sơ giao dịch trong phạm vi sàn.',
+    purpose: 'Giám sát quyền đại diện, Tin bán và hồ sơ giao dịch trong phạm vi sàn.',
   },
   {
     id: 'seller',
@@ -36,7 +36,7 @@ export const V5_ROLES = deepFreeze([
     shortLabel: 'NB',
     organization: null,
     accountContext: 'Tài khoản cá nhân',
-    purpose: 'Theo dõi nghĩa vụ tài chính và thông báo liên quan.',
+    purpose: 'Xác nhận quyền đại diện và theo dõi thông báo liên quan.',
   },
   {
     id: 'buyer',
@@ -155,12 +155,36 @@ export const PRIMARY_PROPERTY = deepFreeze({
   },
 })
 
+export const PRIMARY_REPRESENTATION = deepFreeze({
+  id: 'REP-HN-00044',
+  propertyId: PRIMARY_PROPERTY_ID,
+  confirmationId: 'XND-HN-00044',
+  confirmationChannel: 'Tài khoản VMLS',
+  allowedScopes: ['Độc quyền', 'Không độc quyền'],
+  parties: {
+    seller: {
+      reference: 'PARTY-SELLER-HN-0312',
+      maskedName: 'Trần V••• A•••',
+    },
+    representative: {
+      reference: 'PARTY-AGENT-HN-0246',
+      maskedName: 'Phạm Q••• M•••',
+      organization: 'HouseNow',
+    },
+  },
+})
+
+export const PRIMARY_REPRESENTATION_REQUEST_PAYLOAD = deepFreeze({
+  propertyId: PRIMARY_PROPERTY_ID,
+  scope: 'Độc quyền',
+  startsOn: '2026-08-11',
+  expiresOn: '2026-09-10',
+})
+
 export const PRIMARY_LISTING = deepFreeze({
   ...PUBLIC_LISTINGS.find(({ id }) => id === PRIMARY_LISTING_ID),
-  seller: {
-    reference: 'PARTY-SELLER-HN-0312',
-    maskedName: 'Trần V••• A•••',
-  },
+  representationId: PRIMARY_REPRESENTATION.id,
+  seller: PRIMARY_REPRESENTATION.parties.seller,
 })
 
 export const HOUSE_NOW_SNAPSHOT = deepFreeze({

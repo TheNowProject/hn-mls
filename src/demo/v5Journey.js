@@ -6,6 +6,7 @@ import {
   PRIMARY_LISTING,
   PRIMARY_LISTING_ID,
   PRIMARY_PROPERTY,
+  PRIMARY_REPRESENTATION,
   PUBLIC_LISTINGS,
   V5_EXTERNAL_MILESTONES,
   V5_PRIMARY_CASE_ID,
@@ -15,12 +16,16 @@ import {
 } from './v5Data.js'
 
 export const V5_ACTIONS = Object.freeze({
+  REQUEST_SELLER_CONFIRMATION: 'REQUEST_SELLER_CONFIRMATION',
+  CONFIRM_REPRESENTATION: 'CONFIRM_REPRESENTATION',
   SUBMIT_TRANSACTION_DECLARATION: 'SUBMIT_TRANSACTION_DECLARATION',
   SYNC_TRANSACTION_FROM_357: 'SYNC_TRANSACTION_FROM_357',
   ADVANCE_EXTERNAL_PROCESSING: 'ADVANCE_EXTERNAL_PROCESSING',
   MARK_NOTIFICATION_READ: 'MARK_NOTIFICATION_READ',
 })
 
+const REPRESENTATION_REQUESTED_AT = '2026-08-11T08:38:00+07:00'
+const REPRESENTATION_CONFIRMED_AT = '2026-08-12T10:10:00+07:00'
 const SUBMITTED_AT = '2026-08-21T08:45:00+07:00'
 const SOURCE_357_RECEIVED_AT = '2026-08-21T09:06:00+07:00'
 const TRANSACTION_ID = 'PTID-HN-00062'
@@ -113,6 +118,9 @@ function isDeclarationPayload(payload) {
   if (!isNonEmptyString(payload.buyerRef) || !isNonEmptyString(payload.contractNumber)) return false
   if (!Number.isSafeInteger(payload.transactionValue) || payload.transactionValue <= 0) return false
   if (!isDate(payload.contractDate) || !isTimestamp(payload.notarizedAt)) return false
+  const notarizedDate = payload.notarizedAt.slice(0, 10)
+  if (payload.contractDate > notarizedDate
+    || Date.parse(payload.notarizedAt) > Date.parse(SUBMITTED_AT)) return false
   if (!isNonEmptyString(payload.notaryOffice)) return false
   if (!isPlainObject(payload.documents)) return false
   const documentKeys = Object.keys(payload.documents)
@@ -120,6 +128,44 @@ function isDeclarationPayload(payload) {
   if (documentKeys.some((key) => !['transferContract', 'depositContract'].includes(key))) return false
   if (!isPdfMetadata(payload.documents.transferContract)) return false
   return !('depositContract' in payload.documents) || isPdfMetadata(payload.documents.depositContract)
+}
+
+function isRepresentationRequestPayload(payload) {
+  if (!hasExactKeys(payload, ['propertyId', 'scope', 'startsOn', 'expiresOn'])) return false
+  if (!isNonEmptyString(payload.propertyId)
+    || payload.propertyId.trim().toUpperCase() !== PRIMARY_PROPERTY.id) return false
+  if (!PRIMARY_REPRESENTATION.allowedScopes.includes(payload.scope)) return false
+  if (!isDate(payload.startsOn) || !isDate(payload.expiresOn)) return false
+  const startsAt = Date.parse(`${payload.startsOn}T00:00:00Z`)
+  const expiresAt = Date.parse(`${payload.expiresOn}T00:00:00Z`)
+  return payload.startsOn >= REPRESENTATION_REQUESTED_AT.slice(0, 10)
+    && expiresAt > startsAt
+    && expiresAt - startsAt <= 366 * 24 * 60 * 60 * 1000
+}
+
+function isRepresentationConfirmationPayload(payload) {
+  return hasExactKeys(payload, ['accepted']) && payload.accepted === true
+}
+
+function representationCoversDate(representation, date) {
+  return isDate(representation?.startsOn)
+    && isDate(representation?.expiresOn)
+    && isDate(date)
+    && date >= representation.startsOn
+    && date <= representation.expiresOn
+}
+
+function representationSupportsDeclaration(representation, payload) {
+  return representationCoversDate(representation, SUBMITTED_AT.slice(0, 10))
+    && representationCoversDate(representation, payload.contractDate)
+    && representationCoversDate(representation, payload.notarizedAt.slice(0, 10))
+}
+
+function demoBuyerOwnsTransaction(state) {
+  return Boolean(
+    state.records.declaration?.buyerRef === PRIMARY_DECLARATION_PAYLOAD.buyerRef
+    && state.records.transaction.id,
+  )
 }
 
 const SOURCE_357_KEYS = [
@@ -162,19 +208,123 @@ function is357Payload(payload) {
     || (Number.isSafeInteger(payload.transactionValue) && payload.transactionValue > 0)
 }
 
+function hasValidRepresentationParties(parties) {
+  return hasExactKeys(parties, ['seller', 'representative'])
+    && hasExactKeys(parties.seller, ['reference', 'maskedName'])
+    && hasExactKeys(parties.representative, ['reference', 'maskedName', 'organization'])
+    && parties.seller.reference === PRIMARY_REPRESENTATION.parties.seller.reference
+    && parties.seller.maskedName === PRIMARY_REPRESENTATION.parties.seller.maskedName
+    && parties.representative.reference === PRIMARY_REPRESENTATION.parties.representative.reference
+    && parties.representative.maskedName === PRIMARY_REPRESENTATION.parties.representative.maskedName
+    && parties.representative.organization === PRIMARY_REPRESENTATION.parties.representative.organization
+}
+
+function hasValidRepresentationRequest(representation) {
+  const request = representation.request
+  if (!hasExactKeys(request, ['propertyId', 'scope', 'startsOn', 'expiresOn', 'requestedAt'])) {
+    return false
+  }
+  if (!isRepresentationRequestPayload({
+    propertyId: request.propertyId,
+    scope: request.scope,
+    startsOn: request.startsOn,
+    expiresOn: request.expiresOn,
+  })) return false
+  return request.requestedAt === REPRESENTATION_REQUESTED_AT
+    && representation.scope === request.scope
+    && representation.startsOn === request.startsOn
+    && representation.expiresOn === request.expiresOn
+    && representation.requestedAt === request.requestedAt
+}
+
+function hasValidRepresentationState(representation) {
+  if (!hasExactKeys(representation, [
+    'id',
+    'propertyId',
+    'status',
+    'confirmationChannel',
+    'allowedScopes',
+    'scope',
+    'startsOn',
+    'expiresOn',
+    'requestedAt',
+    'confirmedAt',
+    'request',
+    'confirmation',
+    'parties',
+  ])) return false
+  if (
+    representation.id !== PRIMARY_REPRESENTATION.id
+    || representation.propertyId !== PRIMARY_REPRESENTATION.propertyId
+    || representation.confirmationChannel !== PRIMARY_REPRESENTATION.confirmationChannel
+    || !Array.isArray(representation.allowedScopes)
+    || representation.allowedScopes.length !== PRIMARY_REPRESENTATION.allowedScopes.length
+    || representation.allowedScopes.some((scope, index) => (
+      scope !== PRIMARY_REPRESENTATION.allowedScopes[index]
+    ))
+    || !hasValidRepresentationParties(representation.parties)
+  ) return false
+
+  if (representation.status === 'Chưa gửi') {
+    return [
+      representation.scope,
+      representation.startsOn,
+      representation.expiresOn,
+      representation.requestedAt,
+      representation.confirmedAt,
+      representation.request,
+      representation.confirmation,
+    ].every((value) => value === null)
+  }
+
+  if (!hasValidRepresentationRequest(representation)
+    || !hasExactKeys(representation.confirmation, ['id', 'requestedAt', 'confirmedAt'])
+    || representation.confirmation.id !== PRIMARY_REPRESENTATION.confirmationId
+    || representation.confirmation.requestedAt !== REPRESENTATION_REQUESTED_AT) return false
+
+  if (representation.status === 'Chờ xác nhận') {
+    return representation.confirmedAt === null && representation.confirmation.confirmedAt === null
+  }
+  if (representation.status === 'Đã xác nhận') {
+    return representation.confirmedAt === REPRESENTATION_CONFIRMED_AT
+      && representation.confirmation.confirmedAt === REPRESENTATION_CONFIRMED_AT
+  }
+  return false
+}
+
 function isV5State(state) {
+  const records = state?.records
+  const representation = records?.representation
+  const transaction = records?.transaction
+  const hasUnbornListing = records?.listing === null
+    && records?.houseNowSnapshot === null
+    && transaction?.listingId === null
+    && transaction?.id === null
+    && records?.declaration === null
+    && records?.taxCase === null
+    && records?.landRegistryCase === null
+    && records?.transactionSource357 === null
+    && records?.reconciliation === null
+    && ['Chưa gửi', 'Chờ xác nhận'].includes(representation?.status)
+  const hasCreatedListing = records?.listing?.id === PRIMARY_LISTING_ID
+    && records?.listing?.propertyId === records?.property?.id
+    && records?.listing?.representationId === PRIMARY_REPRESENTATION.id
+    && records?.listing?.seller?.reference === PRIMARY_REPRESENTATION.parties.seller.reference
+    && records?.houseNowSnapshot?.id === HOUSE_NOW_SNAPSHOT.id
+    && transaction?.listingId === PRIMARY_LISTING_ID
+    && representation?.status === 'Đã xác nhận'
+
   return Boolean(
     state
     && state.version === V5_SCHEMA_VERSION
     && state.schema === V5_SCHEMA
     && state.caseId === V5_PRIMARY_CASE_ID
-    && isPlainObject(state.records)
-    && state.records.property?.id === PRIMARY_PROPERTY.id
-    && state.records.listing?.id === PRIMARY_LISTING_ID
-    && state.records.listing?.propertyId === state.records.property.id
-    && state.records.listing?.seller?.reference === PRIMARY_LISTING.seller.reference
-    && state.records.houseNowSnapshot?.id === HOUSE_NOW_SNAPSHOT.id
-    && isPlainObject(state.records.transaction)
+    && isPlainObject(records)
+    && records.property?.id === PRIMARY_PROPERTY.id
+    && hasValidRepresentationState(representation)
+    && representation.propertyId === records.property.id
+    && isPlainObject(transaction)
+    && (hasUnbornListing || hasCreatedListing)
     && Array.isArray(state.financialObligations)
     && Array.isArray(state.notifications)
     && Array.isArray(state.workItems)
@@ -263,6 +413,7 @@ export function getNextExternalMilestone(state) {
 
 export function getUnreadNotificationCount(state, roleId) {
   if (!isV5State(state) || !V5_ROLES.some(({ id }) => id === roleId)) return 0
+  if (roleId === 'buyer' && !demoBuyerOwnsTransaction(state)) return 0
   return state.notifications.filter((notification) => (
     notification.recipientRole === roleId && notification.readAt === null
   )).length
@@ -271,7 +422,20 @@ export function getUnreadNotificationCount(state, roleId) {
 export function allowedV5ActionsFor(state, roleId) {
   if (!isV5State(state) || !V5_ROLES.some(({ id }) => id === roleId)) return []
   const allowed = []
-  if (roleId === 'agent' && !state.records.declaration) {
+  if (roleId === 'agent' && state.records.representation.status === 'Chưa gửi') {
+    allowed.push(V5_ACTIONS.REQUEST_SELLER_CONFIRMATION)
+  }
+  if (roleId === 'seller' && state.records.representation.status === 'Chờ xác nhận') {
+    allowed.push(V5_ACTIONS.CONFIRM_REPRESENTATION)
+  }
+  if (roleId === 'agent'
+    && state.records.representation.status === 'Đã xác nhận'
+    && state.records.listing
+    && representationCoversDate(
+      state.records.representation,
+      SUBMITTED_AT.slice(0, 10),
+    )
+    && !state.records.declaration) {
     allowed.push(V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION)
   }
   if (roleId === 'vmls' && state.records.transaction.id) {
@@ -289,6 +453,7 @@ export function allowedV5ActionsFor(state, roleId) {
 }
 
 function projectPublicListing(listing) {
+  if (!listing) return null
   return clone({
     id: listing.id,
     propertyId: listing.propertyId,
@@ -305,9 +470,16 @@ function projectPublicListing(listing) {
 
 export function projectV5Public(state) {
   if (!isV5State(state)) return { dataLabel: 'Bộ dữ liệu mẫu', listings: [] }
+  const otherListings = PUBLIC_LISTINGS.filter(({ id }) => id !== PRIMARY_LISTING_ID)
+  const primarySourceListing = state.records.listing && state.records.houseNowSnapshot
+    ? PUBLIC_LISTINGS.find(({ id }) => id === PRIMARY_LISTING_ID)
+    : null
+  const listings = primarySourceListing
+    ? [primarySourceListing, ...otherListings]
+    : otherListings
   return {
     dataLabel: state.dataLabel,
-    listings: PUBLIC_LISTINGS.map(projectPublicListing),
+    listings: listings.map(projectPublicListing),
   }
 }
 
@@ -370,6 +542,35 @@ function projectMaskedDeclaration(declaration, includeDocuments) {
   return clone(projected)
 }
 
+function projectRepresentation(representation, roleId) {
+  if (!representation || roleId === 'buyer') return null
+  const projected = {
+    id: representation.id,
+    propertyId: representation.propertyId,
+    status: representation.status,
+    scope: representation.scope,
+    startsOn: representation.startsOn,
+    expiresOn: representation.expiresOn,
+    requestedAt: representation.requestedAt,
+    confirmedAt: representation.confirmedAt,
+  }
+  if (roleId === 'brokerage') {
+    projected.parties = {
+      representative: {
+        reference: representation.parties.representative.reference,
+        maskedName: representation.parties.representative.maskedName,
+        organization: representation.parties.representative.organization,
+      },
+    }
+    return clone(projected)
+  }
+  projected.confirmationChannel = representation.confirmationChannel
+  projected.request = clone(representation.request)
+  projected.confirmation = clone(representation.confirmation)
+  projected.parties = clone(representation.parties)
+  return clone(projected)
+}
+
 function projectExternalEvents(events, roleId) {
   if (roleId === 'vmls') return clone(events)
   return events.map((event) => clone({
@@ -386,29 +587,40 @@ export function projectV5StateForRole(state, roleId) {
   if (!isV5State(state) || !V5_ROLES.some(({ id }) => id === roleId)) return null
   const canViewSourceDetails = roleId === 'vmls'
   const canViewObligations = roleId !== 'buyer'
+  const buyerHasDossier = roleId !== 'buyer'
+    || demoBuyerOwnsTransaction(state)
   const projection = {
     roleId,
-    caseId: state.caseId,
+    caseId: buyerHasDossier ? state.caseId : null,
     dataLabel: state.dataLabel,
-    property: projectProperty(state.records.property),
-    listing: projectPublicListing(state.records.listing),
-    transaction: projectTransaction(state.records.transaction),
+    property: buyerHasDossier ? projectProperty(state.records.property) : null,
+    listing: buyerHasDossier ? projectPublicListing(state.records.listing) : null,
+    transaction: buyerHasDossier ? projectTransaction(state.records.transaction) : null,
     processing: {
-      tax: projectCase(state.records.taxCase, canViewSourceDetails),
-      landRegistry: projectCase(state.records.landRegistryCase, canViewSourceDetails),
+      tax: buyerHasDossier ? projectCase(state.records.taxCase, canViewSourceDetails) : null,
+      landRegistry: buyerHasDossier
+        ? projectCase(state.records.landRegistryCase, canViewSourceDetails)
+        : null,
       financialObligations: canViewObligations ? state.financialObligations.map((obligation) => clone({
         id: obligation.id,
         label: obligation.label,
         status: obligation.status,
         completedAt: obligation.completedAt,
       })) : [],
-      externalEvents: projectExternalEvents(state.externalEvents, roleId),
+      externalEvents: buyerHasDossier ? projectExternalEvents(state.externalEvents, roleId) : [],
     },
-    notifications: clone(state.notifications.filter(({ recipientRole }) => recipientRole === roleId)),
-    workItems: clone(state.workItems.filter(({ ownerRole }) => ownerRole === roleId)),
+    notifications: clone(state.notifications.filter(({ recipientRole }) => (
+      recipientRole === roleId && buyerHasDossier
+    ))),
+    workItems: clone(state.workItems.filter(({ ownerRole }) => (
+      ownerRole === roleId && buyerHasDossier
+    ))),
     unreadCount: getUnreadNotificationCount(state, roleId),
     availableActions: allowedV5ActionsFor(state, roleId),
   }
+
+  const representation = projectRepresentation(state.records.representation, roleId)
+  if (representation) projection.representation = representation
 
   if (roleId === 'agent') {
     projection.houseNowSnapshot = clone(state.records.houseNowSnapshot)
@@ -435,14 +647,29 @@ export function createV5InitialState() {
     dataLabel: 'Bộ dữ liệu mẫu',
     records: {
       property: clone(PRIMARY_PROPERTY),
-      listing: clone(PRIMARY_LISTING),
-      houseNowSnapshot: HOUSE_NOW_SNAPSHOT,
+      representation: {
+        id: PRIMARY_REPRESENTATION.id,
+        propertyId: PRIMARY_REPRESENTATION.propertyId,
+        status: 'Chưa gửi',
+        confirmationChannel: PRIMARY_REPRESENTATION.confirmationChannel,
+        allowedScopes: [...PRIMARY_REPRESENTATION.allowedScopes],
+        scope: null,
+        startsOn: null,
+        expiresOn: null,
+        requestedAt: null,
+        confirmedAt: null,
+        request: null,
+        confirmation: null,
+        parties: clone(PRIMARY_REPRESENTATION.parties),
+      },
+      listing: null,
+      houseNowSnapshot: null,
       declaration: null,
       transaction: {
         id: null,
         propertyId: PRIMARY_PROPERTY.id,
-        listingId: PRIMARY_LISTING_ID,
-        status: 'Chờ khai báo',
+        listingId: null,
+        status: 'Chờ Tin bán',
         completedAt: null,
       },
       transactionSource357: null,
@@ -460,11 +687,204 @@ export function createV5InitialState() {
   }
 }
 
+function requestSellerConfirmation(state, action) {
+  if (action.actor !== 'agent' || !isRepresentationRequestPayload(action.payload)) return state
+  if (state.records.representation.status !== 'Chưa gửi' || state.records.listing) return state
+
+  const propertyId = action.payload.propertyId.trim().toUpperCase()
+  const request = {
+    propertyId,
+    scope: action.payload.scope,
+    startsOn: action.payload.startsOn,
+    expiresOn: action.payload.expiresOn,
+    requestedAt: REPRESENTATION_REQUESTED_AT,
+  }
+  const representation = {
+    ...state.records.representation,
+    status: 'Chờ xác nhận',
+    scope: request.scope,
+    startsOn: request.startsOn,
+    expiresOn: request.expiresOn,
+    requestedAt: REPRESENTATION_REQUESTED_AT,
+    request,
+    confirmation: {
+      id: PRIMARY_REPRESENTATION.confirmationId,
+      requestedAt: REPRESENTATION_REQUESTED_AT,
+      confirmedAt: null,
+    },
+  }
+
+  return {
+    ...state,
+    records: {
+      ...state.records,
+      representation,
+    },
+    notifications: [
+      ...state.notifications,
+      {
+        id: 'NOTIF-SELLER-REPRESENTATION-REQUEST',
+        recipientRole: 'seller',
+        type: 'representation_confirmation_requested',
+        title: 'Có yêu cầu xác nhận quyền đại diện',
+        message: 'Môi giới đã gửi yêu cầu xác nhận quyền đại diện cho Bất động sản Phú Thượng.',
+        caseId: V5_PRIMARY_CASE_ID,
+        representationId: representation.id,
+        createdAt: REPRESENTATION_REQUESTED_AT,
+        readAt: null,
+        route: '#/vai-tro/seller/cong-viec',
+      },
+    ],
+    workItems: [
+      ...state.workItems,
+      {
+        id: 'WORK-SELLER-CONFIRM-REPRESENTATION',
+        ownerRole: 'seller',
+        type: 'confirm_representation',
+        title: 'Xác nhận quyền đại diện',
+        instruction: 'Kiểm tra Bất động sản, Môi giới, phạm vi và thời hạn trước khi xác nhận.',
+        caseId: V5_PRIMARY_CASE_ID,
+        representationId: representation.id,
+        status: 'open',
+        createdAt: REPRESENTATION_REQUESTED_AT,
+        resolvedAt: null,
+      },
+    ],
+    auditEvents: [
+      ...state.auditEvents,
+      {
+        id: `AUDIT-V5-${String(state.auditEvents.length + 1).padStart(3, '0')}`,
+        type: 'representation_confirmation_requested',
+        actorRole: 'agent',
+        actorOrganization: roleOrganization('agent'),
+        reason: 'Gửi yêu cầu xác nhận quyền đại diện đến Người bán',
+        targetType: 'Representation',
+        targetId: representation.id,
+        before: { status: 'Chưa gửi' },
+        after: { status: 'Chờ xác nhận' },
+        correlationId: representation.id,
+        occurredAt: REPRESENTATION_REQUESTED_AT,
+      },
+    ],
+    integrationEvents: [
+      ...state.integrationEvents,
+      {
+        id: `INTEGRATION-V5-${String(state.integrationEvents.length + 1).padStart(3, '0')}`,
+        type: 'representation_request_sent',
+        source: 'VMLS',
+        destination: 'seller_account',
+        representationId: representation.id,
+        correlationId: representation.id,
+        occurredAt: REPRESENTATION_REQUESTED_AT,
+      },
+    ],
+    actionLog: [...state.actionLog, clone({
+      ...action,
+      payload: {
+        propertyId,
+        scope: action.payload.scope,
+        startsOn: action.payload.startsOn,
+        expiresOn: action.payload.expiresOn,
+      },
+    })],
+  }
+}
+
+function confirmRepresentation(state, action) {
+  if (action.actor !== 'seller' || !isRepresentationConfirmationPayload(action.payload)) return state
+  if (state.records.representation.status !== 'Chờ xác nhận' || state.records.listing) return state
+
+  const representation = {
+    ...state.records.representation,
+    status: 'Đã xác nhận',
+    confirmedAt: REPRESENTATION_CONFIRMED_AT,
+    confirmation: {
+      ...state.records.representation.confirmation,
+      confirmedAt: REPRESENTATION_CONFIRMED_AT,
+    },
+  }
+  const listing = {
+    ...clone(PRIMARY_LISTING),
+    status: 'Đã khởi tạo',
+    createdAt: REPRESENTATION_CONFIRMED_AT,
+  }
+  const auditId = `AUDIT-V5-${String(state.auditEvents.length + 1).padStart(3, '0')}`
+  const nextIntegrationSequence = state.integrationEvents.length + 1
+
+  return {
+    ...state,
+    records: {
+      ...state.records,
+      representation,
+      listing,
+      houseNowSnapshot: HOUSE_NOW_SNAPSHOT,
+      transaction: {
+        ...state.records.transaction,
+        listingId: listing.id,
+        status: 'Chờ khai báo',
+      },
+    },
+    notifications: state.notifications.map((notification) => (
+      notification.id === 'NOTIF-SELLER-REPRESENTATION-REQUEST' && !notification.readAt
+        ? { ...notification, readAt: REPRESENTATION_CONFIRMED_AT }
+        : notification
+    )),
+    workItems: state.workItems.map((item) => (
+      item.id === 'WORK-SELLER-CONFIRM-REPRESENTATION'
+        ? { ...item, status: 'resolved', resolvedAt: REPRESENTATION_CONFIRMED_AT }
+        : item
+    )),
+    auditEvents: [
+      ...state.auditEvents,
+      {
+        id: auditId,
+        type: 'representation_confirmed',
+        actorRole: 'seller',
+        actorOrganization: roleOrganization('seller'),
+        actorContext: roleAccountContext('seller'),
+        reason: 'Người bán xác nhận phạm vi và thời hạn quyền đại diện',
+        targetType: 'Representation',
+        targetId: representation.id,
+        before: { status: 'Chờ xác nhận' },
+        after: { status: 'Đã xác nhận', listingId: listing.id },
+        correlationId: representation.id,
+        occurredAt: REPRESENTATION_CONFIRMED_AT,
+      },
+    ],
+    integrationEvents: [
+      ...state.integrationEvents,
+      {
+        id: `INTEGRATION-V5-${String(nextIntegrationSequence).padStart(3, '0')}`,
+        type: 'representation_confirmation_received',
+        source: 'seller_account',
+        destination: 'VMLS',
+        representationId: representation.id,
+        correlationId: representation.id,
+        occurredAt: REPRESENTATION_CONFIRMED_AT,
+      },
+      {
+        id: `INTEGRATION-V5-${String(nextIntegrationSequence + 1).padStart(3, '0')}`,
+        type: 'listing_created',
+        source: 'VMLS',
+        destination: 'VMLS',
+        listingId: listing.id,
+        representationId: representation.id,
+        correlationId: representation.id,
+        occurredAt: REPRESENTATION_CONFIRMED_AT,
+      },
+    ],
+    actionLog: [...state.actionLog, clone(action)],
+  }
+}
+
 function submitTransactionDeclaration(state, action) {
   if (action.actor !== 'agent' || !isDeclarationPayload(action.payload)) return state
   if (state.records.declaration || state.records.transaction.id) return state
+  if (state.records.representation.status !== 'Đã xác nhận'
+    || !state.records.listing || !state.records.houseNowSnapshot) return state
 
   const payload = clone(action.payload)
+  if (!representationSupportsDeclaration(state.records.representation, payload)) return state
   const listing = state.records.listing
   if (
     listing.id !== payload.listingId
@@ -528,7 +948,7 @@ function submitTransactionDeclaration(state, action) {
     auditEvents: [
       ...state.auditEvents,
       {
-        id: 'AUDIT-V5-001',
+        id: `AUDIT-V5-${String(state.auditEvents.length + 1).padStart(3, '0')}`,
         type: 'transaction_declaration_submitted',
         actorRole: 'agent',
         actorOrganization: roleOrganization('agent'),
@@ -548,7 +968,7 @@ function submitTransactionDeclaration(state, action) {
     integrationEvents: [
       ...state.integrationEvents,
       {
-        id: 'INTEGRATION-V5-001',
+        id: `INTEGRATION-V5-${String(state.integrationEvents.length + 1).padStart(3, '0')}`,
         type: 'tax_dossier_handoff_created',
         source: 'VMLS',
         destination: 'tax',
@@ -841,9 +1261,13 @@ function markNotificationRead(state, action) {
   if (!isNonEmptyString(action.payload.notificationId)) return state
   const notification = state.notifications.find(({ id }) => id === action.payload.notificationId)
   if (!notification || notification.recipientRole !== action.actor || notification.readAt) return state
-  const readAt = notification.id === 'NOTIF-SELLER-TAX-DUE'
-    ? '2026-08-22T09:14:00+07:00'
-    : '2026-09-04T15:03:00+07:00'
+  if (action.actor === 'buyer' && !demoBuyerOwnsTransaction(state)) return state
+  const readAt = {
+    'NOTIF-SELLER-REPRESENTATION-REQUEST': '2026-08-11T08:42:00+07:00',
+    'NOTIF-SELLER-TAX-DUE': '2026-08-22T09:14:00+07:00',
+    'NOTIF-BUYER-LAND-COMPLETE': '2026-09-04T15:03:00+07:00',
+  }[notification.id]
+  if (!readAt) return state
   const auditId = `AUDIT-V5-${String(state.auditEvents.length + 1).padStart(3, '0')}`
 
   return {
@@ -864,7 +1288,9 @@ function markNotificationRead(state, action) {
         targetId: notification.id,
         before: { readAt: null },
         after: { readAt },
-        correlationId: notification.transactionId,
+        correlationId: notification.transactionId
+          ?? notification.representationId
+          ?? notification.caseId,
         occurredAt: readAt,
       },
     ],
@@ -877,6 +1303,10 @@ export function v5Reducer(state, action) {
   if (!hasExactKeys(action, ['type', 'actor', 'payload'])) return state
 
   switch (action.type) {
+    case V5_ACTIONS.REQUEST_SELLER_CONFIRMATION:
+      return requestSellerConfirmation(state, action)
+    case V5_ACTIONS.CONFIRM_REPRESENTATION:
+      return confirmRepresentation(state, action)
     case V5_ACTIONS.SUBMIT_TRANSACTION_DECLARATION:
       return submitTransactionDeclaration(state, action)
     case V5_ACTIONS.SYNC_TRANSACTION_FROM_357:
