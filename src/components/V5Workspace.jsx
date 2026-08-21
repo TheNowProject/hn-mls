@@ -345,7 +345,7 @@ function RepresentationConfirmationPanel({ property, representation, parties, on
       <dl className="v5-confirmation-summary">
         <div><dt>Mã bản ghi xác nhận</dt><dd className="v5-mono">{representation?.confirmation?.id ?? representation?.confirmationId ?? 'Chưa có'}</dd></div>
         <div><dt>Mã định danh Bất động sản</dt><dd className="v5-mono">{property?.id ?? representation?.propertyId}</dd></div>
-        <div><dt>Người đại diện (Môi giới)</dt><dd>{partyDisplayName(visibleParties.agent)}</dd></div>
+        <div><dt>Người đại diện (Môi giới)</dt><dd>{partyDisplayName(visibleParties.agent)}<span className="v5-secondary-identity">Mã định danh: <span className="v5-mono">{partyReference(visibleParties.agent)}</span></span></dd></div>
         <div><dt>Sàn môi giới</dt><dd>{visibleParties.brokerageName}</dd></div>
         <div><dt>Phạm vi</dt><dd>{request.scope ?? 'Chưa có'}</dd></div>
         <div><dt>Hiệu lực</dt><dd>{formatDate(request.startsOn)} — {formatDate(request.expiresOn)}</dd></div>

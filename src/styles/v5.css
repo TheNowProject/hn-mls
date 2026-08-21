@@ -677,6 +677,14 @@
   font-weight: 700;
 }
 
+.v5-secondary-identity {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--color-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
 .v5-review-checkbox {
   display: flex;
   align-items: flex-start;
